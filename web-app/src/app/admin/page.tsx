@@ -93,8 +93,8 @@ export default function AdminDashboard() {
           <tbody>
             {jobs.map((job, index) => (
               <tr key={job.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td style={{ padding: '10px 0', fontWeight: 'bold' }}>{index + 1}</td>
-                <td style={{ padding: '10px 0' }}>{new Date(job.createdAt).toLocaleString()}</td>
+                <td style={{ padding: '10px 0', fontWeight: 'bold' }}>{jobs.length - index}</td>
+                <td style={{ padding: '10px 0' }}>{new Date(job.createdAt + 'Z').toLocaleString()}</td>
                 <td>{job.filename}</td>
                 <td>{job.copies}</td>
                 <td>

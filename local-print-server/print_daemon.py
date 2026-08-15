@@ -58,7 +58,16 @@ def print_job(filepath, copies):
         return True
     
     try:
-        # Using lp command for macOS/Linux
+        # 1. Un-pause the printer queue (Mac often pauses it if the printer sleeps)
+        try:
+            default_printer_res = subprocess.run(["lpstat", "-d"], capture_output=True, text=True)
+            if "destination: " in default_printer_res.stdout:
+                printer_name = default_printer_res.stdout.split("destination: ")[-1].strip()
+                subprocess.run(["cupsenable", printer_name])
+        except Exception:
+            pass
+
+        # 2. Using lp command for macOS/Linux
         # -n specifies number of copies
         result = subprocess.run(
             ["lp", "-n", str(copies), filepath],
