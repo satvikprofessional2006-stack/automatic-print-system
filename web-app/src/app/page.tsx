@@ -9,8 +9,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-
   const [progresses, setProgresses] = useState<number[]>([]);
+  const [queueCount, setQueueCount] = useState<number | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -25,6 +25,7 @@ export default function Home() {
       setFiles(prev => [...prev, ...validFiles]);
       setSuccess(false);
       setProgresses([]);
+      setQueueCount(null);
       
       // Clear input so the same file can be selected again if removed
       e.target.value = '';
@@ -87,6 +88,17 @@ export default function Home() {
       });
 
       await Promise.all(uploadPromises);
+      
+      // Fetch the total number of queued documents
+      try {
+        const qRes = await fetch('/api/queue-status');
+        if (qRes.ok) {
+          const qData = await qRes.json();
+          setQueueCount(qData.count);
+        }
+      } catch (err) {
+        console.error('Failed to fetch queue status', err);
+      }
 
       setSuccess(true);
       setFiles([]);
@@ -108,7 +120,24 @@ export default function Home() {
       <main>
         <h1>SUCCESS! 🎉</h1>
         <p className="subtitle">Your documents have been sent to the printer.</p>
-        <button onClick={() => setSuccess(false)} className="btn-primary" style={{marginTop: '20px'}}>
+        
+        {queueCount !== null && (
+          <div style={{
+            background: 'var(--card-bg)', 
+            padding: '15px 20px', 
+            borderRadius: '8px',
+            border: '1px solid var(--border)',
+            margin: '20px auto',
+            maxWidth: '300px'
+          }}>
+            <h2 style={{ fontSize: '18px', marginBottom: '5px' }}>Queue Status</h2>
+            <p style={{ opacity: 0.8, margin: 0, fontSize: '14px' }}>
+              There {queueCount === 1 ? 'is' : 'are'} currently <strong>{queueCount}</strong> document{queueCount !== 1 ? 's' : ''} in the print queue.
+            </p>
+          </div>
+        )}
+
+        <button onClick={() => setSuccess(false)} className="btn-primary" style={{marginTop: '10px'}}>
           PRINT MORE DOCUMENTS
         </button>
       </main>
