@@ -12,6 +12,7 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const copiesStr = formData.get('copies') as string;
+    const userName = formData.get('userName') as string || null;
     
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -40,6 +41,7 @@ export async function POST(req: Request) {
           filename: originalFilename,
           copies: copies,
           status: 'queued',
+          userName: userName,
           updatedAt: new Date().toISOString()
         }
       ])

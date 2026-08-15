@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 export default function Home() {
   const [files, setFiles] = useState<File[]>([]);
+  const [userName, setUserName] = useState('');
   const [copies, setCopies] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -89,6 +90,9 @@ export default function Home() {
           const formData = new FormData();
           formData.append('file', file);
           formData.append('copies', copies.toString());
+          if (userName.trim()) {
+            formData.append('userName', userName.trim());
+          }
 
           const xhr = new XMLHttpRequest();
           xhr.open('POST', '/api/upload', true);
@@ -203,7 +207,19 @@ export default function Home() {
       <div className="card">
         <form onSubmit={handlePrint}>
           <div className="form-group">
-            <label>1. Select Documents</label>
+            <label>1. Your Name (Optional)</label>
+            <input 
+              type="text" 
+              value={userName}
+              onChange={e => setUserName(e.target.value)}
+              placeholder="e.g. John Doe"
+              style={{ width: '100%', padding: '16px', border: '1px solid #cbd5e1', borderRadius: '12px', boxSizing: 'border-box', marginBottom: '24px', fontSize: '15px' }}
+              disabled={loading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>2. Select Documents</label>
             <div className="file-dropzone" onClick={() => fileInputRef.current?.click()}>
               <svg className="file-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -270,7 +286,7 @@ export default function Home() {
           </div>
 
           <div className="form-group" style={{marginTop: '32px'}}>
-            <label>2. Number of Copies</label>
+            <label>3. Number of Copies</label>
             <div className="copies-control">
               <button 
                 type="button" 

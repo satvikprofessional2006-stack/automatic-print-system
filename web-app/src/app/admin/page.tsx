@@ -194,7 +194,7 @@ export default function AdminDashboard() {
                       <td style={{ fontWeight: 'bold' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <svg style={{width:'16px', height:'16px', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                          📁 Batch Upload ({item.jobs.length} files)
+                          📁 Batch Upload by {item.jobs[0].userName || 'Anonymous'} ({item.jobs.length} files)
                         </div>
                       </td>
                       <td style={{ fontWeight: 'bold' }}>{item.jobs.reduce((sum: number, j: any) => sum + j.copies, 0)} Total</td>
@@ -253,7 +253,7 @@ export default function AdminDashboard() {
                   <tr key={item.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                     <td style={{ padding: '16px 24px', fontWeight: 'bold' }}>{serial}</td>
                     <td style={{ padding: '16px 8px' }}>{new Date(item.createdAt + 'Z').toLocaleString()}</td>
-                    <td>{item.filename}</td>
+                    <td>{item.filename} <br/><span style={{fontSize: '12px', color: '#64748b'}}>by {item.userName || 'Anonymous'}</span></td>
                     <td>{item.copies}</td>
                     <td>{getStatusBadge(item.status)}</td>
                     <td>
