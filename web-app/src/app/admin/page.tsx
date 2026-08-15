@@ -82,6 +82,7 @@ export default function AdminDashboard() {
         <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--border)' }}>
+              <th>S.No.</th>
               <th>Date</th>
               <th>Filename</th>
               <th>Copies</th>
@@ -90,8 +91,9 @@ export default function AdminDashboard() {
             </tr>
           </thead>
           <tbody>
-            {jobs.map(job => (
+            {jobs.map((job, index) => (
               <tr key={job.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                <td style={{ padding: '10px 0', fontWeight: 'bold' }}>{index + 1}</td>
                 <td style={{ padding: '10px 0' }}>{new Date(job.createdAt).toLocaleString()}</td>
                 <td>{job.filename}</td>
                 <td>{job.copies}</td>

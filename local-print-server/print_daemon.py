@@ -66,7 +66,22 @@ def print_job(filepath, copies):
             capture_output=True,
             text=True
         )
-        print(f"Print successful: {result.stdout}")
+        print(f"Print spooled successfully: {result.stdout.strip()}")
+        
+        import re
+        match = re.search(r'request id is (\S+)', result.stdout)
+        if match:
+            cups_job_id = match.group(1)
+            print(f"Waiting for physical printer to finish {cups_job_id}...")
+            
+            # Poll lpstat to see if the job has left the active queue
+            while True:
+                lpstat_res = subprocess.run(["lpstat"], capture_output=True, text=True)
+                if cups_job_id not in lpstat_res.stdout:
+                    print(f"Physical print completed for {cups_job_id}!")
+                    break
+                time.sleep(2)
+                
         return True
     except subprocess.CalledProcessError as e:
         print(f"Print failed: {e.stderr}")
