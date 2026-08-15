@@ -10,6 +10,8 @@ export default function Home() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  const [progresses, setProgresses] = useState<number[]>([]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const selectedFiles = Array.from(e.target.files);
@@ -22,6 +24,7 @@ export default function Home() {
       }
       setFiles(prev => [...prev, ...validFiles]);
       setSuccess(false);
+      setProgresses([]);
       
       // Clear input so the same file can be selected again if removed
       e.target.value = '';
@@ -41,33 +44,64 @@ export default function Home() {
 
     setLoading(true);
     setError('');
+    setProgresses(new Array(files.length).fill(0));
 
     try {
-      // Upload all files concurrently
-      const uploadPromises = files.map(file => {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('copies', copies.toString());
-        return fetch('/api/upload', { method: 'POST', body: formData });
+      // Upload all files concurrently using XMLHttpRequest to track progress
+      const uploadPromises = files.map((file, index) => {
+        return new Promise((resolve, reject) => {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('copies', copies.toString());
+
+          const xhr = new XMLHttpRequest();
+          xhr.open('POST', '/api/upload', true);
+
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percentComplete = Math.round((event.loaded / event.total) * 100);
+              setProgresses(prev => {
+                const newProgresses = [...prev];
+                newProgresses[index] = percentComplete;
+                return newProgresses;
+              });
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(xhr.responseText);
+            } else {
+              try {
+                const res = JSON.parse(xhr.responseText);
+                reject(new Error(res.error || 'Upload failed'));
+              } catch {
+                reject(new Error('Upload failed'));
+              }
+            }
+          };
+
+          xhr.onerror = () => reject(new Error('Network error during upload'));
+          xhr.send(formData);
+        });
       });
 
-      const responses = await Promise.all(uploadPromises);
-      
-      for (const res of responses) {
-        if (!res.ok) {
-          throw new Error('One or more files failed to upload');
-        }
-      }
+      await Promise.all(uploadPromises);
 
       setSuccess(true);
       setFiles([]);
       setCopies(1);
+      setProgresses([]);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  const totalProgress = progresses.length > 0 
+    ? Math.round(progresses.reduce((a, b) => a + b, 0) / progresses.length) 
+    : 0;
 
   if (success) {
     return (
@@ -160,7 +194,7 @@ export default function Home() {
           {error && <p style={{ color: 'var(--error)', fontWeight: 'bold' }}>{error}</p>}
 
           <button type="submit" className="btn-primary" disabled={loading || files.length === 0}>
-            {loading ? 'UPLOADING...' : `PRINT ${files.length} FILE(S)`}
+            {loading ? `UPLOADING... ${totalProgress}%` : `PRINT ${files.length} FILE(S)`}
           </button>
         </form>
       </div>
