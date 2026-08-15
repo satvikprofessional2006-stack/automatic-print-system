@@ -3,12 +3,11 @@ import prisma from '@/lib/prisma';
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const supabaseUrl = process.env.SUPABASE_URL || '';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const { id } = await params;
     const authHeader = req.headers.get('authorization');
     if (authHeader !== `Bearer ${process.env.PRINT_SERVER_SECRET || 'dev-secret'}`) {
