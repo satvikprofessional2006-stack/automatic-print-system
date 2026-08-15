@@ -23,8 +23,8 @@ export default function Home() {
           activeJobIds.map(id => fetch(`/api/jobs/${id}`).then(res => res.json()))
         );
 
-        // Check if all jobs are marked as printed
-        const allPrinted = statuses.every(job => job.status === 'printed');
+        // Check if all jobs are marked as completed
+        const allPrinted = statuses.every(job => job.status === 'completed');
         
         if (allPrinted) {
           setWaitingForPrinter(false);
