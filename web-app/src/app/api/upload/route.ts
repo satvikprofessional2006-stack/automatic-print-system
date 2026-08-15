@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-
+import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 
@@ -71,8 +71,8 @@ export async function POST(req: Request) {
     }
     
     return NextResponse.json({ id: printJob.id });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Upload error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }
