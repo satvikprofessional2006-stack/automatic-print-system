@@ -74,7 +74,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <main style={{ maxWidth: '800px' }}>
+    <main style={{ maxWidth: '96%', padding: '40px 2%' }}>
       <h1>Admin Dashboard</h1>
       <button onClick={fetchJobs} style={{ marginBottom: '24px', background: 'white', color: 'var(--text)', border: '1px solid #cbd5e1', padding: '10px 16px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>Refresh Data</button>
       
