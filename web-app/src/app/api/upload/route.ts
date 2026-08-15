@@ -39,7 +39,8 @@ export async function POST(req: Request) {
           id: jobId,
           filename: originalFilename,
           copies: copies,
-          status: 'queued'
+          status: 'queued',
+          updatedAt: new Date().toISOString()
         }
       ])
       .select()
