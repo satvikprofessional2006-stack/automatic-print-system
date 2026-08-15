@@ -29,6 +29,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     if (error) throw error;
     
+    // Cleanup: if the job is completed successfully, delete the actual file from Supabase Storage
+    if (status === 'completed' && job.filename) {
+      const ext = job.filename.substring(job.filename.lastIndexOf('.')).toLowerCase();
+      const storageFilename = `${job.id}${ext}`;
+      await supabase.storage.from('print-jobs').remove([storageFilename]);
+    }
+    
     return NextResponse.json({ job });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
