@@ -62,7 +62,7 @@ export default function AdminDashboard() {
                 type="password" 
                 value={password} 
                 onChange={e => setPassword(e.target.value)} 
-                style={{ width: '100%', padding: '12px', border: '1px solid var(--border)' }}
+                style={{ width: '100%', padding: '16px', border: '1px solid #cbd5e1', borderRadius: '12px', boxSizing: 'border-box' }}
               />
             </div>
             {error && <p style={{color: 'var(--error)'}}>{error}</p>}
@@ -76,7 +76,7 @@ export default function AdminDashboard() {
   return (
     <main style={{ maxWidth: '800px' }}>
       <h1>Admin Dashboard</h1>
-      <button onClick={fetchJobs} style={{ marginBottom: '20px' }}>Refresh</button>
+      <button onClick={fetchJobs} style={{ marginBottom: '24px', background: 'white', color: 'var(--text)', border: '1px solid #cbd5e1', padding: '10px 16px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>Refresh Data</button>
       
       <div className="card" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>

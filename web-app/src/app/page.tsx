@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function Home() {
@@ -13,6 +13,7 @@ export default function Home() {
   const [queueCount, setQueueCount] = useState<number | null>(null);
   const [waitingForPrinter, setWaitingForPrinter] = useState(false);
   const [activeJobIds, setActiveJobIds] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!waitingForPrinter || activeJobIds.length === 0) return;
@@ -153,17 +154,12 @@ export default function Home() {
   if (waitingForPrinter) {
     return (
       <main>
-        <h1>Waiting for Printer... 🖨️</h1>
-        <p className="subtitle">Your documents are in the queue. Please wait while they physically print.</p>
-        
-        <div style={{ marginTop: '30px', opacity: 0.8 }}>
-          <div style={{ display: 'inline-block', width: '40px', height: '40px', border: '4px solid var(--border)', borderTopColor: 'var(--foreground)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-          <style>{`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          `}</style>
+        <div className="status-container">
+          <svg className="status-icon waiting" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          <h1>Warming Up...</h1>
+          <p className="subtitle">Your documents have been sent to the physical printer. Please wait for the paper to come out.</p>
         </div>
       </main>
     );
@@ -172,27 +168,28 @@ export default function Home() {
   if (success) {
     return (
       <main>
-        <h1>SUCCESS! 🎉</h1>
-        <p className="subtitle">Your documents have been sent to the printer.</p>
+        <div className="status-container">
+          <svg className="status-icon success" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <h1>Print Complete!</h1>
+          <p className="subtitle">Grab your fresh documents from the printer tray.</p>
+        </div>
         
         {queueCount !== null && (
-          <div style={{
-            background: 'var(--card-bg)', 
-            padding: '15px 20px', 
-            borderRadius: '8px',
-            border: '1px solid var(--border)',
-            margin: '20px auto',
-            maxWidth: '300px'
-          }}>
-            <h2 style={{ fontSize: '18px', marginBottom: '5px' }}>Queue Status</h2>
-            <p style={{ opacity: 0.8, margin: 0, fontSize: '14px' }}>
+          <div className="queue-position">
+            <h2 style={{ fontSize: '16px', marginBottom: '8px', textAlign: 'center', margin: 0 }}>Queue Status</h2>
+            <p style={{ margin: 0, fontSize: '15px', textAlign: 'center', fontWeight: '500' }}>
               There {queueCount === 1 ? 'is' : 'are'} currently <strong>{queueCount}</strong> document{queueCount !== 1 ? 's' : ''} in the print queue.
             </p>
           </div>
         )}
 
-        <button onClick={() => setSuccess(false)} className="btn-primary" style={{marginTop: '10px'}}>
-          PRINT MORE DOCUMENTS
+        <button onClick={() => setSuccess(false)} className="btn-primary" style={{marginTop: '30px'}}>
+          <div className="btn-content">
+            <svg style={{width:'20px', height:'20px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+            PRINT MORE
+          </div>
         </button>
       </main>
     );
@@ -200,52 +197,71 @@ export default function Home() {
 
   return (
     <main>
-      <h1>PRINT YOUR DOCUMENT</h1>
-      <p className="subtitle">Upload PDFs to send them to the campus printer.</p>
+      <h1>Campus Print Hub</h1>
+      <p className="subtitle">Upload PDFs from your phone to print instantly.</p>
 
       <div className="card">
         <form onSubmit={handlePrint}>
           <div className="form-group">
-            <label>1. Select PDF/JPEG Files</label>
-            <input 
-              type="file" 
-              accept=".pdf,.jpg,.jpeg" 
-              multiple
-              onChange={handleFileChange}
-              disabled={loading}
-            />
+            <label>1. Select Documents</label>
+            <div className="file-dropzone" onClick={() => fileInputRef.current?.click()}>
+              <svg className="file-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              <div style={{fontWeight: '600', color: '#334155'}}>Tap to Browse Files</div>
+              <div style={{fontSize: '13px', color: '#64748b'}}>PDF, JPG supported</div>
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                accept=".pdf,.jpg,.jpeg" 
+                multiple
+                onChange={handleFileChange}
+                disabled={loading}
+              />
+            </div>
+
             {files.length > 0 && (
-              <ul style={{ marginTop: '15px', listStyle: 'none', padding: 0 }}>
+              <ul style={{ marginTop: '20px', listStyle: 'none', padding: 0 }}>
                 {files.map((f, i) => (
                   <li key={i} style={{ 
                     display: 'flex', 
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    background: 'var(--card-bg)',
-                    padding: '8px 12px',
-                    marginBottom: '8px',
-                    borderRadius: '6px',
+                    background: 'rgba(255,255,255,0.7)',
+                    padding: '12px 16px',
+                    marginBottom: '10px',
+                    borderRadius: '12px',
                     border: '1px solid var(--border)',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
                   }}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
-                      {f.name}
-                    </span>
+                    <div style={{ display:'flex', alignItems:'center', gap:'10px', overflow: 'hidden' }}>
+                      <svg style={{width:'20px', height:'20px', color:'var(--primary)', flexShrink:0}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {f.name}
+                      </span>
+                    </div>
                     <button 
                       type="button" 
-                      onClick={() => removeFile(i)}
+                      onClick={(e) => { e.stopPropagation(); removeFile(i); }}
                       style={{
-                        background: 'transparent',
+                        background: '#fee2e2',
                         color: 'var(--error)',
                         border: 'none',
                         cursor: 'pointer',
-                        fontSize: '16px',
-                        fontWeight: 'bold',
-                        padding: '0 5px'
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        transition: 'transform 0.2s'
                       }}
                       title="Remove file"
                     >
-                      ✕
+                      <svg style={{width:'14px', height:'14px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     </button>
                   </li>
                 ))}
@@ -253,15 +269,15 @@ export default function Home() {
             )}
           </div>
 
-          <div className="form-group">
-            <label>2. Number of Copies (per file)</label>
+          <div className="form-group" style={{marginTop: '32px'}}>
+            <label>2. Number of Copies</label>
             <div className="copies-control">
               <button 
                 type="button" 
                 className="copies-btn" 
                 onClick={() => setCopies(Math.max(1, copies - 1))}
               >
-                -
+                <svg style={{width:'20px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4"></path></svg>
               </button>
               <div className="copies-display">{copies}</div>
               <button 
@@ -269,15 +285,28 @@ export default function Home() {
                 className="copies-btn" 
                 onClick={() => setCopies(Math.min(10, copies + 1))}
               >
-                +
+                <svg style={{width:'20px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
               </button>
             </div>
           </div>
 
-          {error && <p style={{ color: 'var(--error)', fontWeight: 'bold' }}>{error}</p>}
+          {error && <p style={{ color: 'var(--error)', fontWeight: 'bold', fontSize: '14px', textAlign: 'center', margin: '16px 0' }}>{error}</p>}
 
-          <button type="submit" className="btn-primary" disabled={loading || files.length === 0}>
-            {loading ? `UPLOADING... ${totalProgress}%` : `PRINT ${files.length} FILE(S)`}
+          <button type="submit" className="btn-primary" disabled={loading || files.length === 0} style={{marginTop: '24px'}}>
+            {loading && <div className="btn-progress-fill" style={{ width: `${totalProgress}%` }} />}
+            <div className="btn-content">
+              {loading ? (
+                <>
+                  <svg style={{width:'20px', height:'20px', animation:'spin 1s linear infinite'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                  UPLOADING... {totalProgress}%
+                </>
+              ) : (
+                <>
+                  <svg style={{width:'20px', height:'20px'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                  PRINT {files.length} FILE(S)
+                </>
+              )}
+            </div>
           </button>
         </form>
       </div>
