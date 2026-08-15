@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function Home() {
@@ -11,6 +11,40 @@ export default function Home() {
   const [success, setSuccess] = useState(false);
   const [progresses, setProgresses] = useState<number[]>([]);
   const [queueCount, setQueueCount] = useState<number | null>(null);
+  const [waitingForPrinter, setWaitingForPrinter] = useState(false);
+  const [activeJobIds, setActiveJobIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!waitingForPrinter || activeJobIds.length === 0) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const statuses = await Promise.all(
+          activeJobIds.map(id => fetch(`/api/jobs/${id}`).then(res => res.json()))
+        );
+
+        // Check if all jobs are marked as printed
+        const allPrinted = statuses.every(job => job.status === 'printed');
+        
+        if (allPrinted) {
+          setWaitingForPrinter(false);
+          setSuccess(true);
+          setActiveJobIds([]);
+          
+          // Fetch final queue count
+          const qRes = await fetch('/api/queue-status');
+          if (qRes.ok) {
+            const qData = await qRes.json();
+            setQueueCount(qData.count);
+          }
+        }
+      } catch (err) {
+        console.error('Polling error', err);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [waitingForPrinter, activeJobIds]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -50,7 +84,7 @@ export default function Home() {
     try {
       // Upload all files concurrently using XMLHttpRequest to track progress
       const uploadPromises = files.map((file, index) => {
-        return new Promise((resolve, reject) => {
+        return new Promise<string>((resolve, reject) => {
           const formData = new FormData();
           formData.append('file', file);
           formData.append('copies', copies.toString());
@@ -71,7 +105,12 @@ export default function Home() {
 
           xhr.onload = () => {
             if (xhr.status >= 200 && xhr.status < 300) {
-              resolve(xhr.responseText);
+              try {
+                const res = JSON.parse(xhr.responseText);
+                resolve(res.id); // Resolve with jobId
+              } catch {
+                resolve('');
+              }
             } else {
               try {
                 const res = JSON.parse(xhr.responseText);
@@ -87,20 +126,16 @@ export default function Home() {
         });
       });
 
-      await Promise.all(uploadPromises);
+      const ids = await Promise.all(uploadPromises);
+      const validIds = ids.filter(id => id !== '');
       
-      // Fetch the total number of queued documents
-      try {
-        const qRes = await fetch('/api/queue-status');
-        if (qRes.ok) {
-          const qData = await qRes.json();
-          setQueueCount(qData.count);
-        }
-      } catch (err) {
-        console.error('Failed to fetch queue status', err);
+      if (validIds.length > 0) {
+        setActiveJobIds(validIds);
+        setWaitingForPrinter(true);
+      } else {
+        throw new Error('Failed to retrieve job IDs');
       }
 
-      setSuccess(true);
       setFiles([]);
       setCopies(1);
       setProgresses([]);
@@ -114,6 +149,25 @@ export default function Home() {
   const totalProgress = progresses.length > 0 
     ? Math.round(progresses.reduce((a, b) => a + b, 0) / progresses.length) 
     : 0;
+
+  if (waitingForPrinter) {
+    return (
+      <main>
+        <h1>Waiting for Printer... 🖨️</h1>
+        <p className="subtitle">Your documents are in the queue. Please wait while they physically print.</p>
+        
+        <div style={{ marginTop: '30px', opacity: 0.8 }}>
+          <div style={{ display: 'inline-block', width: '40px', height: '40px', border: '4px solid var(--border)', borderTopColor: 'var(--foreground)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      </main>
+    );
+  }
 
   if (success) {
     return (
