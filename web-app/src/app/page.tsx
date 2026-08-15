@@ -13,8 +13,8 @@ export default function Home() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      if (selectedFile.type !== 'application/pdf') {
-        setError('Only PDF files are supported.');
+      if (selectedFile.type !== 'application/pdf' && selectedFile.type !== 'image/jpeg') {
+        setError('Only PDF and JPEG files are supported.');
         setFile(null);
       } else {
         setError('');
@@ -67,7 +67,7 @@ export default function Home() {
             <label>1. Select PDF File</label>
             <input 
               type="file" 
-              accept="application/pdf" 
+              accept=".pdf,.jpg,.jpeg" 
               onChange={handleFileChange}
               required
             />

@@ -28,7 +28,10 @@ def download_pdf(job_id, filename):
     try:
         response = requests.get(f"{WEB_APP_URL}/api/print-server/download/{job_id}", headers=HEADERS)
         if response.status_code == 200:
-            filepath = os.path.join(os.getcwd(), f"{job_id}.pdf")
+            # Extract extension from original filename
+            _, ext = os.path.splitext(filename)
+            ext = ext.lower()
+            filepath = os.path.join(os.getcwd(), f"{job_id}{ext}")
             with open(filepath, 'wb') as f:
                 f.write(response.content)
             return filepath

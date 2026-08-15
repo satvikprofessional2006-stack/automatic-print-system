@@ -96,6 +96,17 @@ export default function StatusPage() {
           </>
         )}
 
+        {['completed', 'failed', 'cancelled'].includes(job.status) && (
+          <div style={{ marginTop: '20px' }}>
+            <button 
+              onClick={() => window.location.href = '/'}
+              className="btn-primary"
+            >
+              Print Another Document
+            </button>
+          </div>
+        )}
+
         <div style={{ marginTop: '30px', textAlign: 'left', fontSize: '14px', color: '#666' }}>
           <p><strong>File:</strong> {job.filename}</p>
           <p><strong>Copies:</strong> {job.copies}</p>

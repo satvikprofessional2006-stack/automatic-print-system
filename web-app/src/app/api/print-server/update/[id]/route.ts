@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const authHeader = req.headers.get('authorization');
     if (authHeader !== `Bearer ${process.env.PRINT_SERVER_SECRET || 'dev-secret'}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -16,7 +17,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     }
 
     const job = await prisma.printJob.update({
-      where: { id: params.id },
+      where: { id },
       data: { status }
     });
 

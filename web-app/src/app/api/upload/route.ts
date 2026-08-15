@@ -13,8 +13,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
     
-    if (file.type !== 'application/pdf') {
-      return NextResponse.json({ error: 'Only PDF files are allowed' }, { status: 400 });
+    if (file.type !== 'application/pdf' && file.type !== 'image/jpeg') {
+      return NextResponse.json({ error: 'Only PDF and JPEG files are allowed' }, { status: 400 });
     }
     
     const copies = parseInt(copiesStr || '1', 10);
@@ -31,6 +31,8 @@ export async function POST(req: Request) {
     }
     
     const originalFilename = file.name;
+    const ext = path.extname(originalFilename).toLowerCase();
+    
     // Create DB entry to get the UUID
     const printJob = await prisma.printJob.create({
       data: {
@@ -40,8 +42,8 @@ export async function POST(req: Request) {
       }
     });
     
-    // Save file with job ID
-    const filename = `${printJob.id}.pdf`;
+    // Save file with job ID and extension
+    const filename = `${printJob.id}${ext}`;
     const filepath = path.join(uploadDir, filename);
     await fs.writeFile(filepath, buffer);
     
