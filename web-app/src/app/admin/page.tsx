@@ -50,6 +50,18 @@ export default function AdminDashboard() {
     }
   };
 
+  const retryJob = async (id: string) => {
+    try {
+      await fetch(`/api/admin/jobs/${id}/retry`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${password}` }
+      });
+      fetchJobs();
+    } catch (err) {
+      alert('Failed to retry job');
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <main>
@@ -109,14 +121,24 @@ export default function AdminDashboard() {
                   </span>
                 </td>
                 <td>
-                  {(job.status === 'queued' || job.status === 'printing') && (
-                    <button 
-                      onClick={() => cancelJob(job.id)}
-                      style={{ background: 'var(--error)', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}
-                    >
-                      Cancel
-                    </button>
-                  )}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {(job.status === 'queued' || job.status === 'printing') && (
+                      <button 
+                        onClick={() => cancelJob(job.id)}
+                        style={{ background: 'var(--error)', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    {job.status === 'failed' && (
+                      <button 
+                        onClick={() => retryJob(job.id)}
+                        style={{ background: '#f59e0b', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                      >
+                        Retry
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
