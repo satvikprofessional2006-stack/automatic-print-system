@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 
@@ -14,11 +14,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const job = await prisma.printJob.findUnique({
-      where: { id }
-    });
+    const { data: job, error: dbError } = await supabase
+      .from('PrintJob')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-    if (!job) {
+    if (dbError || !job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
 

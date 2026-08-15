@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 
@@ -28,14 +28,23 @@ export async function POST(req: Request) {
     const originalFilename = file.name;
     const ext = path.extname(originalFilename).toLowerCase();
     
-    // Create DB entry to get the UUID
-    const printJob = await prisma.printJob.create({
-      data: {
-        filename: originalFilename,
-        copies: copies,
-        status: 'queued'
-      }
-    });
+    // Create DB entry to get the UUID using Supabase JS
+    const { data: printJob, error: dbError } = await supabase
+      .from('PrintJob')
+      .insert([
+        {
+          filename: originalFilename,
+          copies: copies,
+          status: 'queued'
+        }
+      ])
+      .select()
+      .single();
+      
+    if (dbError || !printJob) {
+      console.error('Database error:', dbError);
+      throw new Error('Failed to save to database');
+    }
     
     // Save file to Supabase Storage with job ID and extension
     const filename = `${printJob.id}${ext}`;
