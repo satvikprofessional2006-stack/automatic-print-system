@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       
     if (dbError || !printJob) {
       console.error('Database error:', dbError);
-      throw new Error('Failed to save to database');
+      return NextResponse.json({ error: 'DB_ERROR: ' + JSON.stringify(dbError) }, { status: 500 });
     }
     
     // Save file to Supabase Storage with job ID and extension
