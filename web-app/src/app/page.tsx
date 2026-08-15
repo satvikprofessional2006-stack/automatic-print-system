@@ -20,9 +20,16 @@ export default function Home() {
       } else {
         setError('');
       }
-      setFiles(validFiles);
+      setFiles(prev => [...prev, ...validFiles]);
       setSuccess(false);
+      
+      // Clear input so the same file can be selected again if removed
+      e.target.value = '';
     }
+  };
+
+  const removeFile = (indexToRemove: number) => {
+    setFiles(prev => prev.filter((_, index) => index !== indexToRemove));
   };
 
   const handlePrint = async (e: React.FormEvent) => {
@@ -88,11 +95,43 @@ export default function Home() {
               accept=".pdf,.jpg,.jpeg" 
               multiple
               onChange={handleFileChange}
-              required
+              disabled={loading}
             />
             {files.length > 0 && (
-              <ul style={{ marginTop: '10px', fontSize: '14px', color: 'var(--foreground)', opacity: 0.8 }}>
-                {files.map((f, i) => <li key={i}>{f.name}</li>)}
+              <ul style={{ marginTop: '15px', listStyle: 'none', padding: 0 }}>
+                {files.map((f, i) => (
+                  <li key={i} style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    background: 'var(--card-bg)',
+                    padding: '8px 12px',
+                    marginBottom: '8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    fontSize: '14px'
+                  }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
+                      {f.name}
+                    </span>
+                    <button 
+                      type="button" 
+                      onClick={() => removeFile(i)}
+                      style={{
+                        background: 'transparent',
+                        color: 'var(--error)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        padding: '0 5px'
+                      }}
+                      title="Remove file"
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
               </ul>
             )}
           </div>
