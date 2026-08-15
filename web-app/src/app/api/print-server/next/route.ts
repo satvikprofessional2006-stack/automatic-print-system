@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET(req: Request) {
   try {
@@ -9,12 +9,22 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const supabaseUrl = process.env.SUPABASE_URL || '';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     // Get the oldest queued job
-    const job = await prisma.printJob.findFirst({
-      where: { status: 'queued' },
-      orderBy: { createdAt: 'asc' }
-    });
+    const { data: jobs, error } = await supabase
+      .from('PrintJob')
+      .select('*')
+      .eq('status', 'queued')
+      .order('createdAt', { ascending: true })
+      .limit(1);
+
+    if (error) throw error;
     
+    const job = jobs && jobs.length > 0 ? jobs[0] : null;
+
     if (!job) {
       return NextResponse.json({ job: null });
     }
