@@ -1,0 +1,127 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+
+export default function AdminDashboard() {
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [password, setPassword] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [error, setError] = useState('');
+
+  const fetchJobs = async () => {
+    try {
+      const res = await fetch('/api/admin/jobs', {
+        headers: { 'Authorization': `Bearer ${password}` }
+      });
+      if (!res.ok) throw new Error('Unauthorized');
+      const data = await res.json();
+      setJobs(data.jobs);
+      setIsAuthenticated(true);
+      setError('');
+    } catch (err) {
+      setError('Invalid password or connection error');
+      setIsAuthenticated(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchJobs();
+      const interval = setInterval(fetchJobs, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, password]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetchJobs();
+  };
+
+  const cancelJob = async (id: string) => {
+    if (!confirm('Are you sure you want to cancel this job?')) return;
+    try {
+      await fetch(`/api/admin/jobs/${id}/cancel`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${password}` }
+      });
+      fetchJobs();
+    } catch (err) {
+      alert('Failed to cancel job');
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <main>
+        <h1>Admin Login</h1>
+        <div className="card">
+          <form onSubmit={handleLogin}>
+            <div className="form-group">
+              <label>Password</label>
+              <input 
+                type="password" 
+                value={password} 
+                onChange={e => setPassword(e.target.value)} 
+                style={{ width: '100%', padding: '12px', border: '1px solid var(--border)' }}
+              />
+            </div>
+            {error && <p style={{color: 'var(--error)'}}>{error}</p>}
+            <button type="submit" className="btn-primary">Login</button>
+          </form>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main style={{ maxWidth: '800px' }}>
+      <h1>Admin Dashboard</h1>
+      <button onClick={fetchJobs} style={{ marginBottom: '20px' }}>Refresh</button>
+      
+      <div className="card" style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid var(--border)' }}>
+              <th>Date</th>
+              <th>Filename</th>
+              <th>Copies</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {jobs.map(job => (
+              <tr key={job.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                <td style={{ padding: '10px 0' }}>{new Date(job.createdAt).toLocaleString()}</td>
+                <td>{job.filename}</td>
+                <td>{job.copies}</td>
+                <td>
+                  <span style={{
+                    padding: '4px 8px', 
+                    borderRadius: '4px',
+                    background: job.status === 'queued' ? '#e3f2fd' : 
+                                job.status === 'printing' ? '#fff3e0' :
+                                job.status === 'completed' ? '#e8f5e9' : '#ffebee'
+                  }}>
+                    {job.status}
+                  </span>
+                </td>
+                <td>
+                  {(job.status === 'queued' || job.status === 'printing') && (
+                    <button 
+                      onClick={() => cancelJob(job.id)}
+                      style={{ background: 'var(--error)', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {jobs.length === 0 && <p style={{ textAlign: 'center', marginTop: '20px' }}>No jobs found.</p>}
+      </div>
+    </main>
+  );
+}
