@@ -17,8 +17,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
     
-    if (file.type !== 'application/pdf' && file.type !== 'image/jpeg') {
-      return NextResponse.json({ error: 'Only PDF and JPEG files are allowed' }, { status: 400 });
+    if (file.type !== 'application/pdf' && !file.type.startsWith('image/')) {
+      return NextResponse.json({ error: 'Only PDF and image files are allowed' }, { status: 400 });
     }
     
     const copies = parseInt(copiesStr || '1', 10);
@@ -28,11 +28,15 @@ export async function POST(req: Request) {
     const originalFilename = file.name;
     const ext = path.extname(originalFilename).toLowerCase();
     
+    // Generate UUID manually since we bypassed Prisma's auto-generation
+    const jobId = crypto.randomUUID();
+    
     // Create DB entry to get the UUID using Supabase JS
     const { data: printJob, error: dbError } = await supabase
       .from('PrintJob')
       .insert([
         {
+          id: jobId,
           filename: originalFilename,
           copies: copies,
           status: 'queued'
