@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { promises as fs } from 'fs';
+import { createClient } from '@supabase/supabase-js';
 import path from 'path';
+
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -19,21 +23,28 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
 
-    const uploadDir = path.join(process.cwd(), 'uploads');
     const ext = path.extname(job.filename).toLowerCase();
-    const filepath = path.join(uploadDir, `${job.id}${ext}`);
+    const filename = `${job.id}${ext}`;
     
-    const fileBuffer = await fs.readFile(filepath);
+    if (!supabaseUrl || !supabaseKey) {
+       return NextResponse.json({ error: 'Supabase not configured' }, { status: 500 });
+    }
+
+    // Generate a signed URL valid for 60 seconds
+    const { data, error } = await supabase
+      .storage
+      .from('print-jobs')
+      .createSignedUrl(filename, 60);
+      
+    if (error || !data) {
+      console.error('Supabase signed URL error:', error);
+      return NextResponse.json({ error: 'File not found in storage' }, { status: 404 });
+    }
+
+    // Redirect the Python daemon to the signed URL so it can download directly
+    return NextResponse.redirect(data.signedUrl);
     
-    const contentType = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'application/pdf';
-    
-    return new NextResponse(fileBuffer, {
-      headers: {
-        'Content-Type': contentType,
-        'Content-Disposition': `attachment; filename="${job.filename}"`
-      }
-    });
   } catch (error) {
-    return NextResponse.json({ error: 'Internal server error or file missing' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

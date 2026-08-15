@@ -28,9 +28,11 @@ A complete self-service QR printing system designed for a campus/college environ
    The web app will run on `http://localhost:3000`.
 
 ### Environment Variables for Web App
-Create a `.env` file in the `web-app` directory:
+Create a `.env` file in the `web-app` directory (for local testing):
 ```
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="postgresql://postgres.[YOUR-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres"
+SUPABASE_URL="https://[YOUR-PROJECT-REF].supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="your-supabase-service-role-key"
 ADMIN_PASSWORD="admin"
 PRINT_SERVER_SECRET="dev-secret"
 ```
@@ -58,7 +60,7 @@ You can pass these when running the script:
 - `PRINT_SERVER_SECRET`: Must match the web app's secret (default: `dev-secret`)
 - `MOCK_MODE`: Set to `True` (default) to simulate printing, or `False` to send to the real printer.
 
-Example to run in production mode with a real printer:
+Example to run in production mode with a real printer connected to a Vercel deployment:
 ```bash
 MOCK_MODE=False WEB_APP_URL="https://your-vercel-app.com" python print_daemon.py
 ```

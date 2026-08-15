@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { promises as fs } from 'fs';
+import { createClient } from '@supabase/supabase-js';
 import path from 'path';
+
+// Initialize Supabase client using Service Role Key to bypass RLS for uploads
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(req: Request) {
   try {
@@ -18,17 +23,8 @@ export async function POST(req: Request) {
     }
     
     const copies = parseInt(copiesStr || '1', 10);
-    
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    
-    const uploadDir = path.join(process.cwd(), 'uploads');
-    
-    try {
-      await fs.access(uploadDir);
-    } catch {
-      await fs.mkdir(uploadDir, { recursive: true });
-    }
     
     const originalFilename = file.name;
     const ext = path.extname(originalFilename).toLowerCase();
@@ -42,10 +38,25 @@ export async function POST(req: Request) {
       }
     });
     
-    // Save file with job ID and extension
+    // Save file to Supabase Storage with job ID and extension
     const filename = `${printJob.id}${ext}`;
-    const filepath = path.join(uploadDir, filename);
-    await fs.writeFile(filepath, buffer);
+    
+    if (supabaseUrl && supabaseKey) {
+      const { error: uploadError } = await supabase
+        .storage
+        .from('print-jobs')
+        .upload(filename, buffer, {
+          contentType: file.type,
+          upsert: true
+        });
+        
+      if (uploadError) {
+        console.error('Supabase upload error:', uploadError);
+        throw new Error('Failed to upload file to cloud storage');
+      }
+    } else {
+      console.warn("Supabase keys not found. Skipping file upload.");
+    }
     
     return NextResponse.json({ id: printJob.id });
   } catch (error) {
