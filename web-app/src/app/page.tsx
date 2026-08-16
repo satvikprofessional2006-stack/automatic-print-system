@@ -48,14 +48,36 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [waitingForPrinter, activeJobIds]);
 
-  const compressImage = (file: File): Promise<File> => {
+  const compressImage = async (file: File): Promise<File> => {
+    let processFile = file;
+    const nameExt = file.name.toLowerCase();
+    
+    // Convert HEIC to JPEG natively for iOS users
+    if (processFile.type === 'image/heic' || processFile.type === 'image/heif' || nameExt.endsWith('.heic') || nameExt.endsWith('.heif')) {
+      try {
+        // Dynamically import to avoid SSR issues
+        const heic2any = (await import('heic2any')).default;
+        const convertedBlob = await heic2any({
+          blob: processFile,
+          toType: "image/jpeg",
+          quality: 0.8
+        });
+        
+        // Handle both single Blob and Blob[] returns
+        const finalBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+        processFile = new File([finalBlob], processFile.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg'), { type: 'image/jpeg', lastModified: Date.now() });
+      } catch (e) {
+        console.error("HEIC conversion failed", e);
+      }
+    }
+
     return new Promise((resolve) => {
-      if (!file.type.startsWith('image/')) {
-        resolve(file);
+      if (!processFile.type.startsWith('image/')) {
+        resolve(processFile);
         return;
       }
       const reader = new FileReader();
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(processFile);
       reader.onload = (event) => {
         const img = new Image();
         img.src = event.target?.result as string;
@@ -85,16 +107,16 @@ export default function Home() {
           
           canvas.toBlob((blob) => {
             if (blob) {
-              const compressedFile = new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
+              const compressedFile = new File([blob], processFile.name, { type: 'image/jpeg', lastModified: Date.now() });
               resolve(compressedFile);
             } else {
-              resolve(file);
+              resolve(processFile);
             }
           }, 'image/jpeg', 0.8);
         };
-        img.onerror = () => resolve(file);
+        img.onerror = () => resolve(processFile);
       };
-      reader.onerror = () => resolve(file);
+      reader.onerror = () => resolve(processFile);
     });
   };
 
