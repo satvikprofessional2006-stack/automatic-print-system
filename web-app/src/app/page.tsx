@@ -120,7 +120,9 @@ export default function Home() {
     });
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [compressingIndex, setCompressingIndex] = useState<number | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const selectedFiles = Array.from(e.target.files);
       const validFiles = selectedFiles.filter(f => {
@@ -141,31 +143,11 @@ export default function Home() {
         setError('');
       }
       
-      setLoading(true);
-      try {
-        const compressedFiles = await Promise.all(validFiles.map(f => compressImage(f)));
-        
-        // Vercel has a hard 4.5MB limit. If any file is still over 4.4MB, show a clear error.
-        const oversized = compressedFiles.find(f => f.size > 4.4 * 1024 * 1024);
-        if (oversized) {
-          setError(`File "${oversized.name}" is too large (${(oversized.size / 1024 / 1024).toFixed(1)}MB). Max size is 4.4MB.`);
-          setLoading(false);
-          return;
-        }
-        
-        setFiles(prev => [...prev, ...compressedFiles]);
-      } catch (err) {
-        console.error("Compression failed", err);
-        setFiles(prev => [...prev, ...validFiles]);
-      } finally {
-        setLoading(false);
-      }
-      
+      // Instantly add to UI
+      setFiles(prev => [...prev, ...validFiles]);
       setSuccess(false);
       setProgresses([]);
       setQueueCount(null);
-      
-      // Clear input so the same file can be selected again if removed
       e.target.value = '';
     }
   };
@@ -186,8 +168,20 @@ export default function Home() {
     setProgresses(new Array(files.length).fill(0));
 
     try {
-      // Upload all files concurrently using XMLHttpRequest to track progress
-      const uploadPromises = files.map((file, index) => {
+      // 1. Compress images before uploading
+      const compressedFiles = [];
+      for (let i = 0; i < files.length; i++) {
+        setCompressingIndex(i);
+        const compressed = await compressImage(files[i]);
+        if (compressed.size > 4.4 * 1024 * 1024) {
+          throw new Error(`File "${compressed.name}" is too large (${(compressed.size / 1024 / 1024).toFixed(1)}MB). Max size is 4.4MB.`);
+        }
+        compressedFiles.push(compressed);
+      }
+      setCompressingIndex(null);
+
+      // 2. Upload all files concurrently using XMLHttpRequest to track progress
+      const uploadPromises = compressedFiles.map((file, index) => {
         return new Promise<string>((resolve, reject) => {
           const formData = new FormData();
           formData.append('file', file);
@@ -248,6 +242,7 @@ export default function Home() {
       setProgresses([]);
     } catch (err: any) {
       setError(err.message);
+      setCompressingIndex(null);
     } finally {
       setLoading(false);
     }
@@ -411,12 +406,14 @@ export default function Home() {
           {error && <p style={{ color: 'var(--error)', fontWeight: 'bold', fontSize: '14px', textAlign: 'center', margin: '16px 0' }}>{error}</p>}
 
           <button type="submit" className="btn-primary" disabled={loading || files.length === 0} style={{marginTop: '24px'}}>
-            {loading && <div className="btn-progress-fill" style={{ width: `${totalProgress}%` }} />}
+            {loading && <div className="btn-progress-fill" style={{ width: compressingIndex !== null ? '100%' : `${totalProgress}%` }} />}
             <div className="btn-content">
               {loading ? (
                 <>
                   <svg style={{width:'20px', height:'20px', animation:'spin 1s linear infinite'}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                  UPLOADING... {totalProgress}%
+                  {compressingIndex !== null 
+                    ? `COMPRESSING IMAGE ${compressingIndex + 1}/${files.length}...`
+                    : `UPLOADING... ${totalProgress}%`}
                 </>
               ) : (
                 <>
