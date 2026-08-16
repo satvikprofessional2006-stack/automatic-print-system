@@ -137,11 +137,12 @@ export default function Home() {
     if (e.target.files) {
       const selectedFiles = Array.from(e.target.files);
       const validFiles = selectedFiles.filter(f => {
-        const name = f.name.toLowerCase();
-        return f.type === 'application/pdf' || 
-               f.type.startsWith('image/') ||
-               f.type === 'application/octet-stream' || // Sometimes iOS sends this for PDFs
-               f.type === '' || // Accept empty types, we'll validate on the server
+        const name = (f.name || '').toLowerCase();
+        const type = (f.type || '');
+        return type === 'application/pdf' || 
+               type.startsWith('image/') ||
+               type === 'application/octet-stream' || 
+               type === '' || 
                name.endsWith('.pdf') ||
                name.endsWith('.jpg') ||
                name.endsWith('.jpeg') ||
@@ -152,7 +153,7 @@ export default function Home() {
       
       if (validFiles.length !== selectedFiles.length) {
         const rejected = selectedFiles.filter(f => !validFiles.includes(f));
-        const rejectedNames = rejected.map(f => `"${f.name}"`).join(', ');
+        const rejectedNames = rejected.map(f => `"${f.name || 'unknown'}"`).join(', ');
         setError(`Ignored ${rejectedNames}: Only PDF and Images are supported. If it is a Word Doc, please save as PDF first.`);
       } else {
         setError('');
@@ -163,7 +164,11 @@ export default function Home() {
       setSuccess(false);
       setProgresses([]);
       setQueueCount(null);
-      e.target.value = '';
+      
+      // Reset safely using ref
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
