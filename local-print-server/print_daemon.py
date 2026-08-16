@@ -128,6 +128,8 @@ def print_job(filepath, copies):
             except: pass
         return False
 
+processing_jobs = set()
+
 def process_job(job):
     job_id = job["id"]
     filename = job["filename"]
@@ -135,31 +137,35 @@ def process_job(job):
     
     print(f"Found new job: {filename} ({copies} copies). Processing in background thread.")
     
-    # 1. Update status to printing
-    update_job_status(job_id, "printing")
-    
-    # 2. Download the file
-    filepath = download_pdf(job_id, filename)
-    
-    if filepath:
-        # 3. Print the file
-        success = print_job(filepath, copies)
+    try:
+        # 1. Update status to printing
+        update_job_status(job_id, "printing")
         
-        # 4. Update final status
-        if success:
-            update_job_status(job_id, "completed")
-            print(f"Job {job_id} completed successfully.")
+        # 2. Download the file
+        filepath = download_pdf(job_id, filename)
+        
+        if filepath:
+            # 3. Print the file
+            success = print_job(filepath, copies)
+            
+            # 4. Update final status
+            if success:
+                update_job_status(job_id, "completed")
+                print(f"Job {job_id} completed successfully.")
+            else:
+                update_job_status(job_id, "failed")
+                print(f"Job {job_id} failed.")
+            
+            # 5. Cleanup local files
+            try:
+                os.remove(filepath)
+            except OSError:
+                pass
         else:
             update_job_status(job_id, "failed")
-            print(f"Job {job_id} failed.")
-        
-        # 5. Cleanup local files
-        try:
-            os.remove(filepath)
-        except OSError:
-            pass
-    else:
-        update_job_status(job_id, "failed")
+    finally:
+        if job_id in processing_jobs:
+            processing_jobs.remove(job_id)
 
 def main():
     print(f"Starting QR Print Daemon (Multithreaded)...")
@@ -172,11 +178,19 @@ def main():
             job = check_for_jobs()
             
             if job:
+                job_id = job["id"]
+                if job_id in processing_jobs:
+                    # We are already processing this job, but the cloud hasn't updated its status yet.
+                    # Sleep briefly to avoid infinite rapid looping.
+                    time.sleep(POLL_INTERVAL)
+                    continue
+                    
+                processing_jobs.add(job_id)
                 # Start job processing in a background thread
                 t = threading.Thread(target=process_job, args=(job,))
                 t.daemon = True
                 t.start()
-                # Do NOT sleep if we found a job; immediately check for the next one
+                # Do NOT sleep if we found a new job; immediately check for the next one
                 continue
                 
         except Exception as e:
