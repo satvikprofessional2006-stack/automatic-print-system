@@ -82,29 +82,6 @@ def print_job(filepath, copies):
         )
         print(f"Print spooled successfully: {result.stdout.strip()}")
         
-        import re
-        match = re.search(r'request id is (\S+)', result.stdout)
-        if match:
-            cups_job_id = match.group(1)
-            print(f"Waiting for physical printer to finish {cups_job_id}...")
-            
-            start_time = time.time()
-            # Poll lpstat to see if the job has left the active queue
-            while True:
-                lpstat_res = subprocess.run(["lpstat"], capture_output=True, text=True)
-                if cups_job_id not in lpstat_res.stdout:
-                    elapsed = time.time() - start_time
-                    if elapsed < 4.0:
-                        print(f"Job {cups_job_id} left queue too quickly ({elapsed:.1f}s). Printer likely offline/aborted.")
-                        if print_filepath != filepath:
-                            try: os.remove(print_filepath)
-                            except: pass
-                        return False
-                        
-                    print(f"Physical print completed for {cups_job_id} in {elapsed:.1f}s!")
-                    break
-                time.sleep(2)
-                
         if print_filepath != filepath:
             try: os.remove(print_filepath)
             except: pass
