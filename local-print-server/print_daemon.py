@@ -78,9 +78,9 @@ def print_job(filepath, copies):
             pass
 
         # 2. Using lp command for macOS/Linux
-        # -n specifies number of copies
+        # -n specifies number of copies, -o fit-to-page ensures large images scale correctly
         result = subprocess.run(
-            ["lp", "-n", str(copies), print_filepath],
+            ["lp", "-n", str(copies), "-o", "fit-to-page", print_filepath],
             check=True,
             capture_output=True,
             text=True
