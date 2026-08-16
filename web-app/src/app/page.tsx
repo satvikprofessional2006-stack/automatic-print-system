@@ -52,6 +52,17 @@ export default function Home() {
     let processFile = file;
     const nameExt = file.name.toLowerCase();
     
+    // Fix empty type bug from iOS
+    if (!processFile.type) {
+      let guessType = 'application/octet-stream';
+      if (nameExt.endsWith('.pdf')) guessType = 'application/pdf';
+      else if (nameExt.endsWith('.jpg') || nameExt.endsWith('.jpeg')) guessType = 'image/jpeg';
+      else if (nameExt.endsWith('.png')) guessType = 'image/png';
+      else if (nameExt.endsWith('.heic') || nameExt.endsWith('.heif')) guessType = 'image/heic';
+      
+      processFile = new File([processFile], processFile.name, { type: guessType, lastModified: processFile.lastModified });
+    }
+    
     // Convert HEIC to JPEG natively for iOS users
     if (processFile.type === 'image/heic' || processFile.type === 'image/heif' || nameExt.endsWith('.heic') || nameExt.endsWith('.heif')) {
       try {
@@ -129,6 +140,8 @@ export default function Home() {
         const name = f.name.toLowerCase();
         return f.type === 'application/pdf' || 
                f.type.startsWith('image/') ||
+               f.type === 'application/octet-stream' || // Sometimes iOS sends this for PDFs
+               f.type === '' || // Accept empty types, we'll validate on the server
                name.endsWith('.pdf') ||
                name.endsWith('.jpg') ||
                name.endsWith('.jpeg') ||
@@ -138,7 +151,9 @@ export default function Home() {
       });
       
       if (validFiles.length !== selectedFiles.length) {
-        setError('Some files were ignored. Only PDF and Images are supported.');
+        const rejected = selectedFiles.filter(f => !validFiles.includes(f));
+        const rejectedNames = rejected.map(f => `"${f.name}"`).join(', ');
+        setError(`Ignored ${rejectedNames}: Only PDF and Images are supported. If it is a Word Doc, please save as PDF first.`);
       } else {
         setError('');
       }
@@ -326,7 +341,7 @@ export default function Home() {
               <input 
                 type="file" 
                 ref={fileInputRef}
-                accept="application/pdf, image/jpeg, image/png" 
+                accept="application/pdf, image/*, .pdf, .jpg, .jpeg, .png, .heic" 
                 multiple
                 onChange={handleFileChange}
                 disabled={loading}
