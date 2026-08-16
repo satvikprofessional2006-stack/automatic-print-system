@@ -123,7 +123,17 @@ export default function Home() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const selectedFiles = Array.from(e.target.files);
-      const validFiles = selectedFiles.filter(f => f.type === 'application/pdf' || f.type.startsWith('image/'));
+      const validFiles = selectedFiles.filter(f => {
+        const name = f.name.toLowerCase();
+        return f.type === 'application/pdf' || 
+               f.type.startsWith('image/') ||
+               name.endsWith('.pdf') ||
+               name.endsWith('.jpg') ||
+               name.endsWith('.jpeg') ||
+               name.endsWith('.png') ||
+               name.endsWith('.heic') ||
+               name.endsWith('.heif');
+      });
       
       if (validFiles.length !== selectedFiles.length) {
         setError('Some files were ignored. Only PDF and Images are supported.');
@@ -134,6 +144,15 @@ export default function Home() {
       setLoading(true);
       try {
         const compressedFiles = await Promise.all(validFiles.map(f => compressImage(f)));
+        
+        // Vercel has a hard 4.5MB limit. If any file is still over 4.4MB, show a clear error.
+        const oversized = compressedFiles.find(f => f.size > 4.4 * 1024 * 1024);
+        if (oversized) {
+          setError(`File "${oversized.name}" is too large (${(oversized.size / 1024 / 1024).toFixed(1)}MB). Max size is 4.4MB.`);
+          setLoading(false);
+          return;
+        }
+        
         setFiles(prev => [...prev, ...compressedFiles]);
       } catch (err) {
         console.error("Compression failed", err);
