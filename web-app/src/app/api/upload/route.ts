@@ -18,16 +18,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
     
-    if (file.type !== 'application/pdf' && !file.type.startsWith('image/')) {
+    const originalFilename = file.name;
+    const ext = path.extname(originalFilename).toLowerCase();
+    
+    const isPDF = file.type === 'application/pdf' || ext === '.pdf';
+    const isImage = file.type.startsWith('image/') || ['.jpg', '.jpeg', '.png', '.heic', '.heif'].includes(ext);
+    
+    if (!isPDF && !isImage) {
       return NextResponse.json({ error: 'Only PDF and image files are allowed' }, { status: 400 });
     }
     
     const copies = parseInt(copiesStr || '1', 10);
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    
-    const originalFilename = file.name;
-    const ext = path.extname(originalFilename).toLowerCase();
     
     // Generate UUID manually since we bypassed Prisma's auto-generation
     const jobId = crypto.randomUUID();
