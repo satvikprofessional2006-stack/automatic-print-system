@@ -2,12 +2,13 @@ import os
 import time
 import requests
 import subprocess
+import threading
 
 # Configuration
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "http://localhost:3000")
 SECRET_TOKEN = os.environ.get("PRINT_SERVER_SECRET", "dev-secret")
 MOCK_MODE = os.environ.get("MOCK_MODE", "True").lower() in ("true", "1", "t")
-POLL_INTERVAL = 3  # seconds
+POLL_INTERVAL = 1  # seconds
 
 HEADERS = {
     "Authorization": f"Bearer {SECRET_TOKEN}",
@@ -127,8 +128,41 @@ def print_job(filepath, copies):
             except: pass
         return False
 
+def process_job(job):
+    job_id = job["id"]
+    filename = job["filename"]
+    copies = job["copies"]
+    
+    print(f"Found new job: {filename} ({copies} copies). Processing in background thread.")
+    
+    # 1. Update status to printing
+    update_job_status(job_id, "printing")
+    
+    # 2. Download the file
+    filepath = download_pdf(job_id, filename)
+    
+    if filepath:
+        # 3. Print the file
+        success = print_job(filepath, copies)
+        
+        # 4. Update final status
+        if success:
+            update_job_status(job_id, "completed")
+            print(f"Job {job_id} completed successfully.")
+        else:
+            update_job_status(job_id, "failed")
+            print(f"Job {job_id} failed.")
+        
+        # 5. Cleanup local files
+        try:
+            os.remove(filepath)
+        except OSError:
+            pass
+    else:
+        update_job_status(job_id, "failed")
+
 def main():
-    print(f"Starting QR Print Daemon...")
+    print(f"Starting QR Print Daemon (Multithreaded)...")
     print(f"Web App URL: {WEB_APP_URL}")
     print(f"Mock Mode: {MOCK_MODE}")
     print("Polling for jobs...")
@@ -138,38 +172,13 @@ def main():
             job = check_for_jobs()
             
             if job:
-                job_id = job["id"]
-                filename = job["filename"]
-                copies = job["copies"]
+                # Start job processing in a background thread
+                t = threading.Thread(target=process_job, args=(job,))
+                t.daemon = True
+                t.start()
+                # Do NOT sleep if we found a job; immediately check for the next one
+                continue
                 
-                print(f"Found new job: {filename} ({copies} copies)")
-                
-                # 1. Update status to printing
-                update_job_status(job_id, "printing")
-                
-                # 2. Download the file
-                filepath = download_pdf(job_id, filename)
-                
-                if filepath:
-                    # 3. Print the file
-                    success = print_job(filepath, copies)
-                    
-                    # 4. Update final status
-                    if success:
-                        update_job_status(job_id, "completed")
-                        print(f"Job {job_id} completed successfully.")
-                    else:
-                        update_job_status(job_id, "failed")
-                        print(f"Job {job_id} failed.")
-                    
-                    # 5. Cleanup local files
-                    try:
-                        os.remove(filepath)
-                    except OSError:
-                        pass
-                else:
-                    update_job_status(job_id, "failed")
-            
         except Exception as e:
             print(f"CRITICAL ERROR in main loop: {e}. Retrying in {POLL_INTERVAL}s...")
             
