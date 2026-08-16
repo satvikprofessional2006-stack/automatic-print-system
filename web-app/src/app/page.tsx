@@ -144,15 +144,6 @@ export default function Home() {
       setLoading(true);
       try {
         const compressedFiles = await Promise.all(validFiles.map(f => compressImage(f)));
-        
-        // Vercel has a hard 4.5MB limit. If any file is still over 4.4MB, show a clear error.
-        const oversized = compressedFiles.find(f => f.size > 4.4 * 1024 * 1024);
-        if (oversized) {
-          setError(`File "${oversized.name}" is too large (${(oversized.size / 1024 / 1024).toFixed(1)}MB). Max size is 4.4MB.`);
-          setLoading(false);
-          return;
-        }
-        
         setFiles(prev => [...prev, ...compressedFiles]);
       } catch (err) {
         console.error("Compression failed", err);
@@ -186,50 +177,62 @@ export default function Home() {
     setProgresses(new Array(files.length).fill(0));
 
     try {
-      // Upload all files concurrently using XMLHttpRequest to track progress
+      // Upload all files concurrently using Signed URLs directly to Supabase
       const uploadPromises = files.map((file, index) => {
         return new Promise<string>((resolve, reject) => {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('copies', copies.toString());
-          if (userName.trim()) {
-            formData.append('userName', userName.trim());
-          }
-
-          const xhr = new XMLHttpRequest();
-          xhr.open('POST', '/api/upload', true);
-
-          xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable) {
-              const percentComplete = Math.round((event.loaded / event.total) * 100);
-              setProgresses(prev => {
-                const newProgresses = [...prev];
-                newProgresses[index] = percentComplete;
-                return newProgresses;
-              });
-            }
-          };
-
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              try {
-                const res = JSON.parse(xhr.responseText);
-                resolve(res.id); // Resolve with jobId
-              } catch {
-                resolve('');
+          
+          // 1. Get Signed URL from Backend
+          fetch('/api/get-upload-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename: file.name,
+              copies: copies.toString(),
+              userName: userName.trim()
+            })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) return reject(new Error(data.error));
+            
+            // 2. Upload file DIRECTLY to Supabase Storage using XMLHttpRequest to track progress
+            const xhr = new XMLHttpRequest();
+            xhr.open('PUT', data.signedUrl, true);
+            // VERY IMPORTANT: Set exact content type matching the file!
+            xhr.setRequestHeader('Content-Type', file.type);
+            
+            xhr.upload.onprogress = (event) => {
+              if (event.lengthComputable) {
+                const percentComplete = Math.round((event.loaded / event.total) * 100);
+                setProgresses(prev => {
+                  const newProgresses = [...prev];
+                  newProgresses[index] = percentComplete;
+                  return newProgresses;
+                });
               }
-            } else {
-              try {
-                const res = JSON.parse(xhr.responseText);
-                reject(new Error(res.error || 'Upload failed'));
-              } catch {
-                reject(new Error('Upload failed'));
+            };
+            
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                // 3. Tell the backend the file is fully uploaded and ready for printing
+                fetch('/api/confirm-upload', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ jobId: data.id })
+                })
+                .then(res => res.json())
+                .then(confirmData => resolve(confirmData.id))
+                .catch(() => resolve(data.id)); // Fail silently if confirm fails, daemon might miss it but better than crash
+              } else {
+                reject(new Error('Cloud upload failed'));
               }
-            }
-          };
-
-          xhr.onerror = () => reject(new Error('Network error during upload'));
-          xhr.send(formData);
+            };
+            
+            xhr.onerror = () => reject(new Error('Network error during cloud upload'));
+            // Send the raw file blob directly to Supabase (not FormData!)
+            xhr.send(file);
+          })
+          .catch(err => reject(new Error('Failed to get upload token: ' + err.message)));
         });
       });
 
