@@ -83,11 +83,17 @@ def print_job(filepath, copies):
             cups_job_id = match.group(1)
             print(f"Waiting for physical printer to finish {cups_job_id}...")
             
+            start_time = time.time()
             # Poll lpstat to see if the job has left the active queue
             while True:
                 lpstat_res = subprocess.run(["lpstat"], capture_output=True, text=True)
                 if cups_job_id not in lpstat_res.stdout:
-                    print(f"Physical print completed for {cups_job_id}!")
+                    elapsed = time.time() - start_time
+                    if elapsed < 4.0:
+                        print(f"Job {cups_job_id} left queue too quickly ({elapsed:.1f}s). Printer likely offline/aborted.")
+                        return False
+                        
+                    print(f"Physical print completed for {cups_job_id} in {elapsed:.1f}s!")
                     break
                 time.sleep(2)
                 
@@ -106,41 +112,45 @@ def main():
     print("Polling for jobs...")
     
     while True:
-        job = check_for_jobs()
-        
-        if job:
-            job_id = job["id"]
-            filename = job["filename"]
-            copies = job["copies"]
+        try:
+            job = check_for_jobs()
             
-            print(f"Found new job: {filename} ({copies} copies)")
-            
-            # 1. Update status to printing
-            update_job_status(job_id, "printing")
-            
-            # 2. Download the file
-            filepath = download_pdf(job_id, filename)
-            
-            if filepath:
-                # 3. Print the file
-                success = print_job(filepath, copies)
+            if job:
+                job_id = job["id"]
+                filename = job["filename"]
+                copies = job["copies"]
                 
-                # 4. Update final status
-                if success:
-                    update_job_status(job_id, "completed")
-                    print(f"Job {job_id} completed successfully.")
+                print(f"Found new job: {filename} ({copies} copies)")
+                
+                # 1. Update status to printing
+                update_job_status(job_id, "printing")
+                
+                # 2. Download the file
+                filepath = download_pdf(job_id, filename)
+                
+                if filepath:
+                    # 3. Print the file
+                    success = print_job(filepath, copies)
+                    
+                    # 4. Update final status
+                    if success:
+                        update_job_status(job_id, "completed")
+                        print(f"Job {job_id} completed successfully.")
+                    else:
+                        update_job_status(job_id, "failed")
+                        print(f"Job {job_id} failed.")
+                    
+                    # 5. Cleanup local file
+                    try:
+                        os.remove(filepath)
+                    except OSError:
+                        pass
                 else:
                     update_job_status(job_id, "failed")
-                    print(f"Job {job_id} failed.")
-                
-                # 5. Cleanup local file
-                try:
-                    os.remove(filepath)
-                except OSError:
-                    pass
-            else:
-                update_job_status(job_id, "failed")
-        
+            
+        except Exception as e:
+            print(f"CRITICAL ERROR in main loop: {e}. Retrying in {POLL_INTERVAL}s...")
+            
         time.sleep(POLL_INTERVAL)
 
 if __name__ == "__main__":
