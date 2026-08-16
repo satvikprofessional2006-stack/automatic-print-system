@@ -290,7 +290,7 @@ export default function Home() {
               <input 
                 type="file" 
                 ref={fileInputRef}
-                accept=".pdf,.jpg,.jpeg" 
+                accept="application/pdf, image/jpeg, image/png" 
                 multiple
                 onChange={handleFileChange}
                 disabled={loading}
