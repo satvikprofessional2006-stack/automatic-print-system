@@ -58,6 +58,16 @@ def print_job(filepath, copies):
         return True
     
     try:
+        # Convert non-PDF files (like JPG/PNG) to PDF using macOS sips
+        # Canon drivers often reject raw images sent via lp
+        print_filepath = filepath
+        if not filepath.lower().endswith('.pdf'):
+            pdf_path = filepath + '.pdf'
+            print(f"Converting image to PDF: {pdf_path}")
+            subprocess.run(["sips", "-s", "format", "pdf", filepath, "--out", pdf_path], capture_output=True)
+            if os.path.exists(pdf_path):
+                print_filepath = pdf_path
+
         # 1. Un-pause the printer queue (Mac often pauses it if the printer sleeps)
         try:
             default_printer_res = subprocess.run(["lpstat", "-d"], capture_output=True, text=True)
@@ -70,7 +80,7 @@ def print_job(filepath, copies):
         # 2. Using lp command for macOS/Linux
         # -n specifies number of copies
         result = subprocess.run(
-            ["lp", "-n", str(copies), filepath],
+            ["lp", "-n", str(copies), print_filepath],
             check=True,
             capture_output=True,
             text=True
@@ -91,18 +101,30 @@ def print_job(filepath, copies):
                     elapsed = time.time() - start_time
                     if elapsed < 4.0:
                         print(f"Job {cups_job_id} left queue too quickly ({elapsed:.1f}s). Printer likely offline/aborted.")
+                        if print_filepath != filepath:
+                            try: os.remove(print_filepath)
+                            except: pass
                         return False
                         
                     print(f"Physical print completed for {cups_job_id} in {elapsed:.1f}s!")
                     break
                 time.sleep(2)
                 
+        if print_filepath != filepath:
+            try: os.remove(print_filepath)
+            except: pass
         return True
     except subprocess.CalledProcessError as e:
         print(f"Print failed: {e.stderr}")
+        if 'print_filepath' in locals() and print_filepath != filepath:
+            try: os.remove(print_filepath)
+            except: pass
         return False
     except Exception as e:
         print(f"Print error: {e}")
+        if 'print_filepath' in locals() and print_filepath != filepath:
+            try: os.remove(print_filepath)
+            except: pass
         return False
 
 def main():
@@ -140,7 +162,7 @@ def main():
                         update_job_status(job_id, "failed")
                         print(f"Job {job_id} failed.")
                     
-                    # 5. Cleanup local file
+                    # 5. Cleanup local files
                     try:
                         os.remove(filepath)
                     except OSError:
