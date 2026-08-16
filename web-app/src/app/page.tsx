@@ -133,9 +133,32 @@ export default function Home() {
 
   const [compressingIndex, setCompressingIndex] = useState<number | null>(null);
 
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  
+  const addLog = (msg: string) => {
+    setDebugLogs(prev => [...prev, `${new Date().toISOString().split('T')[1].slice(0,-1)}: ${msg}`]);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
+    try {
+      if (!e.target.files) {
+        addLog("onChange fired but e.target.files is null");
+        return;
+      }
+      
+      const filesCount = e.target.files.length;
+      addLog(`onChange fired. files count: ${filesCount}`);
+      
+      if (filesCount === 0) {
+        return; // User cancelled
+      }
+      
       const selectedFiles = Array.from(e.target.files);
+      
+      selectedFiles.forEach((f, i) => {
+        addLog(`File ${i}: name="${f.name}", type="${f.type}", size=${f.size}`);
+      });
+      
       const validFiles = selectedFiles.filter(f => {
         const name = (f.name || '').toLowerCase();
         const type = (f.type || '');
@@ -151,16 +174,23 @@ export default function Home() {
                name.endsWith('.heif');
       });
       
+      addLog(`Valid files count: ${validFiles.length}`);
+      
       if (validFiles.length !== selectedFiles.length) {
         const rejected = selectedFiles.filter(f => !validFiles.includes(f));
         const rejectedNames = rejected.map(f => `"${f.name || 'unknown'}"`).join(', ');
         setError(`Ignored ${rejectedNames}: Only PDF and Images are supported. If it is a Word Doc, please save as PDF first.`);
+        addLog(`Rejected files: ${rejectedNames}`);
       } else {
         setError('');
       }
       
       // Instantly add to UI
-      setFiles(prev => [...prev, ...validFiles]);
+      setFiles(prev => {
+        const newFiles = [...prev, ...validFiles];
+        addLog(`setFiles called. New total: ${newFiles.length}`);
+        return newFiles;
+      });
       setSuccess(false);
       setProgresses([]);
       setQueueCount(null);
@@ -169,6 +199,9 @@ export default function Home() {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+    } catch (err: any) {
+      addLog(`CRASH in handleFileChange: ${err.message}`);
+      setError(`Crash: ${err.message}`);
     }
   };
 
@@ -444,6 +477,13 @@ export default function Home() {
           </button>
         </form>
       </div>
+      
+      {debugLogs.length > 0 && (
+        <div style={{ marginTop: '20px', padding: '16px', background: '#1e293b', color: '#10b981', borderRadius: '12px', fontSize: '12px', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+          <strong>Debug Logs:</strong><br/>
+          {debugLogs.map((log, i) => <div key={i}>{log}</div>)}
+        </div>
+      )}
     </main>
   );
 }
