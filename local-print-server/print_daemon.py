@@ -59,15 +59,9 @@ def print_job(filepath, copies):
         return True
     
     try:
-        # Convert non-PDF files (like JPG/PNG) to PDF using macOS sips
-        # Canon drivers often reject raw images sent via lp
+        # We rely on CUPS built-in imagetopdf filter which correctly scales 
+        # images to A4, avoiding the Canon data light blink caused by sips.
         print_filepath = filepath
-        if not filepath.lower().endswith('.pdf'):
-            pdf_path = filepath + '.pdf'
-            print(f"Converting image to PDF: {pdf_path}")
-            subprocess.run(["sips", "-s", "format", "pdf", filepath, "--out", pdf_path], capture_output=True)
-            if os.path.exists(pdf_path):
-                print_filepath = pdf_path
 
         # 1. Un-pause the printer queue (Mac often pauses it if the printer sleeps)
         try:
@@ -81,7 +75,7 @@ def print_job(filepath, copies):
         # 2. Using lp command for macOS/Linux
         # -n specifies copies, -o fit-to-page scales large images, -o media=A4 prevents the printer from waiting for paper size confirmation
         result = subprocess.run(
-            ["lp", "-n", str(copies), "-o", "media=A4", "-o", "fit-to-page", print_filepath],
+            ["lp", "-n", str(copies), "-o", "media=A4", "-o", "PageSize=A4", "-o", "fit-to-page", print_filepath],
             check=True,
             capture_output=True,
             text=True
