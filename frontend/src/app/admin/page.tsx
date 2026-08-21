@@ -33,7 +33,7 @@ function AdminDashboardContent() {
       <Header />
       <div className="flex flex-1 overflow-hidden min-h-0">
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-        <main className="flex-1 overflow-hidden p-6 min-h-0">
+        <main className="flex-1 overflow-hidden p-3 md:p-6 min-h-0">
           <AnimatePresence mode="wait">
             {activeTab === "logs" && (
               <motion.div
