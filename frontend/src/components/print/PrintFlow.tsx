@@ -8,7 +8,7 @@ import { PaymentStep } from "@/components/print/PaymentStep";
 import { PrintSuccess } from "@/components/print/PrintSuccess";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserType, PrintFile, PrintJob } from "@/lib/printStore";
-import { Printer, ChevronRight } from "lucide-react";
+import { Printer, ChevronRight, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Step = "type" | "details" | "payment" | "success";
@@ -91,18 +91,34 @@ export function PrintFlow() {
   return (
     <div className="min-h-screen w-full bg-background flex flex-col font-sans">
       {/* ── Top bar ── */}
-      <header className="h-14 shrink-0 flex items-center justify-between bg-[#FFE5CD] dark:bg-card border-b border-border/60 px-5 sm:px-8 shadow-xs">
-        <div className="flex items-center gap-3">
-          <img
-            src="/Rishihood_University_idxo_lfgcw_2.png"
-            alt="RU"
-            className="h-8 w-8 object-contain"
-          />
-          <div>
-            <p className="text-sm font-bold leading-tight text-foreground">RU Print Portal</p>
-            <p className="text-[11px] text-muted-foreground/80 leading-tight">
-              Rishihood University
-            </p>
+      <header className="h-14 shrink-0 flex items-center justify-between bg-[#FFE5CD] dark:bg-card border-b border-border/60 px-4 sm:px-8 shadow-xs">
+        <div className="flex items-center gap-2 sm:gap-4">
+          {step !== "type" && (
+            <button 
+              onClick={() => {
+                if (step === "details") go("type", -1);
+                else if (step === "payment") go("details", -1);
+                else if (step === "success") go("type", -1);
+              }}
+              className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors mr-1 sm:mr-0"
+              title="Go back"
+            >
+              <ArrowLeft className="h-4 w-4 text-foreground/80" />
+            </button>
+          )}
+          
+          <div className="flex items-center gap-2 sm:gap-3">
+            <img
+              src="/Rishihood_University_idxo_lfgcw_2.png"
+              alt="RU"
+              className="h-7 w-7 sm:h-8 sm:w-8 object-contain"
+            />
+            <div>
+              <p className="text-xs sm:text-sm font-bold leading-tight text-foreground">RU Print Portal</p>
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground/80 leading-tight">
+                Rishihood University
+              </p>
+            </div>
           </div>
         </div>
         <ThemeToggle />
