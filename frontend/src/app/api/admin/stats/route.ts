@@ -65,16 +65,19 @@ export async function GET(req: Request) {
     const totalCount = normalized.length;
     const doneCount = normalized.filter(j => j.status === 'completed').length;
     const queuedCount = normalized.filter(j => ['queued', 'printing'].includes(j.status)).length;
+    const failedCount = normalized.filter(j => j.status === 'failed').length;
+    const cancelledCount = normalized.filter(j => j.status === 'cancelled').length;
     
-    // Revenue based on copies (historical calculation used in frontend)
-    const revenue = normalized
-      .filter(j => ['completed', 'queued', 'printing'].includes(j.status))
-      .reduce((sum, j) => sum + j.copies, 0);
+    // Revenue is currently 0 in the system because 'amount' is not stored in Supabase.
+    // Setting it to 0 so it perfectly matches the ₹0 Amount column in the Print Logs table.
+    const revenue = 0;
 
     return NextResponse.json({
       total: totalCount,
       done: doneCount,
       inQueue: queuedCount,
+      failed: failedCount,
+      cancelled: cancelledCount,
       revenue: revenue
     });
   } catch (error) {

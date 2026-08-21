@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Printer, CheckCircle2, Clock, IndianRupee } from "lucide-react";
+import { Printer, CheckCircle2, Clock, IndianRupee, XCircle, Ban } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export function StatCards() {
@@ -11,6 +11,8 @@ export function StatCards() {
     total: 0,
     done: 0,
     inQueue: 0,
+    failed: 0,
+    cancelled: 0,
     revenue: 0,
   });
 
@@ -27,6 +29,8 @@ export function StatCards() {
         total: data.total || 0,
         done: data.done || 0,
         inQueue: data.inQueue || 0,
+        failed: data.failed || 0,
+        cancelled: data.cancelled || 0,
         revenue: data.revenue || 0,
       });
     } catch (err) {
@@ -44,7 +48,7 @@ export function StatCards() {
     {
       title: "Total Jobs",
       value: stats.total.toString(),
-      sub: "All time",
+      sub: "All time batches",
       icon: Printer,
     },
     {
@@ -60,6 +64,18 @@ export function StatCards() {
       icon: Clock,
     },
     {
+      title: "Failed",
+      value: stats.failed.toString(),
+      sub: "Failed to print",
+      icon: XCircle,
+    },
+    {
+      title: "Cancelled",
+      value: stats.cancelled.toString(),
+      sub: "Cancelled by admin",
+      icon: Ban,
+    },
+    {
       title: "Revenue",
       value: `₹${stats.revenue}`,
       sub: "Paid jobs total",
@@ -68,7 +84,7 @@ export function StatCards() {
   ];
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       {cards.map((card, idx) => {
         const Icon = card.icon;
         return (
