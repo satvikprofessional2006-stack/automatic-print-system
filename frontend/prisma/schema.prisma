@@ -1,0 +1,25 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model PrintJob {
+  id        String   @id @default(uuid())
+  filename  String
+  copies    Int      @default(1)
+  status    String   @default("queued") // queued, printing, completed, failed, cancelled
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PrinterStatus {
+  id        String   @id @default("default")
+  lastSeen  DateTime @default(now())
+}
