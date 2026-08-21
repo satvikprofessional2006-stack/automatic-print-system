@@ -51,43 +51,44 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
   const startPolling = () => {
     if (intervalRef.current) return;
     setPayState("verifying");
-    intervalRef.current = setInterval(async () => {
-      setPollCount((c) => {
-        const next = c + 1;
-        if (next >= 3) {
-          clearInterval(intervalRef.current!);
-          intervalRef.current = null;
-          
-          // Actual upload logic
-          (async () => {
-            try {
-              const uploadPromises = job.files.map(async (pf) => {
-                const formData = new FormData();
-                formData.append('file', pf.file);
-                formData.append('copies', '1');
-                formData.append('userName', job.name);
-                
-                const res = await fetch('/api/upload', {
-                  method: 'POST',
-                  body: formData,
-                });
-                
-                if (!res.ok) throw new Error('Upload failed');
-                return res.json();
+    
+    let count = 0;
+    intervalRef.current = setInterval(() => {
+      count += 1;
+      setPollCount(count);
+      
+      if (count >= 3) {
+        clearInterval(intervalRef.current!);
+        intervalRef.current = null;
+        
+        // Actual upload logic
+        (async () => {
+          try {
+            const uploadPromises = job.files.map(async (pf) => {
+              const formData = new FormData();
+              formData.append('file', pf.file);
+              formData.append('copies', '1');
+              formData.append('userName', job.name);
+              
+              const res = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
               });
               
-              await Promise.all(uploadPromises);
-              
-              const updatedJob = { ...job, status: "paid" as const };
-              onPaid(updatedJob);
-              setPayState("success");
-            } catch (err) {
-              setPayState("failed");
-            }
-          })();
-        }
-        return next;
-      });
+              if (!res.ok) throw new Error('Upload failed');
+              return res.json();
+            });
+            
+            await Promise.all(uploadPromises);
+            
+            const updatedJob = { ...job, status: "paid" as const };
+            onPaid(updatedJob);
+            setPayState("success");
+          } catch (err) {
+            setPayState("failed");
+          }
+        })();
+      }
     }, 2000);
   };
 

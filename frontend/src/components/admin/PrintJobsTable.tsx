@@ -36,6 +36,7 @@ const STATUS_STYLES: Record<string, string> = {
     "bg-violet-500/15 text-violet-800 dark:text-violet-200 border border-violet-500/30",
   completed: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30",
   failed: "bg-rose-500/15 text-rose-800 dark:text-rose-200 border border-rose-500/30",
+  cancelled: "bg-zinc-500/15 text-zinc-800 dark:text-zinc-300 border border-zinc-500/30",
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -45,6 +46,7 @@ const STATUS_LABEL: Record<string, string> = {
   printing: "Printing",
   completed: "Done",
   failed: "Failed",
+  cancelled: "Cancelled",
 };
 
 function formatTime(iso: string) {
@@ -114,6 +116,7 @@ export function PrintJobsTable() {
         if (group.some((j: any) => j.status === 'failed')) overallStatus = 'failed';
         else if (group.some((j: any) => j.status === 'printing')) overallStatus = 'printing';
         else if (group.some((j: any) => j.status === 'queued')) overallStatus = 'queued';
+        else if (group.every((j: any) => j.status === 'cancelled')) overallStatus = 'cancelled';
 
         return {
           id: first.id,
@@ -138,6 +141,52 @@ export function PrintJobsTable() {
       setPrinterLastSeen(data.printerLastSeen || null);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleAction = async (id: string, action: 'cancel' | 'retry') => {
+    if (!user?.password) return;
+    try {
+      const res = await fetch(`/api/admin/jobs/${id}/${action}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user.password}`
+        }
+      });
+      if (res.ok) {
+        load(); // Reload the table to reflect status changes
+      } else {
+        console.error(`Failed to ${action} job`, await res.text());
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCancelBatch = async (jobGroup: any[]) => {
+    if (!user?.password) return;
+    
+    // Find all files in this batch that can be cancelled
+    const cancellableIds = jobGroup
+      .filter(f => f.status !== 'completed' && f.status !== 'cancelled')
+      .map(f => f.originalId || f.id);
+      
+    if (cancellableIds.length === 0) return;
+    
+    try {
+      const promises = cancellableIds.map(id => 
+        fetch(`/api/admin/jobs/${id}/cancel`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${user.password}`
+          }
+        })
+      );
+      
+      await Promise.all(promises);
+      load();
+    } catch (err) {
+      console.error("Failed to cancel batch", err);
     }
   };
 
@@ -350,13 +399,30 @@ export function PrintJobsTable() {
                         </span>
                       </TableCell>
 
-                      {/* Expand toggle */}
-                      <TableCell>
-                        {isExpanded ? (
-                          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        )}
+                      {/* Actions & Expand toggle */}
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          {job.status !== 'completed' && job.status !== 'cancelled' && (
+                            <div className="flex items-center">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-[11px] px-3 font-bold rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 hover:bg-rose-500/20 hover:border-rose-500/30 transition-all shadow-sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelBatch(job.originalJobs);
+                                }}
+                              >
+                                {job.files.length > 1 ? "Cancel Batch" : "Cancel"}
+                              </Button>
+                            </div>
+                          )}
+                          {isExpanded ? (
+                            <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
 
@@ -373,9 +439,11 @@ export function PrintJobsTable() {
                               className="overflow-hidden"
                             >
                               <div className="px-4 pb-4 pt-2 bg-muted/20 space-y-2">
-                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                                  Files in this job
-                                </p>
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                    Files in this job
+                                  </p>
+                                </div>
                                 {job.files.map((f: any, i: number) => (
                                   <div
                                     key={i}
@@ -386,6 +454,37 @@ export function PrintJobsTable() {
                                       <p className="text-xs font-semibold text-foreground truncate">
                                         {f.name}
                                       </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      {f.status === 'failed' && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 text-[11px] px-2.5 text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleAction(f.originalId, 'retry');
+                                          }}
+                                        >
+                                          Retry
+                                        </Button>
+                                      )}
+                                      {f.status !== 'completed' && f.status !== 'cancelled' && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 text-[11px] px-2.5 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleAction(f.originalId, 'cancel');
+                                          }}
+                                        >
+                                          Cancel
+                                        </Button>
+                                      )}
+                                      <Badge variant="outline" className="text-[10px] ml-2">
+                                        {f.status}
+                                      </Badge>
                                     </div>
                                   </div>
                                 ))}
