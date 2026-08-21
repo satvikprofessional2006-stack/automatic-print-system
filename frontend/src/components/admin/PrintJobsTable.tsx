@@ -515,8 +515,7 @@ export function PrintJobsTable() {
       </div>
 
       {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-2 py-1">
+      <div className="flex items-center justify-between px-2 py-1">
           <div className="text-[11px] font-medium text-muted-foreground">
             Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} entries
           </div>
@@ -541,7 +540,6 @@ export function PrintJobsTable() {
             </Button>
           </div>
         </div>
-      )}
     </div>
   );
 }

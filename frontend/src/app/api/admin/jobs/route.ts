@@ -18,7 +18,7 @@ export async function GET(req: Request) {
       .from('PrintJob')
       .select('*')
       .order('createdAt', { ascending: false })
-      .limit(50);
+      .limit(1000);
       
     if (error) throw error;
     
