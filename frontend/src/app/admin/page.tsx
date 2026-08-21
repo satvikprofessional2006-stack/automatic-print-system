@@ -31,7 +31,7 @@ function AdminDashboardContent() {
   return (
     <div className="h-screen w-screen overflow-hidden bg-background flex flex-col font-sans">
       <Header />
-      <div className="flex flex-1 overflow-hidden min-h-0">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
         <main className="flex-1 overflow-hidden p-3 md:p-6 min-h-0">
           <AnimatePresence mode="wait">
