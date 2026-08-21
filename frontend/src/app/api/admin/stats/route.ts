@@ -14,32 +14,68 @@ export async function GET(req: Request) {
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get total count
-    const { count: totalCount } = await supabase
+    // Fetch all jobs to do dynamic grouping in memory so stats match the batched table exactly
+    const { data: allJobs, error } = await supabase
       .from('PrintJob')
-      .select('*', { count: 'exact', head: true });
+      .select('*')
+      .order('createdAt', { ascending: false });
 
-    // Get completed count
-    const { count: doneCount } = await supabase
-      .from('PrintJob')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'completed');
+    if (error) {
+      console.error("Supabase Error:", error);
+      throw error;
+    }
 
-    // Get queued + printing count
-    const { count: queuedCount } = await supabase
-      .from('PrintJob')
-      .select('*', { count: 'exact', head: true })
-      .in('status', ['queued', 'printing']);
+    const jobs = allJobs || [];
+    const processedJobs: any[][] = [];
 
-    // Since 'amount' wasn't historically stored in the DB, we just estimate 
-    // revenue based on the copies of completed/queued jobs, assuming a base rate of Rs. 2 per copy (if that was the rate).
-    // Or we just return 0 for now until the DB schema adds an amount column.
+    // Grouping logic (same as frontend)
+    for (const job of jobs) {
+      const existingGroupIndex = processedJobs.findIndex(group => {
+        const firstInGroup = group[0];
+        const lastInGroup = group[group.length - 1];
+        if (firstInGroup.userName !== job.userName) return false;
+        
+        const timeDiffFirst = Math.abs(new Date(firstInGroup.createdAt).getTime() - new Date(job.createdAt).getTime());
+        const timeDiffLast = Math.abs(new Date(lastInGroup.createdAt).getTime() - new Date(job.createdAt).getTime());
+        
+        return timeDiffFirst <= 60000 || timeDiffLast <= 60000;
+      });
+
+      if (existingGroupIndex !== -1) {
+        processedJobs[existingGroupIndex].push(job);
+      } else {
+        processedJobs.push([job]);
+      }
+    }
+
+    const normalized = processedJobs.map(group => {
+      const totalCopies = group.reduce((sum: number, j: any) => sum + (j.copies || 1), 0);
+      let overallStatus = 'completed';
+      if (group.some((j: any) => j.status === 'failed')) overallStatus = 'failed';
+      else if (group.some((j: any) => j.status === 'printing')) overallStatus = 'printing';
+      else if (group.some((j: any) => j.status === 'queued')) overallStatus = 'queued';
+      else if (group.every((j: any) => j.status === 'cancelled')) overallStatus = 'cancelled';
+
+      return {
+        copies: totalCopies,
+        status: overallStatus,
+      };
+    });
+
+    const totalCount = normalized.length;
+    const doneCount = normalized.filter(j => j.status === 'completed').length;
+    const queuedCount = normalized.filter(j => ['queued', 'printing'].includes(j.status)).length;
     
+    // Revenue based on copies (historical calculation used in frontend)
+    const revenue = normalized
+      .filter(j => ['completed', 'queued', 'printing'].includes(j.status))
+      .reduce((sum, j) => sum + j.copies, 0);
+
     return NextResponse.json({
-      total: totalCount || 0,
-      done: doneCount || 0,
-      inQueue: queuedCount || 0,
-      revenue: 0 // Revenue isn't stored in DB yet
+      total: totalCount,
+      done: doneCount,
+      inQueue: queuedCount,
+      revenue: revenue
     });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
