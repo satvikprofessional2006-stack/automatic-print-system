@@ -232,6 +232,7 @@ export function PrintJobsTable() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        flexWrap: 'wrap',
         gap: '10px',
         background: isPrinterConnected ? '#e8f5e9' : '#ffebee',
         color: isPrinterConnected ? '#2e7d32' : '#c62828',
@@ -317,12 +318,12 @@ export function PrintJobsTable() {
           <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 dark:bg-muted/20 hover:bg-muted/30 border-none">
-              <TableHead className="text-muted-foreground/70 font-semibold w-28">Job ID</TableHead>
+              <TableHead className="text-muted-foreground/70 font-semibold w-24 sm:w-28">Job ID</TableHead>
               <TableHead className="text-muted-foreground/70 font-semibold">Name</TableHead>
               <TableHead className="text-muted-foreground/70 font-semibold">Files</TableHead>
-              <TableHead className="text-muted-foreground/70 font-semibold">Amount</TableHead>
+              <TableHead className="text-muted-foreground/70 font-semibold hidden md:table-cell">Amount</TableHead>
               <TableHead className="text-muted-foreground/70 font-semibold">Status</TableHead>
-              <TableHead className="text-muted-foreground/70 font-semibold">Submitted</TableHead>
+              <TableHead className="text-muted-foreground/70 font-semibold hidden sm:table-cell">Submitted</TableHead>
               <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
@@ -384,7 +385,7 @@ export function PrintJobsTable() {
                       </TableCell>
 
                       {/* Amount */}
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <span className="text-sm font-bold font-mono text-foreground">
                           ₹{job.amount}
                         </span>
@@ -404,7 +405,7 @@ export function PrintJobsTable() {
                       </TableCell>
 
                       {/* Time */}
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <span className="text-xs text-muted-foreground font-mono">
                           {formatTime(job.createdAt)}
                         </span>
