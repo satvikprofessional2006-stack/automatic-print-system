@@ -15,6 +15,15 @@ export async function GET(req: Request) {
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Update heartbeat record so admin portal knows printer is connected
+    await supabase.from('PrintJob').upsert({
+      id: '00000000-0000-0000-0000-000000000000',
+      filename: 'SYSTEM_HEARTBEAT',
+      copies: 0,
+      status: 'completed',
+      createdAt: new Date().toISOString()
+    });
+
     // Get the oldest queued job
     const { data: jobs, error } = await supabase
       .from('PrintJob')

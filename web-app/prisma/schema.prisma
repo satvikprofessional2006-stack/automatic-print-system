@@ -18,3 +18,8 @@ model PrintJob {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model PrinterStatus {
+  id        String   @id @default("default")
+  lastSeen  DateTime @default(now())
+}

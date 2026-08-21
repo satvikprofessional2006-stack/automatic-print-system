@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data: jobs, error } = await supabase
+    const { data: rawJobs, error } = await supabase
       .from('PrintJob')
       .select('*')
       .order('createdAt', { ascending: false })
@@ -22,7 +22,16 @@ export async function GET(req: Request) {
       
     if (error) throw error;
     
-    return NextResponse.json({ jobs });
+    let printerLastSeen = null;
+    const jobs = (rawJobs || []).filter(job => {
+      if (job.id === '00000000-0000-0000-0000-000000000000') {
+        printerLastSeen = job.createdAt;
+        return false;
+      }
+      return true;
+    });
+    
+    return NextResponse.json({ jobs, printerLastSeen });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

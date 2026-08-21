@@ -41,6 +41,8 @@ export default function AdminDashboard() {
     return processedJobs;
   };
 
+  const [printerLastSeen, setPrinterLastSeen] = useState<string | null>(null);
+
   const fetchJobs = async () => {
     try {
       const res = await fetch('/api/admin/jobs', {
@@ -49,6 +51,7 @@ export default function AdminDashboard() {
       if (!res.ok) throw new Error('Unauthorized');
       const data = await res.json();
       setJobs(processGroups(data.jobs));
+      setPrinterLastSeen(data.printerLastSeen || null);
       setIsAuthenticated(true);
       setError('');
     } catch (err) {
@@ -160,9 +163,34 @@ export default function AdminDashboard() {
   // Calculate true serial numbers dynamically so they represent individual files, or treat groups as a single serial
   let currentSerial = jobs.reduce((acc, item) => acc + (item.isGroup ? item.jobs.length : 1), 0);
 
+  const isPrinterConnected = printerLastSeen ? (new Date().getTime() - new Date(printerLastSeen + 'Z').getTime() < 15000) : false;
+
   return (
     <main style={{ maxWidth: '96%', padding: '40px 2%' }}>
       <h1>Admin Dashboard</h1>
+      
+      <div style={{
+        padding: '12px 20px',
+        borderRadius: '8px',
+        marginBottom: '24px',
+        fontWeight: 'bold',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        background: isPrinterConnected ? '#e8f5e9' : '#ffebee',
+        color: isPrinterConnected ? '#2e7d32' : '#c62828',
+        border: `1px solid ${isPrinterConnected ? '#c8e6c9' : '#ffcdd2'}`
+      }}>
+        <div style={{
+          width: '12px',
+          height: '12px',
+          borderRadius: '50%',
+          background: isPrinterConnected ? '#4caf50' : '#f44336',
+          boxShadow: isPrinterConnected ? '0 0 8px #4caf50' : '0 0 8px #f44336'
+        }} />
+        {isPrinterConnected ? 'Printer daemon is CONNECTED and polling actively.' : 'PRINTER OFFLINE: The Mac print daemon is not connected!'}
+      </div>
+
       <button onClick={fetchJobs} style={{ marginBottom: '24px', background: 'white', color: 'var(--text)', border: '1px solid #cbd5e1', padding: '10px 16px', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>Refresh Data</button>
       
       <div className="card" style={{ overflowX: 'auto', padding: '0' }}>
