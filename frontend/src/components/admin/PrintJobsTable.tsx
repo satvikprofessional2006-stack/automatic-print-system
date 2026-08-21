@@ -231,19 +231,30 @@ export function PrintJobsTable() {
         fontWeight: 'bold',
         display: 'flex',
         alignItems: 'center',
+        justifyContent: 'space-between',
         gap: '10px',
         background: isPrinterConnected ? '#e8f5e9' : '#ffebee',
         color: isPrinterConnected ? '#2e7d32' : '#c62828',
         border: `1px solid ${isPrinterConnected ? '#c8e6c9' : '#ffcdd2'}`
       }}>
-        <div style={{
-          width: '12px',
-          height: '12px',
-          borderRadius: '50%',
-          background: isPrinterConnected ? '#4caf50' : '#f44336',
-          boxShadow: isPrinterConnected ? '0 0 8px #4caf50' : '0 0 8px #f44336'
-        }} />
-        {isPrinterConnected ? 'Printer daemon is CONNECTED and polling actively.' : 'PRINTER OFFLINE: The Mac print daemon is not connected!'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            background: isPrinterConnected ? '#4caf50' : '#f44336',
+            boxShadow: isPrinterConnected ? '0 0 8px #4caf50' : '0 0 8px #f44336'
+          }} />
+          {isPrinterConnected ? 'Printer daemon is CONNECTED and polling actively.' : 'PRINTER OFFLINE: The Mac print daemon is not connected!'}
+        </div>
+        {!isPrinterConnected && (
+          <a
+            href="ruprint://start"
+            className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+          >
+            Start Print Server
+          </a>
+        )}
       </div>
 
       {/* Controls row */}
