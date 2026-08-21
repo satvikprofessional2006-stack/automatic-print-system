@@ -318,9 +318,9 @@ export function PrintJobsTable() {
           <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 dark:bg-muted/20 hover:bg-muted/30 border-none">
-              <TableHead className="text-muted-foreground/70 font-semibold w-24 sm:w-28">Job ID</TableHead>
+              <TableHead className="text-muted-foreground/70 font-semibold w-24 sm:w-28 hidden sm:table-cell">Job ID</TableHead>
               <TableHead className="text-muted-foreground/70 font-semibold">Name</TableHead>
-              <TableHead className="text-muted-foreground/70 font-semibold">Files</TableHead>
+              <TableHead className="text-muted-foreground/70 font-semibold hidden md:table-cell">Files</TableHead>
               <TableHead className="text-muted-foreground/70 font-semibold hidden md:table-cell">Amount</TableHead>
               <TableHead className="text-muted-foreground/70 font-semibold">Status</TableHead>
               <TableHead className="text-muted-foreground/70 font-semibold hidden sm:table-cell">Submitted</TableHead>
@@ -345,28 +345,30 @@ export function PrintJobsTable() {
                       onClick={() => setExpandedId(isExpanded ? null : job.id)}
                     >
                       {/* Job ID / Serial */}
-                      <TableCell className="px-4">
+                      <TableCell className="px-4 hidden sm:table-cell">
                         <span className="text-xs font-mono font-bold text-primary">
                           #{serial}
                         </span>
                       </TableCell>
 
-                      {/* Name + type */}
-                      <TableCell>
+                      {/* Name */}
+                      <TableCell className="font-medium text-foreground">
                         <div className="flex items-center gap-2">
-                          <div className="p-1 rounded-lg bg-primary/10 shrink-0">
-                            <User2 className="h-3.5 w-3.5 text-primary" />
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold">
+                            {(job.name || 'A')[0].toUpperCase()}
                           </div>
-                          <div>
-                            <p className="text-sm font-semibold text-foreground leading-tight">
-                              {job.name}
-                            </p>
+                          <div className="flex flex-col">
+                            <span className="text-sm">{job.name}</span>
+                            {/* Mobile-only files info */}
+                            <span className="text-[10px] text-muted-foreground md:hidden mt-0.5">
+                              {job.files.length} file{job.files.length !== 1 ? "s" : ""} {job.totalPages > 0 && `· ${job.totalPages} pg`}
+                            </span>
                           </div>
                         </div>
                       </TableCell>
 
-                      {/* Files */}
-                      <TableCell>
+                      {/* Files (Hidden on mobile) */}
+                      <TableCell className="hidden md:table-cell">
                         <div className="flex items-center gap-1.5">
                           {job.files.length > 1 ? (
                             <Folder className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
