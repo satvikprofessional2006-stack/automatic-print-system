@@ -17,22 +17,17 @@ export function StatCards() {
   const load = async () => {
     if (!user?.password) return;
     try {
-      const res = await fetch('/api/admin/jobs', {
+      const res = await fetch('/api/admin/stats', {
         headers: { 'Authorization': `Bearer ${user.password}` }
       });
       if (!res.ok) throw new Error('Unauthorized');
       const data = await res.json();
-      const jobs = data.jobs || [];
       
       setStats({
-        total: jobs.length,
-        done: jobs.filter((j: any) => j.status === "completed").length,
-        inQueue: jobs.filter((j: any) =>
-          ["queued", "printing"].includes(j.status)
-        ).length,
-        revenue: jobs
-          .filter((j: any) => j.status === "completed" || j.status === "queued" || j.status === "printing")
-          .reduce((sum: number, j: any) => sum + (j.copies || 1), 0),
+        total: data.total || 0,
+        done: data.done || 0,
+        inQueue: data.inQueue || 0,
+        revenue: data.revenue || 0,
       });
     } catch (err) {
       console.error(err);
