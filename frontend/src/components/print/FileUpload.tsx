@@ -115,7 +115,7 @@ export function FileUpload({ files, onChange }: Props) {
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
         className={cn(
-          "relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-8 cursor-pointer transition-all duration-200 select-none",
+          "relative flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-5 cursor-pointer transition-all duration-200 select-none",
           dragging
             ? "border-primary bg-primary/8 scale-[1.01]"
             : "border-border/60 bg-muted/30 hover:border-primary/50 hover:bg-primary/5"
@@ -168,7 +168,7 @@ export function FileUpload({ files, onChange }: Props) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, x: -10 }}
               transition={{ type: "spring", stiffness: 400, damping: 28 }}
-              className="flex items-center gap-3 rounded-xl bg-card/60 border border-border/50 px-4 py-3"
+              className="flex items-center gap-3 rounded-xl bg-card/60 border border-border/50 px-4 py-2"
             >
               <div className="p-1.5 rounded-lg bg-primary/10 shrink-0">
                 <Icon className="h-4 w-4 text-primary" />

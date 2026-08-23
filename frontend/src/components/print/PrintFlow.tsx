@@ -125,7 +125,7 @@ export function PrintFlow() {
       </header>
 
       {/* ── Main content ── */}
-      <div className="flex-1 flex items-start justify-center px-4 py-6 sm:py-8">
+      <div className="flex-1 flex items-start justify-center px-4 py-2 sm:py-4">
         <div className="w-full max-w-lg">
 
           {/* Step progress bar */}
@@ -174,7 +174,7 @@ export function PrintFlow() {
 
           {/* Card */}
           <div className="rounded-2xl bg-card/60 backdrop-blur-md border border-border/60 shadow-sm overflow-hidden">
-            <div className="p-5 sm:p-6">
+            <div className="p-4 sm:p-5">
               <AnimatePresence mode="wait" custom={dir}>
                 <motion.div
                   key={step}
@@ -216,7 +216,7 @@ export function PrintFlow() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="mt-3 text-center"
+              className="mt-2 text-center"
             >
               <a 
                 href="/admin" 
