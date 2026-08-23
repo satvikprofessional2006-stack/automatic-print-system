@@ -223,7 +223,7 @@ export function PrintJobsTable() {
   const isPrinterConnected = printerLastSeen ? (new Date().getTime() - new Date(printerLastSeen + 'Z').getTime() < 15000) : false;
 
   return (
-    <div className="flex flex-col h-full space-y-4">
+    <div className="flex flex-col h-full space-y-4 min-h-0">
       {/* Printer Heartbeat Banner */}
       <div style={{
         padding: '12px 20px',

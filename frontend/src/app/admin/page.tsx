@@ -42,7 +42,7 @@ function AdminDashboardContent() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -12, scale: 0.99 }}
                 transition={{ type: "spring", stiffness: 420, damping: 30, mass: 0.7 }}
-                className="h-full flex flex-col gap-6"
+                className="h-full flex flex-col gap-6 min-h-0"
               >
                 <div className="flex flex-col gap-1">
                   <h2 className="text-2xl font-bold tracking-tight">Print Logs</h2>
