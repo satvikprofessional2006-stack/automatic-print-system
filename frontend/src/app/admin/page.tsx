@@ -47,10 +47,9 @@ function AdminDashboardContent() {
               >
                 <div className="flex flex-row items-center gap-2">
                   <h2 className="text-2xl font-bold tracking-tight">Print Logs</h2>
-                  <Info 
-                    className="h-4 w-4 text-muted-foreground cursor-help" 
-                    title="All print jobs submitted through the portal — live, auto-refreshing every 5 s."
-                  />
+                  <span title="All print jobs submitted through the portal — live, auto-refreshing every 5 s.">
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </span>
                 </div>
                 <PrintJobsTable />
               </motion.div>
