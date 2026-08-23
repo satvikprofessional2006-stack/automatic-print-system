@@ -32,10 +32,6 @@ export function LoginPage() {
     const result = await login(username, password);
     if (!result.success) {
       setError(result.error ?? "Login failed.");
-    } else {
-      // Automatically launch the background print server script!
-      // This custom protocol was registered via the AppleScript app.
-      window.location.href = "ruprint://start";
     }
     setIsLoading(false);
   };
