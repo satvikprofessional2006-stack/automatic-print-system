@@ -8,6 +8,7 @@ import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { StatCards } from "@/components/StatCards";
 import { PrintJobsTable } from "@/components/admin/PrintJobsTable";
+import { Info } from "lucide-react";
 
 function AdminDashboardContent() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -44,11 +45,12 @@ function AdminDashboardContent() {
                 transition={{ type: "spring", stiffness: 420, damping: 30, mass: 0.7 }}
                 className="h-full flex flex-col gap-6 min-h-0"
               >
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-row items-center gap-2">
                   <h2 className="text-2xl font-bold tracking-tight">Print Logs</h2>
-                  <p className="text-xs text-muted-foreground/80">
-                    All print jobs submitted through the portal — live, auto-refreshing every 5 s.
-                  </p>
+                  <Info 
+                    className="h-4 w-4 text-muted-foreground cursor-help" 
+                    title="All print jobs submitted through the portal — live, auto-refreshing every 5 s."
+                  />
                 </div>
                 <PrintJobsTable />
               </motion.div>
