@@ -55,10 +55,10 @@ export function DetailsForm({ userType, onBack, onNext }: Props) {
   const Icon = userType === "student" ? GraduationCap : User2;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Section header */}
       <div>
-        <div className="inline-flex items-center gap-2 mb-2 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-bold uppercase tracking-wider">
+        <div className="inline-flex items-center gap-2 mb-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-bold uppercase tracking-wider">
           <Icon className="h-3.5 w-3.5" />
           {userType === "student" ? "Student" : "Other"}
         </div>
@@ -68,7 +68,7 @@ export function DetailsForm({ userType, onBack, onNext }: Props) {
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Name */}
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-foreground/80">Full Name *</label>
@@ -76,7 +76,7 @@ export function DetailsForm({ userType, onBack, onNext }: Props) {
             placeholder="e.g. Arjun Sharma"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="h-11 bg-muted/40 border-border/60 rounded-xl text-sm focus-visible:ring-primary/50"
+            className="h-10 bg-muted/40 border-border/60 rounded-xl text-sm focus-visible:ring-primary/50"
           />
           {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
         </div>
@@ -89,7 +89,7 @@ export function DetailsForm({ userType, onBack, onNext }: Props) {
               placeholder="e.g. 2503210042"
               value={enrollmentNo}
               onChange={(e) => setEnrollmentNo(e.target.value)}
-              className="h-11 bg-muted/40 border-border/60 rounded-xl text-sm focus-visible:ring-primary/50 font-mono"
+              className="h-10 bg-muted/40 border-border/60 rounded-xl text-sm focus-visible:ring-primary/50 font-mono"
             />
             {errors.enrollmentNo && (
               <p className="text-xs text-destructive">{errors.enrollmentNo}</p>
@@ -118,7 +118,7 @@ export function DetailsForm({ userType, onBack, onNext }: Props) {
             placeholder="e.g. 10"
             value={pages}
             onChange={(e) => setPages(e.target.value)}
-            className="h-11 bg-muted/40 border-border/60 rounded-xl text-sm focus-visible:ring-primary/50 w-36"
+            className="h-10 bg-muted/40 border-border/60 rounded-xl text-sm focus-visible:ring-primary/50 w-36"
           />
           {pages && !errors.pages && (
             <p className="text-xs text-muted-foreground">
@@ -134,7 +134,7 @@ export function DetailsForm({ userType, onBack, onNext }: Props) {
       </div>
 
       {/* Navigation */}
-      <div className="flex items-center gap-3 pt-2">
+      <div className="flex items-center gap-3 pt-1">
         <Button
           variant="ghost"
           onClick={onBack}
