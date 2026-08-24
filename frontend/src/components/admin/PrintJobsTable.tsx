@@ -256,7 +256,7 @@ export function PrintJobsTable() {
         {!isPrinterConnected && (
           <a
             href="ruprint://start"
-            className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer"
+            className="hidden md:inline-block px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer"
           >
             Start Print Server
           </a>
