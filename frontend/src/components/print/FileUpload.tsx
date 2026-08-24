@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, X, FileText, FileImage, File as FileIcon, Plus, Minus } from "lucide-react";
+import { Upload, X, FileText, FileImage, File as FileIcon, Plus, Minus, Loader2 } from "lucide-react";
 import { PrintFile } from "@/lib/printStore";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +39,7 @@ export function FileUpload({ files, onChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const updateCopies = (index: number, delta: number) => {
     const newFiles = [...files];
@@ -63,6 +64,7 @@ export function FileUpload({ files, onChange }: Props) {
   const processFiles = useCallback(
     async (fileList: FileList | null) => {
       if (!fileList) return;
+      setIsProcessing(true);
       const errs: string[] = [];
       const newFiles: PrintFile[] = [];
 
@@ -126,6 +128,7 @@ export function FileUpload({ files, onChange }: Props) {
 
       setErrors(errs);
       onChange([...files, ...newFiles]);
+      setIsProcessing(false);
     },
     [files, onChange]
   );
@@ -168,11 +171,15 @@ export function FileUpload({ files, onChange }: Props) {
           onChange={(e) => processFiles(e.target.files)}
         />
         <div className={cn("p-3 rounded-full transition-colors", dragging ? "bg-primary/20" : "bg-muted/60")}>
-          <Upload className={cn("h-6 w-6 transition-colors", dragging ? "text-primary" : "text-muted-foreground")} />
+          {isProcessing ? (
+            <Loader2 className="h-6 w-6 text-primary animate-spin" />
+          ) : (
+            <Upload className={cn("h-6 w-6 transition-colors", dragging ? "text-primary" : "text-muted-foreground")} />
+          )}
         </div>
         <div className="text-center">
           <p className="text-sm font-semibold text-foreground">
-            {dragging ? "Drop files here" : "Click or drag files here"}
+            {isProcessing ? "Processing files..." : dragging ? "Drop files here" : "Click or drag files here"}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
             PDF, Word, JPEG, PNG, TXT — max {MAX_FILE_MB} MB each

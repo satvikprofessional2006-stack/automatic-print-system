@@ -29,7 +29,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     if (error) throw error;
     
-    if (status === 'completed' || status === 'failed') {
+    if (status === 'completed') {
       const ext = job.filename.split('.').pop();
       const storageFilename = `${job.id}.${ext}`;
       
