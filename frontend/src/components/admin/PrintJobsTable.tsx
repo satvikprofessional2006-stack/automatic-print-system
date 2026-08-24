@@ -66,7 +66,7 @@ function formatBytes(b: number) {
 }
 
 export function PrintJobsTable() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [jobs, setJobs] = useState<any[]>([]);
   const [printerLastSeen, setPrinterLastSeen] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -79,9 +79,14 @@ export function PrintJobsTable() {
     if (!user?.password) return;
     try {
       const res = await fetch('/api/admin/jobs', {
-        headers: { 'Authorization': `Bearer ${user.password}` }
+        headers: { 'Authorization': `Bearer ${user.password}` },
+        cache: 'no-store'
       });
-      if (!res.ok) throw new Error('Unauthorized');
+      if (res.status === 401) {
+        logout();
+        return;
+      }
+      if (!res.ok) throw new Error('Failed to fetch jobs');
       const data = await res.json();
       const rawJobs = data.jobs || [];
       const processedJobs: any[][] = [];
