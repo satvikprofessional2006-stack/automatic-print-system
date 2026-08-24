@@ -8,6 +8,12 @@ export interface PrintFile {
   size: number;
   type: string;
   file: File;
+  settings?: {
+    color: boolean;
+    copies: number;
+    layout: string;
+    pages: number;
+  };
 }
 
 export interface PrintJob {

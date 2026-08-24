@@ -29,7 +29,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     if (error) throw error;
     
-    // We are no longer deleting the file from Supabase Storage so it is saved permanently
+    if (status === 'completed' || status === 'failed') {
+      const ext = job.filename.split('.').pop();
+      const storageFilename = `${job.id}.${ext}`;
+      
+      const { error: deleteError } = await supabase
+        .storage
+        .from('print-jobs')
+        .remove([storageFilename]);
+        
+      if (deleteError) {
+        console.error(`Failed to delete file ${storageFilename} from storage:`, deleteError);
+      }
+    }
     
     return NextResponse.json({ job });
   } catch (error) {

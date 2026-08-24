@@ -24,8 +24,12 @@ export function DetailsForm({ userType, onBack, onNext }: Props) {
   const [name, setName] = useState("");
   const [enrollmentNo, setEnrollmentNo] = useState("");
   const [files, setFiles] = useState<PrintFile[]>([]);
-  const [pages, setPages] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const computedTotalPages = files.reduce(
+    (sum, f) => sum + (f.settings?.pages || 1) * (f.settings?.copies || 1),
+    0
+  );
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -33,8 +37,6 @@ export function DetailsForm({ userType, onBack, onNext }: Props) {
     if (userType === "student" && !enrollmentNo.trim())
       e.enrollmentNo = "Enrollment number is required.";
     if (files.length === 0) e.files = "Please upload at least one file.";
-    if (pages && (isNaN(Number(pages)) || Number(pages) < 1))
-      e.pages = "Enter a valid page count.";
     return e;
   };
 
@@ -42,13 +44,12 @@ export function DetailsForm({ userType, onBack, onNext }: Props) {
     const e = validate();
     if (Object.keys(e).length > 0) { setErrors(e); return; }
     setErrors({});
-    const totalPages = pages ? parseInt(pages) : 0;
     onNext({
       name: name.trim(),
       enrollmentNo: userType === "student" ? enrollmentNo.trim() : undefined,
       files,
-      totalPages,
-      amount: calcAmount(totalPages),
+      totalPages: computedTotalPages,
+      amount: calcAmount(computedTotalPages),
     });
   };
 
@@ -103,53 +104,22 @@ export function DetailsForm({ userType, onBack, onNext }: Props) {
           {errors.files && <p className="text-xs text-destructive">{errors.files}</p>}
         </div>
 
-        {/* Page count */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground/80">
-            Total Pages{" "}
-            <span className="text-muted-foreground font-normal">(optional — leave blank to estimate)</span>
-          </label>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                const current = parseInt(pages) || 0;
-                if (current > 1) setPages((current - 1).toString());
-              }}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted/40 hover:bg-muted border border-border/60 transition-colors text-muted-foreground hover:text-foreground"
-            >
-              <Minus className="h-4 w-4" />
-            </button>
-            <Input
-              type="number"
-              min={1}
-              placeholder="e.g. 10"
-              value={pages}
-              onChange={(e) => setPages(e.target.value)}
-              className="h-9 bg-muted/40 border-border/60 rounded-xl text-sm focus-visible:ring-primary/50 w-20 text-center text-foreground font-semibold"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                const current = parseInt(pages) || 0;
-                setPages((current + 1).toString());
-              }}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted/40 hover:bg-muted border border-border/60 transition-colors text-muted-foreground hover:text-foreground"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
+        {/* Computed Page count and Cost */}
+        {files.length > 0 && (
+          <div className="pt-2">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/10">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-foreground/80">Total Pages</p>
+                <p className="text-[11px] text-muted-foreground">{computedTotalPages} pages across all copies</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-semibold text-foreground/80">Estimated Cost</p>
+                <p className="font-bold text-primary">₹{calcAmount(computedTotalPages)}</p>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-right mt-1.5 px-1">(₹1 per page, min ₹5)</p>
           </div>
-          {pages && !errors.pages && (
-            <p className="text-xs text-muted-foreground">
-              Estimated cost:{" "}
-              <span className="font-bold text-primary">
-                ₹{calcAmount(parseInt(pages) || 0)}
-              </span>{" "}
-              (₹1 per page, min ₹5)
-            </p>
-          )}
-          {errors.pages && <p className="text-xs text-destructive">{errors.pages}</p>}
-        </div>
+        )}
       </div>
 
       {/* Navigation */}

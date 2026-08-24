@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, X, FileText, FileImage, File as FileIcon } from "lucide-react";
+import { Upload, X, FileText, FileImage, File as FileIcon, Plus, Minus } from "lucide-react";
 import { PrintFile } from "@/lib/printStore";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +39,14 @@ export function FileUpload({ files, onChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+
+  const updateCopies = (index: number, delta: number) => {
+    const newFiles = [...files];
+    const currentSettings = newFiles[index].settings || { color: false, copies: 1, layout: 'portrait' };
+    const newCopies = Math.max(1, currentSettings.copies + delta);
+    newFiles[index].settings = { ...currentSettings, copies: newCopies };
+    onChange(newFiles);
+  };
 
   const processFiles = useCallback(
     async (fileList: FileList | null) => {
@@ -78,11 +86,29 @@ export function FileUpload({ files, onChange }: Props) {
           }
         }
 
+        let pages = 1;
+        if (f.type === "application/pdf") {
+          try {
+            const { PDFDocument } = await import("pdf-lib");
+            const arrayBuffer = await f.arrayBuffer();
+            const pdfDoc = await PDFDocument.load(arrayBuffer);
+            pages = pdfDoc.getPageCount();
+          } catch (e) {
+            console.error("Failed to parse PDF pages for", f.name, e);
+          }
+        }
+
         newFiles.push({
           name: f.name,
           size: f.size,
           type: f.type,
-          file: f
+          file: f,
+          settings: {
+            color: false,
+            copies: 1,
+            layout: 'portrait',
+            pages: pages
+          }
         });
       }
 
@@ -173,17 +199,41 @@ export function FileUpload({ files, onChange }: Props) {
               <div className="p-1.5 rounded-lg bg-primary/10 shrink-0">
                 <Icon className="h-4 w-4 text-primary" />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 pr-2">
                 <p className="text-xs font-semibold text-foreground truncate">{f.name}</p>
-                <p className="text-[11px] text-muted-foreground">{formatBytes(f.size)}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {formatBytes(f.size)} &bull; {f.settings?.pages || 1} pg{(f.settings?.pages || 1) !== 1 ? 's' : ''}
+                </p>
               </div>
+
+              {/* Copies Stepper */}
+              <div className="flex items-center gap-1.5 shrink-0 bg-background/50 rounded-lg p-1 border border-border/40 mr-1">
+                <button
+                  type="button"
+                  onClick={() => updateCopies(idx, -1)}
+                  className="p-1 rounded bg-background shadow-sm hover:bg-muted text-muted-foreground disabled:opacity-50 transition-colors"
+                  disabled={(f.settings?.copies || 1) <= 1}
+                >
+                  <Minus className="h-3 w-3" />
+                </button>
+                <span className="text-xs font-semibold w-4 text-center">{f.settings?.copies || 1}</span>
+                <button
+                  type="button"
+                  onClick={() => updateCopies(idx, 1)}
+                  className="p-1 rounded bg-background shadow-sm hover:bg-muted text-muted-foreground transition-colors"
+                >
+                  <Plus className="h-3 w-3" />
+                </button>
+              </div>
+
+              {/* Remove Button */}
               <button
                 type="button"
                 onClick={() => removeFile(idx)}
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
                 aria-label="Remove file"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-4 w-4" />
               </button>
             </motion.div>
           );
