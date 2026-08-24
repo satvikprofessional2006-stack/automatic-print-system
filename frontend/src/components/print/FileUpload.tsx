@@ -42,10 +42,22 @@ export function FileUpload({ files, onChange }: Props) {
 
   const updateCopies = (index: number, delta: number) => {
     const newFiles = [...files];
-    const currentSettings = newFiles[index].settings || { color: false, copies: 1, layout: 'portrait' };
+    const currentSettings = newFiles[index].settings || { color: false, copies: 1, layout: 'portrait', pages: 1 };
     const newCopies = Math.max(1, currentSettings.copies + delta);
     newFiles[index].settings = { ...currentSettings, copies: newCopies };
     onChange(newFiles);
+  };
+
+  const updateAllCopies = (delta: number) => {
+    const newFiles = [...files];
+    let allUpdated = false;
+    for (let i = 0; i < newFiles.length; i++) {
+      const currentSettings = newFiles[i].settings || { color: false, copies: 1, layout: 'portrait', pages: 1 };
+      const newCopies = Math.max(1, currentSettings.copies + delta);
+      if (newCopies !== currentSettings.copies) allUpdated = true;
+      newFiles[i].settings = { ...currentSettings, copies: newCopies };
+    }
+    if (allUpdated) onChange(newFiles);
   };
 
   const processFiles = useCallback(
@@ -182,6 +194,30 @@ export function FileUpload({ files, onChange }: Props) {
           </motion.p>
         ))}
       </AnimatePresence>
+
+      {/* Global Copies Control */}
+      {files.length > 1 && (
+        <div className="flex items-center justify-between bg-primary/5 rounded-xl px-4 py-2 border border-primary/10">
+          <span className="text-xs font-semibold text-primary">Apply to all files</span>
+          <div className="flex items-center gap-1.5 shrink-0 bg-background/50 rounded-lg p-1 border border-border/40">
+            <button
+              type="button"
+              onClick={() => updateAllCopies(-1)}
+              className="p-1 rounded bg-background shadow-sm hover:bg-muted text-muted-foreground transition-colors"
+            >
+              <Minus className="h-3 w-3" />
+            </button>
+            <span className="text-xs font-semibold px-2 text-center text-muted-foreground">Copies</span>
+            <button
+              type="button"
+              onClick={() => updateAllCopies(1)}
+              className="p-1 rounded bg-background shadow-sm hover:bg-muted text-muted-foreground transition-colors"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* File list */}
       <AnimatePresence>
