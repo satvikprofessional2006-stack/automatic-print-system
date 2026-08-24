@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FileUpload } from "@/components/print/FileUpload";
 import { UserType, PrintFile, calcAmount } from "@/lib/printStore";
-import { ArrowRight, ArrowLeft, GraduationCap, User2 } from "lucide-react";
+import { ArrowRight, ArrowLeft, GraduationCap, User2, Plus, Minus } from "lucide-react";
 
 interface Props {
   userType: UserType;
@@ -109,14 +109,36 @@ export function DetailsForm({ userType, onBack, onNext }: Props) {
             Total Pages{" "}
             <span className="text-muted-foreground font-normal">(optional — leave blank to estimate)</span>
           </label>
-          <Input
-            type="number"
-            min={1}
-            placeholder="e.g. 10"
-            value={pages}
-            onChange={(e) => setPages(e.target.value)}
-            className="h-9 bg-muted/40 border-border/60 rounded-xl text-sm focus-visible:ring-primary/50 w-36"
-          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const current = parseInt(pages) || 0;
+                if (current > 1) setPages((current - 1).toString());
+              }}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted/40 hover:bg-muted border border-border/60 transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <Minus className="h-4 w-4" />
+            </button>
+            <Input
+              type="number"
+              min={1}
+              placeholder="e.g. 10"
+              value={pages}
+              onChange={(e) => setPages(e.target.value)}
+              className="h-9 bg-muted/40 border-border/60 rounded-xl text-sm focus-visible:ring-primary/50 w-20 text-center text-foreground font-semibold"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const current = parseInt(pages) || 0;
+                setPages((current + 1).toString());
+              }}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted/40 hover:bg-muted border border-border/60 transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
           {pages && !errors.pages && (
             <p className="text-xs text-muted-foreground">
               Estimated cost:{" "}
