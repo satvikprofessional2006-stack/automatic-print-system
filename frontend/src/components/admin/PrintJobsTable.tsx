@@ -359,14 +359,12 @@ export function PrintJobsTable() {
                       {/* Name */}
                       <TableCell className="font-medium text-foreground">
                         <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold">
+                          <span className="font-mono text-primary font-bold text-xs sm:hidden shrink-0">#{serial}</span>
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold">
                             {(job.name || 'A')[0].toUpperCase()}
                           </div>
                           <div className="flex flex-col">
-                            <span className="text-sm">
-                              <span className="font-mono text-primary font-bold mr-1.5 sm:hidden">#{serial}</span>
-                              {job.name}
-                            </span>
+                            <span className="text-sm">{job.name}</span>
                             {/* Mobile-only files info */}
                             <span className="text-[10px] text-muted-foreground md:hidden mt-0.5">
                               {job.files.length} file{job.files.length !== 1 ? "s" : ""} {job.totalPages > 0 && `· ${job.totalPages} pg`}
