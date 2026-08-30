@@ -32,12 +32,6 @@ function buildGPayUrl(amount: number, jobId: string) {
   return `upi://pay?pa=${UPI_ID}&pn=${name}&am=${amount}&cu=INR&tn=${note}`;
 }
 
-function buildUpiWebUrl(amount: number, jobId: string) {
-  // GPay web intent (Android) — falls back gracefully
-  const base = buildGPayUrl(amount, jobId);
-  return `intent:${base.replace("upi://", "")}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end`;
-}
-
 export function PaymentStep({ job, onBack, onPaid }: Props) {
   const [payState, setPayState] = useState<PayState>("waiting");
   const [pollCount, setPollCount] = useState(0);

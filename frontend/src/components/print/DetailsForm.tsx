@@ -27,6 +27,14 @@ interface Props {
   }) => void;
 }
 
+/**
+ * DetailsForm Component
+ * 
+ * Renders the second step of the print flow where users input their personal details
+ * and upload the files they wish to print. Handles form validation and cost estimation.
+ *
+ * @param {Props} props - Component properties
+ */
 export function DetailsForm({ 
   userType, 
   name, onNameChange, 
@@ -42,17 +50,30 @@ export function DetailsForm({
   );
 
   const validate = () => {
-    const e: Record<string, string> = {};
-    if (!name.trim()) e.name = "Name is required.";
-    if (userType === "student" && !enrollmentNo.trim())
-      e.enrollmentNo = "Enrollment number is required.";
-    if (files.length === 0) e.files = "Please upload at least one file.";
-    return e;
+    const validationErrors: Record<string, string> = {};
+    
+    if (!name.trim()) {
+      validationErrors.name = "Name is required.";
+    }
+    
+    if (userType === "student" && !enrollmentNo.trim()) {
+      validationErrors.enrollmentNo = "Enrollment number is required.";
+    }
+    
+    if (files.length === 0) {
+      validationErrors.files = "Please upload at least one file.";
+    }
+    
+    return validationErrors;
   };
 
   const handleNext = () => {
-    const e = validate();
-    if (Object.keys(e).length > 0) { setErrors(e); return; }
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+    
     setErrors({});
     onNext({
       name: name.trim(),
