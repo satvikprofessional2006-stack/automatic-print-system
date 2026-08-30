@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UserTypeSelect } from "@/components/print/UserTypeSelect";
 import { DetailsForm } from "@/components/print/DetailsForm";
+import { PrintOptions } from "@/components/print/PrintOptions";
 import { PaymentStep } from "@/components/print/PaymentStep";
 import { PrintSuccess } from "@/components/print/PrintSuccess";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -11,11 +12,12 @@ import { UserType, PrintFile, PrintJob } from "@/lib/printStore";
 import { Printer, ChevronRight, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Step = "type" | "details" | "payment" | "success";
+type Step = "type" | "details" | "options" | "payment" | "success";
 
 const STEPS: { id: Step; label: string }[] = [
   { id: "type", label: "Who are you?" },
   { id: "details", label: "Your details" },
+  { id: "options", label: "Print Settings" },
   { id: "payment", label: "Payment" },
   { id: "success", label: "Printing" },
 ];
@@ -40,6 +42,10 @@ export function PrintFlow() {
 
   const [userType, setUserType] = useState<UserType>("student");
   const [activeJob, setActiveJob] = useState<PrintJob | null>(null);
+
+  const [draftName, setDraftName] = useState("");
+  const [draftEnrollment, setDraftEnrollment] = useState("");
+  const [draftFiles, setDraftFiles] = useState<PrintFile[]>([]);
 
   const go = (next: Step, direction: number) => {
     setDir(direction);
@@ -75,6 +81,16 @@ export function PrintFlow() {
       updatedAt: new Date().toISOString()
     };
     setActiveJob(job);
+    go("options", 1);
+  };
+
+  const handleOptionsUpdateFiles = (newFiles: PrintFile[]) => {
+    if (activeJob) {
+      setActiveJob({ ...activeJob, files: newFiles });
+    }
+  };
+
+  const handleOptionsNext = () => {
     go("payment", 1);
   };
 
@@ -85,6 +101,9 @@ export function PrintFlow() {
 
   const handleReset = () => {
     setActiveJob(null);
+    setDraftName("");
+    setDraftEnrollment("");
+    setDraftFiles([]);
     go("type", -1);
   };
 
@@ -97,7 +116,8 @@ export function PrintFlow() {
             <button 
               onClick={() => {
                 if (step === "details") go("type", -1);
-                else if (step === "payment") go("details", -1);
+                else if (step === "options") go("details", -1);
+                else if (step === "payment") go("options", -1);
                 else if (step === "success") go("type", -1);
               }}
               className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors mr-1 sm:mr-0"
@@ -191,14 +211,28 @@ export function PrintFlow() {
                   {step === "details" && (
                     <DetailsForm
                       userType={userType}
+                      name={draftName}
+                      onNameChange={setDraftName}
+                      enrollmentNo={draftEnrollment}
+                      onEnrollmentChange={setDraftEnrollment}
+                      files={draftFiles}
+                      onFilesChange={setDraftFiles}
                       onBack={() => go("type", -1)}
                       onNext={handleDetailsNext}
+                    />
+                  )}
+                  {step === "options" && activeJob && (
+                    <PrintOptions
+                      files={activeJob.files}
+                      onUpdateFiles={handleOptionsUpdateFiles}
+                      onBack={() => go("details", -1)}
+                      onNext={handleOptionsNext}
                     />
                   )}
                   {step === "payment" && activeJob && (
                     <PaymentStep
                       job={activeJob}
-                      onBack={() => go("details", -1)}
+                      onBack={() => go("options", -1)}
                       onPaid={handlePaid}
                     />
                   )}

@@ -18,6 +18,10 @@ const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
+  "image/heic",
+  "image/heif",
+  ".heic",
+  ".heif",
   "text/plain",
 ];
 
@@ -41,25 +45,6 @@ export function FileUpload({ files, onChange }: Props) {
   const [errors, setErrors] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const updateCopies = (index: number, delta: number) => {
-    const newFiles = [...files];
-    const currentSettings = newFiles[index].settings || { color: false, copies: 1, layout: 'portrait', pages: 1 };
-    const newCopies = Math.max(1, currentSettings.copies + delta);
-    newFiles[index].settings = { ...currentSettings, copies: newCopies };
-    onChange(newFiles);
-  };
-
-  const updateAllCopies = (delta: number) => {
-    const newFiles = [...files];
-    let allUpdated = false;
-    for (let i = 0; i < newFiles.length; i++) {
-      const currentSettings = newFiles[i].settings || { color: false, copies: 1, layout: 'portrait', pages: 1 };
-      const newCopies = Math.max(1, currentSettings.copies + delta);
-      if (newCopies !== currentSettings.copies) allUpdated = true;
-      newFiles[i].settings = { ...currentSettings, copies: newCopies };
-    }
-    if (allUpdated) onChange(newFiles);
-  };
 
   const processFiles = useCallback(
     async (fileList: FileList | null) => {
@@ -121,7 +106,8 @@ export function FileUpload({ files, onChange }: Props) {
             color: false,
             copies: 1,
             layout: 'portrait',
-            pages: pages
+            pages: pages,
+            doubleSided: false
           }
         });
       }
@@ -202,31 +188,7 @@ export function FileUpload({ files, onChange }: Props) {
         ))}
       </AnimatePresence>
 
-      {/* Global Copies Control */}
-      {files.length > 1 && (
-        <div className="flex items-center justify-between bg-primary/5 rounded-xl px-4 py-2 border border-primary/10">
-          <span className="text-xs font-semibold text-primary">Apply to all files</span>
-          <div className="flex items-center gap-1.5 shrink-0 bg-background/50 rounded-lg p-1 border border-border/40">
-            <button
-              type="button"
-              onClick={() => updateAllCopies(-1)}
-              className="p-1 rounded bg-background shadow-sm hover:bg-muted text-muted-foreground transition-colors"
-            >
-              <Minus className="h-3 w-3" />
-            </button>
-            <span className="text-xs font-semibold px-2 text-center text-muted-foreground">Copies</span>
-            <button
-              type="button"
-              onClick={() => updateAllCopies(1)}
-              className="p-1 rounded bg-background shadow-sm hover:bg-muted text-muted-foreground transition-colors"
-            >
-              <Plus className="h-3 w-3" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* File list */}
+      {/* Error messages */}
       <AnimatePresence>
         {files.map((f, idx) => {
           const Icon = fileIcon(f.type);
@@ -247,26 +209,6 @@ export function FileUpload({ files, onChange }: Props) {
                 <p className="text-[11px] text-muted-foreground">
                   {formatBytes(f.size)} &bull; {f.settings?.pages || 1} pg{(f.settings?.pages || 1) !== 1 ? 's' : ''}
                 </p>
-              </div>
-
-              {/* Copies Stepper */}
-              <div className="flex items-center gap-1.5 shrink-0 bg-background/50 rounded-lg p-1 border border-border/40 mr-1">
-                <button
-                  type="button"
-                  onClick={() => updateCopies(idx, -1)}
-                  className="p-1 rounded bg-background shadow-sm hover:bg-muted text-muted-foreground disabled:opacity-50 transition-colors"
-                  disabled={(f.settings?.copies || 1) <= 1}
-                >
-                  <Minus className="h-3 w-3" />
-                </button>
-                <span className="text-xs font-semibold w-4 text-center">{f.settings?.copies || 1}</span>
-                <button
-                  type="button"
-                  onClick={() => updateCopies(idx, 1)}
-                  className="p-1 rounded bg-background shadow-sm hover:bg-muted text-muted-foreground transition-colors"
-                >
-                  <Plus className="h-3 w-3" />
-                </button>
               </div>
 
               {/* Remove Button */}

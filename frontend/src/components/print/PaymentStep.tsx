@@ -67,7 +67,8 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             const uploadPromises = job.files.map(async (pf) => {
               const formData = new FormData();
               formData.append('file', pf.file);
-              formData.append('copies', '1');
+              formData.append('copies', (pf.settings?.copies || 1).toString());
+              formData.append('doubleSided', pf.settings?.doubleSided ? 'true' : 'false');
               formData.append('userName', job.name);
               
               const res = await fetch('/api/upload', {

@@ -52,7 +52,7 @@ def update_job_status(job_id, status):
     except requests.exceptions.RequestException as e:
         print(f"Error updating job status: {e}")
 
-def print_job(filepath, copies):
+def print_job(filepath, copies, double_sided=False):
     if MOCK_MODE:
         print(f"[MOCK] Simulating print for {filepath} ({copies} copies)")
         time.sleep(3)  # Simulate print time
@@ -72,10 +72,15 @@ def print_job(filepath, copies):
         except Exception:
             pass
 
-        # 2. Using lp command for macOS/Linux
-        # -n specifies copies, -o fit-to-page scales large images, -o media=A4 prevents the printer from waiting for paper size confirmation
+        # 2. Using lpr command for macOS/Linux
+        cmd = ["lpr", "-#", str(copies)]
+        if double_sided:
+            cmd.extend(["-o", "sides=two-sided-long-edge"])
+        cmd.extend(["-o", "media=A4", "-o", "PageSize=A4", "-o", "fit-to-page"])
+        cmd.append(print_filepath)
+        
         result = subprocess.run(
-            ["lp", "-n", str(copies), "-o", "media=A4", "-o", "PageSize=A4", "-o", "fit-to-page", print_filepath],
+            cmd,
             check=True,
             capture_output=True,
             text=True
@@ -105,8 +110,9 @@ def process_job(job):
     job_id = job["id"]
     filename = job["filename"]
     copies = job["copies"]
+    double_sided = job.get("doubleSided", False)
     
-    print(f"Found new job: {filename} ({copies} copies). Processing in background thread.")
+    print(f"Found new job: {filename} ({copies} copies, double-sided: {double_sided}). Processing in background thread.")
     
     try:
         # 1. Update status to printing
@@ -117,7 +123,7 @@ def process_job(job):
         
         if filepath:
             # 3. Print the file
-            success = print_job(filepath, copies)
+            success = print_job(filepath, copies, double_sided)
             
             # 4. Update final status
             if success:

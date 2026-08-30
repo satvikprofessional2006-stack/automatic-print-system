@@ -7,9 +7,16 @@ import { Button } from "@/components/ui/button";
 import { FileUpload } from "@/components/print/FileUpload";
 import { UserType, PrintFile, calcAmount } from "@/lib/printStore";
 import { ArrowRight, ArrowLeft, GraduationCap, User2, Plus, Minus } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Props {
   userType: UserType;
+  name: string;
+  onNameChange: (val: string) => void;
+  enrollmentNo: string;
+  onEnrollmentChange: (val: string) => void;
+  files: PrintFile[];
+  onFilesChange: (files: PrintFile[]) => void;
   onBack: () => void;
   onNext: (data: {
     name: string;
@@ -20,10 +27,13 @@ interface Props {
   }) => void;
 }
 
-export function DetailsForm({ userType, onBack, onNext }: Props) {
-  const [name, setName] = useState("");
-  const [enrollmentNo, setEnrollmentNo] = useState("");
-  const [files, setFiles] = useState<PrintFile[]>([]);
+export function DetailsForm({ 
+  userType, 
+  name, onNameChange, 
+  enrollmentNo, onEnrollmentChange, 
+  files, onFilesChange, 
+  onBack, onNext 
+}: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const computedTotalPages = files.reduce(
@@ -70,57 +80,68 @@ export function DetailsForm({ userType, onBack, onNext }: Props) {
         {/* Name */}
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-foreground/80">Full Name *</label>
-          <Input
-            placeholder="e.g. Arjun Sharma"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="h-9 bg-muted/40 border-border/60 rounded-xl text-sm focus-visible:ring-primary/50"
-          />
-          {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
-        </div>
-
-        {/* Enrollment — students only */}
-        {userType === "student" && (
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground/80">Enrollment Number *</label>
             <Input
-              placeholder="e.g. 2503210042"
-              value={enrollmentNo}
-              onChange={(e) => setEnrollmentNo(e.target.value)}
-              className="h-9 bg-muted/40 border-border/60 rounded-xl text-sm focus-visible:ring-primary/50 font-mono"
+              placeholder="e.g. Arjun Sharma"
+              value={name}
+              onChange={(e) => {
+                onNameChange(e.target.value);
+                if (errors.name) setErrors(prev => ({ ...prev, name: "" }));
+              }}
+              className={cn("bg-background border-border/60", errors.name && "border-destructive focus-visible:ring-destructive")}
             />
-            {errors.enrollmentNo && (
-              <p className="text-xs text-destructive">{errors.enrollmentNo}</p>
-            )}
+            {errors.name && <p className="text-xs text-destructive mt-1.5 px-1">{errors.name}</p>}
           </div>
-        )}
 
-        {/* File upload */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-foreground/80">
-            Upload Files *
-          </label>
-          <FileUpload files={files} onChange={setFiles} />
-          {errors.files && <p className="text-xs text-destructive">{errors.files}</p>}
-        </div>
-
-        {/* Computed Page count and Cost */}
-        {files.length > 0 && (
-          <div className="pt-2">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/10">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-foreground/80">Total Pages</p>
-                <p className="text-[11px] text-muted-foreground">{computedTotalPages} pages across all copies</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs font-semibold text-foreground/80">Estimated Cost</p>
-                <p className="font-bold text-primary">₹{calcAmount(computedTotalPages)}</p>
-              </div>
+          {userType === "student" && (
+            <div>
+              <label className="block text-sm font-semibold text-foreground/80 mb-2">
+                Enrollment Number <span className="text-destructive">*</span>
+              </label>
+              <Input
+                placeholder="e.g. 2503210042"
+                value={enrollmentNo}
+                onChange={(e) => {
+                  onEnrollmentChange(e.target.value);
+                  if (errors.enrollmentNo) setErrors(prev => ({ ...prev, enrollmentNo: "" }));
+                }}
+                className={cn("bg-background border-border/60", errors.enrollmentNo && "border-destructive focus-visible:ring-destructive")}
+              />
+              {errors.enrollmentNo && <p className="text-xs text-destructive mt-1.5 px-1">{errors.enrollmentNo}</p>}
             </div>
-            <p className="text-[10px] text-muted-foreground text-right mt-1.5 px-1">(₹1 per page, min ₹5)</p>
+          )}
+
+          <div>
+            <label className="block text-sm font-semibold text-foreground/80 mb-2">
+              Upload Files <span className="text-destructive">*</span>
+            </label>
+            <FileUpload 
+              files={files}
+              onChange={(newFiles) => {
+                onFilesChange(newFiles);
+                if (newFiles.length > 0 && errors.files) {
+                  setErrors(prev => ({ ...prev, files: "" }));
+                }
+              }}
+            />
+            {errors.files && <p className="text-xs text-destructive mt-1.5 px-1">{errors.files}</p>}
           </div>
-        )}
-      </div>
+
+          {files.length > 0 && (
+            <div className="pt-2">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/10">
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-foreground/80">Total Pages</p>
+                  <p className="text-[11px] text-muted-foreground">{computedTotalPages} pages across all copies</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-semibold text-foreground/80">Estimated Cost</p>
+                  <p className="font-bold text-primary">₹{calcAmount(computedTotalPages)}</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground text-right mt-1.5 px-1">(₹1 per page, min ₹5)</p>
+            </div>
+          )}
+        </div>
 
       {/* Navigation */}
       <div className="flex items-center gap-3 pt-1">
@@ -133,9 +154,9 @@ export function DetailsForm({ userType, onBack, onNext }: Props) {
         </Button>
         <Button
           onClick={handleNext}
-          className="gap-2 rounded-xl text-sm flex-1 sm:flex-none"
+          className="gap-2 rounded-xl text-sm flex-1 sm:flex-none bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
         >
-          Continue to Payment <ArrowRight className="h-4 w-4" />
+          Continue <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
     </div>

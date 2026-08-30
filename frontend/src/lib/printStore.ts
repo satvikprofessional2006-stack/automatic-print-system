@@ -13,6 +13,7 @@ export interface PrintFile {
     copies: number;
     layout: string;
     pages: number;
+    doubleSided: boolean;
   };
 }
 
