@@ -85,8 +85,7 @@
 @layer base {
   html,
   body {
-    height: 100%;
-    overflow: hidden;
+    min-height: 100%;
     @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
     font-family: var(--font-poppins), 'Poppins', system-ui, -apple-system, sans-serif;
     font-feature-settings: "cv11", "ss01";

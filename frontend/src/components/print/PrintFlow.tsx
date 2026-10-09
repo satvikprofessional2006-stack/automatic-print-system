@@ -120,7 +120,7 @@ export function PrintFlow() {
   };
 
   return (
-    <div className="min-h-screen min-h-[100dvh] w-full overflow-y-auto bg-background flex flex-col font-sans">
+    <div className="min-h-screen min-h-[100dvh] w-full bg-background flex flex-col font-sans">
       {/* ── Top bar ── */}
       <header className="h-14 shrink-0 flex items-center justify-between bg-[#FFE5CD] dark:bg-card border-b border-border/60 px-4 sm:px-8 shadow-xs">
         <div className="flex items-center gap-2 sm:gap-4">
