@@ -964,12 +964,12 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
       </div>
 
       {/* ── Navigation Buttons ── */}
-      <div className="pt-1 flex gap-3">
+      <div className="pt-2 pb-2 flex gap-2.5 sm:gap-3">
         <Button
           type="button"
           variant="outline"
           onClick={onBack}
-          className="gap-2 rounded-xl text-sm"
+          className="gap-1.5 sm:gap-2 rounded-xl text-xs sm:text-sm h-11 shrink-0 px-3 sm:px-4 cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Settings
         </Button>
@@ -977,7 +977,7 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
           type="button"
           disabled={!parsedRange.valid || hasInvalidRange}
           onClick={onNext}
-          className="gap-2 rounded-xl text-sm flex-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm disabled:opacity-50"
+          className="gap-1.5 sm:gap-2 rounded-xl text-xs sm:text-sm h-11 flex-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm disabled:opacity-50 px-3 sm:px-4 cursor-pointer"
         >
           Continue to Payment <ArrowRight className="h-4 w-4" />
         </Button>

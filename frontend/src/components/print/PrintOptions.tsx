@@ -269,7 +269,7 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
       </div>
 
       {/* Navigation */}
-      <div className="pt-2 flex gap-3">
+      <div className="pt-2 pb-2 flex gap-3">
         <Button
           type="button"
           variant="outline"

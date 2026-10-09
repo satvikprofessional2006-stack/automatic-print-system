@@ -184,7 +184,7 @@ export function DetailsForm({
         </div>
 
       {/* Navigation */}
-      <div className="flex items-center gap-3 pt-1">
+      <div className="flex items-center gap-3 pt-2 pb-2">
         <Button
           variant="ghost"
           onClick={onBack}

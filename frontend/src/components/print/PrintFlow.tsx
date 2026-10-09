@@ -120,7 +120,7 @@ export function PrintFlow() {
   };
 
   return (
-    <div className="h-screen w-full overflow-y-auto bg-background flex flex-col font-sans">
+    <div className="min-h-screen min-h-[100dvh] w-full overflow-y-auto bg-background flex flex-col font-sans">
       {/* ── Top bar ── */}
       <header className="h-14 shrink-0 flex items-center justify-between bg-[#FFE5CD] dark:bg-card border-b border-border/60 px-4 sm:px-8 shadow-xs">
         <div className="flex items-center gap-2 sm:gap-4">
@@ -158,7 +158,7 @@ export function PrintFlow() {
       </header>
 
       {/* ── Main content ── */}
-      <div className="flex-1 flex items-start justify-center px-4 py-2 sm:py-4">
+      <div className="flex-1 flex items-start justify-center px-3 sm:px-4 pt-2 sm:pt-4 pb-28 sm:pb-12">
         <div className="w-full max-w-lg">
 
           {/* Step progress bar */}
@@ -206,7 +206,7 @@ export function PrintFlow() {
           </div>
 
           {/* Card */}
-          <div className="rounded-2xl bg-card/60 backdrop-blur-md border border-border/60 shadow-sm overflow-hidden">
+          <div className="rounded-2xl bg-card/60 backdrop-blur-md border border-border/60 shadow-sm overflow-hidden mb-6">
             <div className="p-4 sm:p-5">
               <AnimatePresence mode="wait" custom={dir}>
                 <motion.div
