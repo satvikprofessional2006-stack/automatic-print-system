@@ -5,8 +5,8 @@ import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FileUpload } from "@/components/print/FileUpload";
-import { UserType, PrintFile, calcAmount } from "@/lib/printStore";
-import { ArrowRight, ArrowLeft, GraduationCap, User2, Plus, Minus } from "lucide-react";
+import { UserType, PrintFile, calcFilesAmount, BW_RATE, COLOR_RATE, MIN_JOB_AMOUNT } from "@/lib/printStore";
+import { ArrowRight, ArrowLeft, GraduationCap, User2, Sparkles, CircleDot } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -44,10 +44,7 @@ export function DetailsForm({
 }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const computedTotalPages = files.reduce(
-    (sum, f) => sum + (f.settings?.pages || 1) * (f.settings?.copies || 1),
-    0
-  );
+  const { bwPages, colorPages, totalPages, bwAmount, colorAmount, totalAmount } = calcFilesAmount(files);
 
   const validate = () => {
     const validationErrors: Record<string, string> = {};
@@ -79,8 +76,8 @@ export function DetailsForm({
       name: name.trim(),
       enrollmentNo: userType === "student" ? enrollmentNo.trim() : undefined,
       files,
-      totalPages: computedTotalPages,
-      amount: calcAmount(computedTotalPages),
+      totalPages: totalPages,
+      amount: totalAmount,
     });
   };
 
@@ -97,7 +94,7 @@ export function DetailsForm({
         <h2 className="text-xl font-bold tracking-tight">Your details &amp; files</h2>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         {/* Name */}
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-foreground/80">Full Name *</label>
@@ -149,17 +146,39 @@ export function DetailsForm({
 
           {files.length > 0 && (
             <div className="pt-2">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/10">
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-foreground/80">Total Pages</p>
-                  <p className="text-[11px] text-muted-foreground">{computedTotalPages} pages across all copies</p>
+              <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/10 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-semibold text-foreground/80">Total Pages</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {totalPages} page{totalPages !== 1 ? 's' : ''} across all copies
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-semibold text-foreground/80">Estimated Cost</p>
+                    <p className="font-bold text-lg text-primary">₹{totalAmount}</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs font-semibold text-foreground/80">Estimated Cost</p>
-                  <p className="font-bold text-primary">₹{calcAmount(computedTotalPages)}</p>
+
+                {/* Breakdown tag pills */}
+                <div className="flex flex-wrap items-center justify-between pt-2 border-t border-primary/10 gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
+                    {bwPages > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted text-foreground/90 font-medium text-[10px] border border-border/50">
+                        📄 {bwPages} B&amp;W (₹{bwAmount})
+                      </span>
+                    )}
+                    {colorPages > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium text-[10px] border border-rose-500/20">
+                        🎨 {colorPages} Colour (₹{colorAmount})
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    (B&amp;W: ₹{BW_RATE}/pg · Colour: ₹{COLOR_RATE}/pg)
+                  </span>
                 </div>
               </div>
-              <p className="text-[10px] text-muted-foreground text-right mt-1.5 px-1">(₹1 per page, min ₹5)</p>
             </div>
           )}
         </div>

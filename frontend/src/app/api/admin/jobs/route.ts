@@ -20,7 +20,10 @@ export async function GET(req: Request) {
       .order('createdAt', { ascending: false })
       .limit(1000);
       
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase Error in admin/jobs:", error);
+      throw error;
+    }
     
     let printerLastSeen = null;
     const jobs = (rawJobs || []).filter(job => {

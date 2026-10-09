@@ -50,6 +50,11 @@ export async function GET(req: Request) {
 
     const normalized = processedJobs.map(group => {
       const totalCopies = group.reduce((sum: number, j: any) => sum + (j.copies || 1), 0);
+      const calculatedAmount = group.reduce(
+        (sum: number, j: any) => sum + (j.copies || 1) * (j.color ? 10 : 2),
+        0
+      );
+      const amount = calculatedAmount;
       let overallStatus = 'completed';
       if (group.some((j: any) => j.status === 'failed')) overallStatus = 'failed';
       else if (group.some((j: any) => j.status === 'printing')) overallStatus = 'printing';
@@ -58,6 +63,7 @@ export async function GET(req: Request) {
 
       return {
         copies: totalCopies,
+        amount: amount,
         status: overallStatus,
       };
     });
@@ -68,9 +74,10 @@ export async function GET(req: Request) {
     const failedCount = normalized.filter(j => j.status === 'failed').length;
     const cancelledCount = normalized.filter(j => j.status === 'cancelled').length;
     
-    // Revenue is currently 0 in the system because 'amount' is not stored in Supabase.
-    // Setting it to 0 so it perfectly matches the ₹0 Amount column in the Print Logs table.
-    const revenue = 0;
+    // Calculate total revenue for completed / paid print jobs based on page count, color rates and minimum pricing
+    const revenue = normalized
+      .filter(j => j.status === 'completed' || j.status === 'paid')
+      .reduce((sum, j) => sum + j.amount, 0);
 
     return NextResponse.json({
       total: totalCount,

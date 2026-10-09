@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { PrintJob } from "@/lib/printStore";
+import { PrintJob, calcFilesAmount } from "@/lib/printStore";
 import {
   CheckCircle2,
   Loader2,
@@ -39,6 +39,8 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
 
   const gpayUrl = buildGPayUrl(job.amount, job.id);
 
+  const { bwPages, colorPages } = calcFilesAmount(job.files);
+
   // ─── Simulated payment polling ────────────────────────────────────────────
   // In production: replace this with a real API call to your backend
   // that checks whether the UPI transaction arrived.
@@ -63,6 +65,9 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
               formData.append('file', pf.file);
               formData.append('copies', (pf.settings?.copies || 1).toString());
               formData.append('doubleSided', pf.settings?.doubleSided ? 'true' : 'false');
+              formData.append('color', pf.settings?.color ? 'true' : 'false');
+              formData.append('layout', pf.settings?.layout || 'portrait');
+              formData.append('pageRange', pf.settings?.pageRange || 'all');
               formData.append('userName', job.name);
               
               const res = await fetch('/api/upload', {
@@ -111,10 +116,21 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
           <p className="text-4xl font-bold font-mono text-primary mt-1">
             ₹{job.amount}
           </p>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Job #{job.id} · {job.files.length} file{job.files.length !== 1 ? "s" : ""}
-            {job.totalPages > 0 ? ` · ${job.totalPages} pages` : ""}
-          </p>
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            <span className="text-[11px] text-muted-foreground mr-1">
+              Job #{job.id} · {job.files.length} file{job.files.length !== 1 ? "s" : ""}
+            </span>
+            {bwPages > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted text-foreground/80 font-medium text-[10px] border border-border/50">
+                📄 {bwPages} B&amp;W
+              </span>
+            )}
+            {colorPages > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium text-[10px] border border-rose-500/20">
+                🎨 {colorPages} Colour
+              </span>
+            )}
+          </div>
         </div>
         <div className="hidden sm:flex flex-col items-end gap-1 text-xs text-muted-foreground">
           <p className="font-semibold">{MERCHANT_NAME}</p>

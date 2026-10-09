@@ -13,6 +13,9 @@ export async function POST(req: Request) {
     const file = formData.get('file') as File;
     const copiesStr = formData.get('copies') as string;
     const doubleSidedStr = formData.get('doubleSided') as string;
+    const colorStr = formData.get('color') as string;
+    const layout = (formData.get('layout') as string) || 'portrait';
+    const pageRange = (formData.get('pageRange') as string) || 'all';
     const userName = formData.get('userName') as string || null;
     
     if (!file) {
@@ -31,28 +34,48 @@ export async function POST(req: Request) {
     
     const copies = parseInt(copiesStr || '1', 10);
     const doubleSided = doubleSidedStr === 'true';
+    const isColor = colorStr === 'true';
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
     // Generate UUID manually since we bypassed Prisma's auto-generation
     const jobId = crypto.randomUUID();
     
+    // Create DB entry payload
+    const jobPayload: any = {
+      id: jobId,
+      filename: originalFilename,
+      copies: copies,
+      status: 'queued',
+      userName: userName,
+      doubleSided: doubleSided,
+      color: isColor,
+      layout: layout,
+      page_range: pageRange,
+      updatedAt: new Date().toISOString()
+    };
+
     // Create DB entry to get the UUID using Supabase JS
-    const { data: printJob, error: dbError } = await supabase
+    let { data: printJob, error: dbError } = await supabase
       .from('PrintJob')
-      .insert([
-        {
-          id: jobId,
-          filename: originalFilename,
-          copies: copies,
-          status: 'queued',
-          userName: userName,
-          doubleSided: doubleSided,
-          updatedAt: new Date().toISOString()
-        }
-      ])
+      .insert([jobPayload])
       .select()
       .single();
+
+    // If 'color', 'layout', or 'page_range' column doesn't exist yet in Supabase schema, retry safely without throwing
+    if (dbError && (dbError.message?.includes('color') || dbError.message?.includes('layout') || dbError.message?.includes('page_range') || dbError.details?.includes('column') || dbError.code === 'PGRST204')) {
+      console.warn("Retrying insert without optional columns:", dbError.message);
+      delete jobPayload.color;
+      delete jobPayload.layout;
+      delete jobPayload.page_range;
+      const retryResult = await supabase
+        .from('PrintJob')
+        .insert([jobPayload])
+        .select()
+        .single();
+      printJob = retryResult.data;
+      dbError = retryResult.error;
+    }
       
     if (dbError || !printJob) {
       console.error('Database error:', dbError);

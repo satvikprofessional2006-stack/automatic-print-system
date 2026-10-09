@@ -52,9 +52,12 @@ def update_job_status(job_id, status):
     except requests.exceptions.RequestException as e:
         print(f"Error updating job status: {e}")
 
-def print_job(filepath, copies, double_sided=False):
+def print_job(filepath, copies, double_sided=False, color=False, layout="portrait", page_range="all"):
     if MOCK_MODE:
-        print(f"[MOCK] Simulating print for {filepath} ({copies} copies)")
+        color_str = "Colour" if color else "B&W"
+        layout_str = str(layout).capitalize()
+        range_str = f"pages {page_range}" if page_range and page_range != "all" else "all pages"
+        print(f"[MOCK] Simulating {color_str} ({layout_str}, {range_str}) print for {filepath} ({copies} copies)")
         time.sleep(3)  # Simulate print time
         return True
     
@@ -76,6 +79,30 @@ def print_job(filepath, copies, double_sided=False):
         cmd = ["lpr", "-#", str(copies)]
         if double_sided:
             cmd.extend(["-o", "sides=two-sided-long-edge"])
+        
+        # Color mode handling for CUPS / standard drivers
+        if color:
+            cmd.extend(["-o", "print-color-mode=color", "-o", "ColorModel=Color"])
+        else:
+            cmd.extend(["-o", "print-color-mode=monochrome", "-o", "ColorModel=Gray"])
+
+        # Orientation / layout handling (landscape vs portrait)
+        if str(layout).lower() == "landscape":
+            cmd.extend(["-o", "landscape", "-o", "orientation-requested=4"])
+        else:
+            cmd.extend(["-o", "orientation-requested=3"])
+
+        # Page range handling for CUPS (All, Odd, Even, Custom)
+        if page_range and str(page_range).lower() != "all" and str(page_range).strip() != "":
+            range_val = str(page_range).lower().strip()
+            if range_val == "odd":
+                cmd.extend(["-o", "page-set=odd"])
+            elif range_val == "even":
+                cmd.extend(["-o", "page-set=even"])
+            else:
+                clean_range = str(page_range).replace(" ", "")
+                cmd.extend(["-o", f"page-ranges={clean_range}"])
+
         cmd.extend(["-o", "media=A4", "-o", "PageSize=A4", "-o", "fit-to-page"])
         cmd.append(print_filepath)
         
@@ -111,8 +138,11 @@ def process_job(job):
     filename = job["filename"]
     copies = job["copies"]
     double_sided = job.get("doubleSided", False)
+    color = job.get("color", False)
+    layout = job.get("layout", "portrait")
+    page_range = job.get("page_range") or job.get("pageRange") or "all"
     
-    print(f"Found new job: {filename} ({copies} copies, double-sided: {double_sided}). Processing in background thread.")
+    print(f"Found new job: {filename} ({copies} copies, double-sided: {double_sided}, color: {color}, layout: {layout}, page_range: {page_range}). Processing in background thread.")
     
     try:
         # 1. Update status to printing
@@ -123,7 +153,7 @@ def process_job(job):
         
         if filepath:
             # 3. Print the file
-            success = print_job(filepath, copies, double_sided)
+            success = print_job(filepath, copies, double_sided, color, layout, page_range)
             
             # 4. Update final status
             if success:

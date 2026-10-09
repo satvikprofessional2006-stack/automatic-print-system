@@ -5,19 +5,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import { UserTypeSelect } from "@/components/print/UserTypeSelect";
 import { DetailsForm } from "@/components/print/DetailsForm";
 import { PrintOptions } from "@/components/print/PrintOptions";
+import { PreviewStep } from "@/components/print/PreviewStep";
 import { PaymentStep } from "@/components/print/PaymentStep";
 import { PrintSuccess } from "@/components/print/PrintSuccess";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { UserType, PrintFile, PrintJob } from "@/lib/printStore";
+import { UserType, PrintFile, PrintJob, calcFilesAmount } from "@/lib/printStore";
 import { Printer, ChevronRight, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Step = "type" | "details" | "options" | "payment" | "success";
+type Step = "type" | "details" | "options" | "preview" | "payment" | "success";
 
 const STEPS: { id: Step; label: string }[] = [
   { id: "type", label: "Who are you?" },
   { id: "details", label: "Your details" },
   { id: "options", label: "Print Settings" },
+  { id: "preview", label: "Preview" },
   { id: "payment", label: "Payment" },
   { id: "success", label: "Printing" },
 ];
@@ -86,11 +88,21 @@ export function PrintFlow() {
 
   const handleOptionsUpdateFiles = (newFiles: PrintFile[]) => {
     if (activeJob) {
-      setActiveJob({ ...activeJob, files: newFiles });
+      const { totalPages, totalAmount } = calcFilesAmount(newFiles);
+      setActiveJob({
+        ...activeJob,
+        files: newFiles,
+        totalPages,
+        amount: totalAmount,
+      });
     }
   };
 
   const handleOptionsNext = () => {
+    go("preview", 1);
+  };
+
+  const handlePreviewNext = () => {
     go("payment", 1);
   };
 
@@ -117,7 +129,8 @@ export function PrintFlow() {
               onClick={() => {
                 if (step === "details") go("type", -1);
                 else if (step === "options") go("details", -1);
-                else if (step === "payment") go("options", -1);
+                else if (step === "preview") go("options", -1);
+                else if (step === "payment") go("preview", -1);
                 else if (step === "success") go("type", -1);
               }}
               className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors mr-1 sm:mr-0"
@@ -229,10 +242,18 @@ export function PrintFlow() {
                       onNext={handleOptionsNext}
                     />
                   )}
+                  {step === "preview" && activeJob && (
+                    <PreviewStep
+                      files={activeJob.files}
+                      onUpdateFiles={handleOptionsUpdateFiles}
+                      onBack={() => go("options", -1)}
+                      onNext={handlePreviewNext}
+                    />
+                  )}
                   {step === "payment" && activeJob && (
                     <PaymentStep
                       job={activeJob}
-                      onBack={() => go("options", -1)}
+                      onBack={() => go("preview", -1)}
                       onPaid={handlePaid}
                     />
                   )}

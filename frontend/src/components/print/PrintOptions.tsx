@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { PrintFile } from "@/lib/printStore";
+import { PrintFile, calcFilesAmount, parsePageRange, BW_RATE, COLOR_RATE, MIN_JOB_AMOUNT } from "@/lib/printStore";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeft, FileText, FileImage, File as FileIcon, Settings, Info, Minus, Plus } from "lucide-react";
+import { ArrowRight, ArrowLeft, FileText, FileImage, File as FileIcon, Settings, Info, Minus, Plus, Sparkles, CircleDot } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -23,6 +23,8 @@ function fileIcon(type: string) {
 export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
   const [globalDoubleSided, setGlobalDoubleSided] = useState(false);
 
+  const { bwPages, colorPages, totalPages, totalAmount } = calcFilesAmount(files);
+
   const updateCopies = (index: number, delta: number) => {
     const newFiles = [...files];
     const currentSettings = newFiles[index].settings || { color: false, copies: 1, layout: 'portrait', pages: 1, doubleSided: false };
@@ -30,6 +32,15 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
     newFiles[index].settings = { ...currentSettings, copies: newCopies };
     onUpdateFiles(newFiles);
   };
+
+  const setColorMode = (index: number, color: boolean) => {
+    const newFiles = [...files];
+    const currentSettings = newFiles[index].settings || { color: false, copies: 1, layout: 'portrait', pages: 1, doubleSided: false };
+    if (currentSettings.color === color) return;
+    newFiles[index].settings = { ...currentSettings, color };
+    onUpdateFiles(newFiles);
+  };
+
 
   const updateAllCopies = (delta: number) => {
     const newFiles = [...files];
@@ -122,63 +133,120 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
         {files.map((f, idx) => {
           const Icon = fileIcon(f.type);
           const isDoubleSided = f.settings?.doubleSided || false;
+          const isColor = f.settings?.color || false;
+          const docPages = f.settings?.pages || 1;
+          const rangeRes = parsePageRange(f.settings?.pageRange, docPages, f.settings?.pageMode);
+          const pages = rangeRes.valid ? rangeRes.count : docPages;
+          const copies = f.settings?.copies || 1;
+          const rate = isColor ? COLOR_RATE : BW_RATE;
+          const fileSubtotal = pages * copies * rate;
+
           return (
             <motion.div
               key={f.name + idx}
-              className="flex flex-col gap-3 rounded-xl bg-card/60 border border-border/50 p-3"
+              className={cn(
+                "flex flex-col gap-3 rounded-xl border p-3 transition-colors",
+                isColor
+                  ? "bg-rose-500/[0.03] border-rose-500/25"
+                  : "bg-card/60 border-border/50"
+              )}
             >
-              <div className="flex items-center gap-3">
-                <div className="p-1.5 rounded-lg bg-primary/10 shrink-0">
-                  <Icon className="h-4 w-4 text-primary" />
+              <div className="flex items-start justify-between gap-2.5">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className={cn("p-1.5 rounded-lg shrink-0", isColor ? "bg-rose-500/10" : "bg-primary/10")}>
+                    <Icon className={cn("h-4 w-4", isColor ? "text-rose-500" : "text-primary")} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-foreground truncate">{f.name}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {pages} pg{pages !== 1 ? 's' : ''} &bull;{" "}
+                      <span className="font-semibold text-foreground/80">₹{fileSubtotal}</span>
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0 pr-2">
-                  <p className="text-xs font-semibold text-foreground truncate">{f.name}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {f.settings?.pages || 1} pg{(f.settings?.pages || 1) !== 1 ? 's' : ''}
-                  </p>
-                </div>
-                
+
                 {/* Copies Stepper */}
-                <div className="flex items-center gap-1.5 shrink-0 bg-background/50 rounded-lg p-1 border border-border/40 mr-1">
+                <div className="flex items-center gap-1.5 shrink-0 bg-background/50 rounded-lg p-1 border border-border/40">
                   <button
                     type="button"
                     onClick={() => updateCopies(idx, -1)}
-                    className="p-1 rounded bg-background shadow-sm hover:bg-muted text-muted-foreground disabled:opacity-50 transition-colors"
+                    className="p-1 rounded bg-background shadow-xs hover:bg-muted text-muted-foreground disabled:opacity-40 transition-colors cursor-pointer"
                     disabled={(f.settings?.copies || 1) <= 1}
+                    title="Decrease copies"
                   >
                     <Minus className="h-3 w-3" />
                   </button>
-                  <span className="text-xs font-semibold w-4 text-center">{f.settings?.copies || 1}</span>
+                  <span className="text-xs font-semibold w-5 text-center font-mono">{f.settings?.copies || 1}</span>
                   <button
                     type="button"
                     onClick={() => updateCopies(idx, 1)}
-                    className="p-1 rounded bg-background shadow-sm hover:bg-muted text-muted-foreground transition-colors"
+                    className="p-1 rounded bg-background shadow-xs hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
+                    title="Increase copies"
                   >
                     <Plus className="h-3 w-3" />
                   </button>
                 </div>
               </div>
-              
-              <div className="h-px w-full bg-border/40" />
-              
-              <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleDoubleSided(idx)}>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-medium text-foreground">Double-sided (Duplex)</span>
-                  <div className="relative group flex items-center">
-                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                    <div className="absolute bottom-full mb-2 left-0 w-48 p-2 bg-card border border-border text-foreground text-[10px] rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                      Prints on both sides of the paper to save paper.
+
+              {/* Controls Row: B&W / Colour Segmented Pill + Duplex */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/40">
+                {/* Clean Segmented Color / B&W Toggle */}
+                <div className="inline-flex items-center p-0.5 rounded-xl bg-muted/70 dark:bg-muted/40 border border-border/70 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setColorMode(idx, false)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                      !isColor
+                        ? "bg-background text-foreground shadow-xs font-bold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title="Switch to Black & White print"
+                  >
+                    <span>📄 B&W</span>
+                    <span className="text-[10px] font-mono opacity-60 font-normal">₹{BW_RATE}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setColorMode(idx, true)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                      isColor
+                        ? "bg-rose-500 text-white shadow-xs font-bold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    title="Switch to Colour print"
+                  >
+                    <span>🎨 Colour</span>
+                    <span className={cn("text-[10px] font-mono font-normal", isColor ? "text-white/85" : "opacity-60")}>
+                      ₹{COLOR_RATE}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Duplex Toggle */}
+                <div
+                  className="flex items-center gap-2 cursor-pointer select-none"
+                  onClick={() => toggleDoubleSided(idx)}
+                >
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-medium text-foreground">Double-sided</span>
+                    <div className="relative group flex items-center">
+                      <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      <div className="absolute bottom-full mb-2 right-0 w-44 p-2 bg-card border border-border text-foreground text-[10px] rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                        Prints on both sides to save paper.
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className={cn(
-                  "w-9 h-5 rounded-full p-1 transition-colors duration-200 ease-in-out",
-                  isDoubleSided ? "bg-primary" : "bg-muted-foreground/30"
-                )}>
                   <div className={cn(
-                    "w-3 h-3 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out",
-                    isDoubleSided ? "translate-x-4" : "translate-x-0"
-                  )} />
+                    "w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out",
+                    isDoubleSided ? "bg-primary" : "bg-muted-foreground/30"
+                  )}>
+                    <div className={cn(
+                      "w-4 h-4 rounded-full bg-white shadow-xs transition-transform duration-200 ease-in-out",
+                      isDoubleSided ? "translate-x-4" : "translate-x-0"
+                    )} />
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -186,8 +254,22 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
         })}
       </div>
 
+      {/* Live Total Cost Summary */}
+      <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-between">
+        <div className="space-y-0.5">
+          <p className="text-xs font-semibold text-foreground/80">Total Pages</p>
+          <p className="text-[11px] text-muted-foreground">
+            {totalPages} page{totalPages !== 1 ? 's' : ''} ({bwPages} B&amp;W, {colorPages} Colour)
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs font-semibold text-foreground/80">Total Amount</p>
+          <p className="font-bold text-lg text-primary">₹{totalAmount}</p>
+        </div>
+      </div>
+
       {/* Navigation */}
-      <div className="pt-4 flex gap-3">
+      <div className="pt-2 flex gap-3">
         <Button
           type="button"
           variant="outline"
@@ -201,7 +283,7 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
           onClick={onNext}
           className="flex-1 rounded-xl h-12 text-sm bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
         >
-          Continue to Payment
+          Continue to Preview
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>

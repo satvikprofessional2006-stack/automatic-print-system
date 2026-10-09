@@ -2,8 +2,8 @@
 
 import React, { useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, X, FileText, FileImage, File as FileIcon, Plus, Minus, Loader2 } from "lucide-react";
-import { PrintFile } from "@/lib/printStore";
+import { Upload, X, FileText, FileImage, File as FileIcon, Loader2, Sparkles, CircleDot } from "lucide-react";
+import { PrintFile, BW_RATE, COLOR_RATE } from "@/lib/printStore";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -41,10 +41,12 @@ function formatBytes(b: number) {
 
 export function FileUpload({ files, onChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState<"bw" | "color">("bw");
   const [dragging, setDragging] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const isColorActive = activeTab === "color";
 
   const processFiles = useCallback(
     async (fileList: FileList | null) => {
@@ -103,7 +105,7 @@ export function FileUpload({ files, onChange }: Props) {
           type: f.type,
           file: f,
           settings: {
-            color: false,
+            color: isColorActive,
             copies: 1,
             layout: 'portrait',
             pages: pages,
@@ -116,7 +118,7 @@ export function FileUpload({ files, onChange }: Props) {
       onChange([...files, ...newFiles]);
       setIsProcessing(false);
     },
-    [files, onChange]
+    [files, onChange, isColorActive]
   );
 
   const handleDrop = useCallback(
@@ -133,8 +135,64 @@ export function FileUpload({ files, onChange }: Props) {
     onChange(updated);
   };
 
+  const setFileColor = (idx: number, color: boolean) => {
+    const updated = [...files];
+    const currSettings = updated[idx].settings || {
+      color: false,
+      copies: 1,
+      layout: 'portrait',
+      pages: 1,
+      doubleSided: false,
+    };
+    if (currSettings.color === color) return;
+    updated[idx].settings = {
+      ...currSettings,
+      color,
+    };
+    onChange(updated);
+  };
+
   return (
     <div className="space-y-3">
+      {/* ── 2 Upload Tabs: Black & White vs Colour ── */}
+      <div className="grid grid-cols-2 gap-2 p-1 bg-muted/60 dark:bg-muted/30 rounded-2xl border border-border/50">
+        <button
+          type="button"
+          onClick={() => setActiveTab("bw")}
+          className={cn(
+            "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-xs transition-all",
+            !isColorActive
+              ? "bg-background text-foreground shadow-sm border border-border/60"
+              : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+          )}
+        >
+          <span className="text-sm">📄</span>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1.5 text-left">
+            <span>Black &amp; White</span>
+            <span className="text-[10px] font-medium text-muted-foreground">(₹{BW_RATE}/pg)</span>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("color")}
+          className={cn(
+            "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-xs transition-all",
+            isColorActive
+              ? "bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-indigo-500/10 text-rose-600 dark:text-rose-400 shadow-sm border border-rose-500/30"
+              : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+          )}
+        >
+          <span className="text-sm">🎨</span>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1.5 text-left">
+            <span className={cn(isColorActive && "font-bold bg-gradient-to-r from-rose-500 to-amber-600 bg-clip-text text-transparent")}>
+              Colour Print
+            </span>
+            <span className="text-[10px] font-medium text-muted-foreground">(₹{COLOR_RATE}/pg)</span>
+          </div>
+        </button>
+      </div>
+
       {/* Drop zone */}
       <div
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -144,8 +202,12 @@ export function FileUpload({ files, onChange }: Props) {
         className={cn(
           "relative flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-5 cursor-pointer transition-all duration-200 select-none",
           dragging
-            ? "border-primary bg-primary/8 scale-[1.01]"
-            : "border-border/60 bg-muted/30 hover:border-primary/50 hover:bg-primary/5"
+            ? isColorActive
+              ? "border-rose-500 bg-rose-500/10 scale-[1.01]"
+              : "border-primary bg-primary/8 scale-[1.01]"
+            : isColorActive
+              ? "border-rose-500/30 bg-rose-500/5 hover:border-rose-500/60 hover:bg-rose-500/10"
+              : "border-border/60 bg-muted/30 hover:border-primary/50 hover:bg-primary/5"
         )}
       >
         <input
@@ -156,19 +218,35 @@ export function FileUpload({ files, onChange }: Props) {
           className="hidden"
           onChange={(e) => processFiles(e.target.files)}
         />
-        <div className={cn("p-3 rounded-full transition-colors", dragging ? "bg-primary/20" : "bg-muted/60")}>
+        <div
+          className={cn(
+            "p-3 rounded-full transition-colors",
+            dragging
+              ? isColorActive ? "bg-rose-500/20" : "bg-primary/20"
+              : isColorActive ? "bg-rose-500/10" : "bg-muted/60"
+          )}
+        >
           {isProcessing ? (
-            <Loader2 className="h-6 w-6 text-primary animate-spin" />
+            <Loader2 className={cn("h-6 w-6 animate-spin", isColorActive ? "text-rose-500" : "text-primary")} />
+          ) : isColorActive ? (
+            <Sparkles className="h-6 w-6 text-rose-500" />
           ) : (
             <Upload className={cn("h-6 w-6 transition-colors", dragging ? "text-primary" : "text-muted-foreground")} />
           )}
         </div>
         <div className="text-center">
           <p className="text-sm font-semibold text-foreground">
-            {isProcessing ? "Processing files..." : dragging ? "Drop files here" : "Click or drag files here"}
+            {isProcessing
+              ? "Processing files..."
+              : dragging
+              ? isColorActive ? "Drop Colour files here" : "Drop B&W files here"
+              : isColorActive ? "Click or drag files for Colour Print" : "Click or drag files for Black & White"}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            PDF, Word, JPEG, PNG, TXT — max {MAX_FILE_MB} MB each
+            PDF, Word, JPEG, PNG, TXT — max {MAX_FILE_MB} MB each ·{" "}
+            <span className="font-semibold text-foreground">
+              {isColorActive ? `₹${COLOR_RATE}/page` : `₹${BW_RATE}/page`}
+            </span>
           </p>
         </div>
       </div>
@@ -188,10 +266,16 @@ export function FileUpload({ files, onChange }: Props) {
         ))}
       </AnimatePresence>
 
-      {/* Error messages */}
+      {/* Uploaded Files list */}
       <AnimatePresence>
         {files.map((f, idx) => {
           const Icon = fileIcon(f.type);
+          const isColor = f.settings?.color || false;
+          const pages = f.settings?.pages || 1;
+          const copies = f.settings?.copies || 1;
+          const rate = isColor ? COLOR_RATE : BW_RATE;
+          const fileCost = pages * copies * rate;
+
           return (
             <motion.div
               key={f.name + idx}
@@ -199,16 +283,57 @@ export function FileUpload({ files, onChange }: Props) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, x: -10 }}
               transition={{ type: "spring", stiffness: 400, damping: 28 }}
-              className="flex items-center gap-3 rounded-xl bg-card/60 border border-border/50 px-4 py-2"
+              className={cn(
+                "flex items-center gap-2.5 sm:gap-3 rounded-xl border px-3 sm:px-4 py-2.5 transition-colors",
+                isColor
+                  ? "bg-rose-500/[0.04] border-rose-500/20"
+                  : "bg-card/60 border-border/50"
+              )}
             >
-              <div className="p-1.5 rounded-lg bg-primary/10 shrink-0">
-                <Icon className="h-4 w-4 text-primary" />
+              <div className={cn("p-1.5 rounded-lg shrink-0", isColor ? "bg-rose-500/10" : "bg-primary/10")}>
+                <Icon className={cn("h-4 w-4", isColor ? "text-rose-500" : "text-primary")} />
               </div>
-              <div className="flex-1 min-w-0 pr-2">
+
+              <div className="flex-1 min-w-0 pr-1">
                 <p className="text-xs font-semibold text-foreground truncate">{f.name}</p>
                 <p className="text-[11px] text-muted-foreground">
-                  {formatBytes(f.size)} &bull; {f.settings?.pages || 1} pg{(f.settings?.pages || 1) !== 1 ? 's' : ''}
+                  {formatBytes(f.size)} &bull; {pages} pg{pages !== 1 ? 's' : ''} &bull;{" "}
+                  <span className="font-semibold text-foreground/80">₹{fileCost}</span>
                 </p>
+              </div>
+
+              {/* Clean Segmented Color / B&W Toggle */}
+              <div className="inline-flex items-center p-0.5 rounded-xl bg-muted/70 dark:bg-muted/40 border border-border/70 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setFileColor(idx, false)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                    !isColor
+                      ? "bg-background text-foreground shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Switch to Black & White print"
+                >
+                  <span>📄 B&W</span>
+                  <span className="text-[10px] font-mono opacity-60 font-normal">₹{BW_RATE}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFileColor(idx, true)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                    isColor
+                      ? "bg-rose-500 text-white shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Switch to Colour print"
+                >
+                  <span>🎨 Colour</span>
+                  <span className={cn("text-[10px] font-mono font-normal", isColor ? "text-white/85" : "opacity-60")}>
+                    ₹{COLOR_RATE}
+                  </span>
+                </button>
               </div>
 
               {/* Remove Button */}
@@ -227,3 +352,4 @@ export function FileUpload({ files, onChange }: Props) {
     </div>
   );
 }
+

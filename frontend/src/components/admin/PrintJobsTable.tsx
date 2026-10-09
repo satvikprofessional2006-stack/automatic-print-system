@@ -114,8 +114,13 @@ export function PrintJobsTable() {
 
       const normalized = processedJobs.map(group => {
         const first = group[0];
-        const totalAmount = group.reduce((sum: number, j: any) => sum + (j.amount || 0), 0);
         const totalCopies = group.reduce((sum: number, j: any) => sum + (j.copies || 1), 0);
+        const explicitAmount = group.reduce((sum: number, j: any) => sum + (j.amount || 0), 0);
+        const calculatedAmount = group.reduce(
+          (sum: number, j: any) => sum + (j.copies || 1) * (j.color ? 10 : 2),
+          0
+        );
+        const totalAmount = explicitAmount > 0 ? explicitAmount : calculatedAmount;
         
         let overallStatus = 'completed';
         if (group.some((j: any) => j.status === 'failed')) overallStatus = 'failed';
@@ -137,7 +142,8 @@ export function PrintJobsTable() {
             name: j.filename || "document.pdf",
             size: 0,
             originalId: j.id,
-            status: j.status
+            status: j.status,
+            color: j.color || false
           }))
         };
       });
@@ -323,7 +329,7 @@ export function PrintJobsTable() {
           <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 dark:bg-muted/20 hover:bg-muted/30 border-none">
-              <TableHead className="text-muted-foreground/70 font-semibold w-24 sm:w-28 hidden sm:table-cell">Job ID</TableHead>
+              <TableHead className="text-muted-foreground/70 font-semibold w-28 hidden sm:table-cell">Task ID</TableHead>
               <TableHead className="text-muted-foreground/70 font-semibold">Name</TableHead>
               <TableHead className="text-muted-foreground/70 font-semibold hidden md:table-cell">Files</TableHead>
               <TableHead className="text-muted-foreground/70 font-semibold hidden md:table-cell">Amount</TableHead>
@@ -343,23 +349,24 @@ export function PrintJobsTable() {
               paginatedJobs.map((job, index) => {
                 const isExpanded = expandedId === job.id;
                 const serial = filtered.length - ((currentPage - 1) * itemsPerPage + index);
+                const taskDisplayId = `RU-${String(serial).padStart(4, "0")}`;
                 return (
                   <React.Fragment key={job.id}>
                     <TableRow
                       className="cursor-pointer hover:bg-muted/40 transition-all h-[4.5rem]"
                       onClick={() => setExpandedId(isExpanded ? null : job.id)}
                     >
-                      {/* Job ID / Serial */}
+                      {/* Task ID / Serial */}
                       <TableCell className="px-4 hidden sm:table-cell">
-                        <span className="text-xs font-mono font-bold text-primary">
-                          #{serial}
+                        <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
+                          {taskDisplayId}
                         </span>
                       </TableCell>
 
                       {/* Name */}
                       <TableCell className="font-medium text-foreground">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-primary font-bold text-xs sm:hidden shrink-0">#{serial}</span>
+                          <span className="font-mono text-primary font-bold text-xs sm:hidden shrink-0">{taskDisplayId}</span>
                           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold">
                             {(job.name || 'A')[0].toUpperCase()}
                           </div>
@@ -474,6 +481,15 @@ export function PrintJobsTable() {
                                       <p className="text-xs font-semibold text-foreground truncate">
                                         {f.name}
                                       </p>
+                                      {f.color ? (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shrink-0">
+                                          Colour
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-muted text-foreground/70 border border-border/50 shrink-0">
+                                          B&amp;W
+                                        </span>
+                                      )}
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
                                       {f.status === 'failed' && (
