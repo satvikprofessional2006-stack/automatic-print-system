@@ -1,21 +1,24 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { PrintJob, calcFilesAmount } from "@/lib/printStore";
 import {
   CheckCircle2,
   Loader2,
-  Smartphone,
   ArrowLeft,
-  RefreshCw,
-  Printer,
+  ShieldCheck,
+  CreditCard,
+  AlertCircle,
+  Sparkles,
 } from "lucide-react";
 
-// ─── CONFIG — change UPI ID / merchant name here ──────────────────────────────
-const UPI_ID = "ruprintportal@okaxis"; // ← replace with real UPI ID
-const MERCHANT_NAME = "RU Print Portal";
+declare global {
+  interface Window {
+    Razorpay?: any;
+  }
+}
 
 interface Props {
   job: PrintJob;
@@ -23,99 +26,209 @@ interface Props {
   onPaid: (job: PrintJob) => void;
 }
 
-type PayState = "waiting" | "verifying" | "success" | "failed";
+type PayState = "waiting" | "creating_order" | "verifying" | "success" | "failed";
 
-function buildGPayUrl(amount: number, jobId: string) {
-  const note = encodeURIComponent(`Print Job ${jobId}`);
-  const name = encodeURIComponent(MERCHANT_NAME);
-  // Standard UPI deep-link — opens GPay / any UPI app on mobile
-  return `upi://pay?pa=${UPI_ID}&pn=${name}&am=${amount}&cu=INR&tn=${note}`;
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 }
 
 export function PaymentStep({ job, onBack, onPaid }: Props) {
   const [payState, setPayState] = useState<PayState>("waiting");
-  const [pollCount, setPollCount] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const gpayUrl = buildGPayUrl(job.amount, job.id);
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [isGatewayReady, setIsGatewayReady] = useState<boolean | null>(null);
 
   const { bwPages, colorPages } = calcFilesAmount(job.files);
 
-  // ─── Simulated payment polling ────────────────────────────────────────────
-  // In production: replace this with a real API call to your backend
-  // that checks whether the UPI transaction arrived.
-  const startPolling = () => {
-    if (intervalRef.current) return;
+  // Pre-load Razorpay checkout SDK
+  useEffect(() => {
+    loadRazorpayScript();
+  }, []);
+
+  // Upload files to backend and register print job
+  const uploadAndFinalize = async (paymentId?: string) => {
     setPayState("verifying");
-    
-    let count = 0;
-    intervalRef.current = setInterval(() => {
-      count += 1;
-      setPollCount(count);
-      
-      if (count >= 3) {
-        clearInterval(intervalRef.current!);
-        intervalRef.current = null;
-        
-        // Actual upload logic
-        (async () => {
-          try {
-            const uploadPromises = job.files.map(async (pf) => {
-              const formData = new FormData();
-              formData.append('file', pf.file);
-              formData.append('copies', (pf.settings?.copies || 1).toString());
-              formData.append('doubleSided', pf.settings?.doubleSided ? 'true' : 'false');
-              formData.append('color', pf.settings?.color ? 'true' : 'false');
-              formData.append('layout', pf.settings?.layout || 'portrait');
-              formData.append('pageRange', pf.settings?.pageRange || 'all');
-              formData.append('userName', job.name);
-              
-              const res = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData,
-              });
-              
-              if (!res.ok) throw new Error('Upload failed');
-              return res.json();
-            });
-            
-            await Promise.all(uploadPromises);
-            
-            const updatedJob = { ...job, status: "paid" as const };
-            onPaid(updatedJob);
-            setPayState("success");
-          } catch (err) {
-            setPayState("failed");
-          }
-        })();
-      }
-    }, 2000);
+    try {
+      const uploadPromises = job.files.map(async (pf) => {
+        const formData = new FormData();
+        formData.append("file", pf.file);
+        formData.append("copies", (pf.settings?.copies || 1).toString());
+        formData.append("doubleSided", pf.settings?.doubleSided ? "true" : "false");
+        formData.append("color", pf.settings?.color ? "true" : "false");
+        formData.append("layout", pf.settings?.layout || "portrait");
+        formData.append("pageRange", pf.settings?.pageRange || "all");
+        formData.append("userName", job.name);
+        if (paymentId) {
+          formData.append("paymentId", paymentId);
+        }
+
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData?.error || "Upload failed");
+        }
+        return res.json();
+      });
+
+      await Promise.all(uploadPromises);
+
+      const updatedJob = { ...job, status: "paid" as const };
+      onPaid(updatedJob);
+      setPayState("success");
+    } catch (err: any) {
+      console.error("Upload after payment error:", err);
+      setErrorMessage(err?.message || "File upload failed after payment");
+      setPayState("failed");
+    }
   };
 
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
+  // Trigger Payment Flow
+  const handlePayNow = async () => {
+    setPayState("creating_order");
+    setErrorMessage("");
+
+    try {
+      // 1. Create order on server
+      const orderRes = await fetch("/api/payment/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: job.amount,
+          jobId: job.id,
+          userName: job.name,
+        }),
+      });
+
+      if (!orderRes.ok) {
+        const errData = await orderRes.json().catch(() => ({}));
+        throw new Error(errData?.error || "Failed to initialize payment");
+      }
+
+      const orderData = await orderRes.json();
+      setIsGatewayReady(orderData.configured);
+
+      // If Razorpay keys are not yet configured in .env, simulate demo payment
+      if (!orderData.configured || !orderData.keyId) {
+        console.warn("Razorpay keys not detected. Simulating verified demo payment.");
+        // Simulate brief verification
+        setPayState("verifying");
+        setTimeout(async () => {
+          await uploadAndFinalize("demo_payment_" + Date.now());
+        }, 1200);
+        return;
+      }
+
+      // 2. Load script if not yet ready
+      const loaded = await loadRazorpayScript();
+      if (!loaded || !window.Razorpay) {
+        throw new Error("Unable to load Razorpay checkout SDK. Check internet connection.");
+      }
+
+      // 3. Open official Razorpay Checkout Modal
+      const razorpayOptions = {
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency || "INR",
+        name: "RU Print Portal",
+        description: `Print Job #${job.id} (${job.totalPages} pages)`,
+        image: "/Rishihood_University_idxo_lfgcw_2.png",
+        order_id: orderData.orderId,
+        prefill: {
+          name: job.name,
+          contact: job.enrollmentNo || "",
+        },
+        theme: {
+          color: "#CC0033", // Rishihood University primary red
+        },
+        handler: async function (response: {
+          razorpay_payment_id: string;
+          razorpay_order_id: string;
+          razorpay_signature: string;
+        }) {
+          setPayState("verifying");
+          try {
+            // Verify signature on server
+            const verifyRes = await fetch("/api/payment/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                orderId: response.razorpay_order_id,
+                paymentId: response.razorpay_payment_id,
+                signature: response.razorpay_signature,
+                jobId: job.id,
+              }),
+            });
+
+            const verifyData = await verifyRes.json();
+            if (!verifyRes.ok || !verifyData.verified) {
+              throw new Error(verifyData?.error || "Payment verification failed");
+            }
+
+            // Once verified, send print files to server
+            await uploadAndFinalize(response.razorpay_payment_id);
+          } catch (verifyErr: any) {
+            console.error("Verification error:", verifyErr);
+            setErrorMessage(verifyErr?.message || "Payment verification failed");
+            setPayState("failed");
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            setPayState("waiting");
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(razorpayOptions);
+      rzp.on("payment.failed", function (response: any) {
+        console.error("Razorpay payment failed:", response.error);
+        setErrorMessage(response.error?.description || "Payment failed");
+        setPayState("failed");
+      });
+
+      rzp.open();
+    } catch (err: any) {
+      console.error("Payment initiation error:", err);
+      setErrorMessage(err?.message || "Failed to start payment");
+      setPayState("failed");
+    }
+  };
 
   return (
     <div className="space-y-6">
+      {/* ── Section Title ── */}
       <div>
-        <h2 className="text-xl font-bold tracking-tight">Payment</h2>
+        <h2 className="text-xl font-bold tracking-tight text-foreground">Secure Payment</h2>
         <p className="text-xs text-muted-foreground mt-1">
-          Pay via GPay or any UPI app, then confirm below.
+          Complete payment using UPI (GPay, PhonePe, Paytm), Cards, or NetBanking.
         </p>
       </div>
 
-      {/* Amount card */}
-      <div className="rounded-2xl bg-primary/8 border border-primary/25 p-5 flex items-center justify-between">
+      {/* ── Amount Due Card ── */}
+      <div className="rounded-2xl bg-primary/8 border border-primary/25 p-5 flex items-center justify-between shadow-2xs">
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Amount Due
+            Total Amount Due
           </p>
-          <p className="text-4xl font-bold font-mono text-primary mt-1">
-            ₹{job.amount}
-          </p>
+          <p className="text-4xl font-bold font-mono text-primary mt-1">₹{job.amount}</p>
           <div className="flex flex-wrap items-center gap-1.5 mt-2">
             <span className="text-[11px] text-muted-foreground mr-1">
               Job #{job.id} · {job.files.length} file{job.files.length !== 1 ? "s" : ""}
@@ -132,14 +245,19 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             )}
           </div>
         </div>
+
         <div className="hidden sm:flex flex-col items-end gap-1 text-xs text-muted-foreground">
-          <p className="font-semibold">{MERCHANT_NAME}</p>
-          <p className="font-mono text-[11px]">{UPI_ID}</p>
+          <div className="flex items-center gap-1 font-semibold text-foreground">
+            <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            <span>256-Bit Encrypted</span>
+          </div>
+          <span className="text-[10px] text-muted-foreground font-mono">Instant Print Trigger</span>
         </div>
       </div>
 
+      {/* ── Payment State Content ── */}
       <AnimatePresence mode="wait">
-        {payState === "waiting" && (
+        {(payState === "waiting" || payState === "creating_order") && (
           <motion.div
             key="waiting"
             initial={{ opacity: 0, y: 8 }}
@@ -147,44 +265,52 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             exit={{ opacity: 0 }}
             className="space-y-4"
           >
-            {/* GPay button */}
-            <a
-              href={gpayUrl}
-              onClick={startPolling}
-              className="flex items-center justify-center gap-3 w-full h-12 rounded-xl bg-[#1a73e8] hover:bg-[#1557b0] text-white font-semibold text-sm transition-colors"
-            >
-              <Smartphone className="h-5 w-5" />
-              Pay ₹{job.amount} with GPay / UPI
-            </a>
-
-            <div className="relative flex items-center gap-3">
-              <div className="flex-1 h-px bg-border/60" />
-              <span className="text-[11px] text-muted-foreground">or</span>
-              <div className="flex-1 h-px bg-border/60" />
-            </div>
-
-            {/* Manual confirm — if user already paid via another method */}
+            {/* Primary Payment Gateway Button */}
             <Button
-              variant="outline"
-              className="w-full rounded-xl text-sm"
-              onClick={startPolling}
+              type="button"
+              disabled={payState === "creating_order"}
+              onClick={handlePayNow}
+              className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              I've already paid — verify now
+              {payState === "creating_order" ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Connecting to Gateway…</span>
+                </>
+              ) : (
+                <>
+                  <CreditCard className="h-4 w-4" />
+                  <span>Pay ₹{job.amount} with UPI / Cards</span>
+                </>
+              )}
             </Button>
 
+            {/* Gateway Information Badge */}
+            <div className="p-3 rounded-xl bg-muted/50 border border-border/60 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="font-medium text-foreground">
+                  GPay • PhonePe • Paytm • Cards • NetBanking
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-muted-foreground uppercase font-bold tracking-wider">
+                Gateway Powered
+              </span>
+            </div>
+
             <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
-              After completing payment in your UPI app, tap{" "}
-              <span className="font-semibold">verify</span> above. Your files
-              will be sent to the printer automatically.
+              Upon successful payment, your files will be sent directly to the printer spooler and
+              printed immediately.
             </p>
 
             <Button
+              type="button"
               variant="ghost"
               onClick={onBack}
-              className="gap-2 text-sm w-full rounded-xl"
+              disabled={payState === "creating_order"}
+              className="gap-2 text-sm w-full rounded-xl cursor-pointer"
             >
-              <ArrowLeft className="h-4 w-4" /> Go back
+              <ArrowLeft className="h-4 w-4" /> Back to Preview
             </Button>
           </motion.div>
         )}
@@ -195,13 +321,13 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col items-center gap-4 py-6"
+            className="flex flex-col items-center gap-4 py-8"
           >
             <Loader2 className="h-10 w-10 text-primary animate-spin" />
             <div className="text-center space-y-1">
-              <p className="font-semibold text-sm">Verifying payment…</p>
+              <p className="font-semibold text-sm text-foreground">Verifying Payment…</p>
               <p className="text-xs text-muted-foreground">
-                This usually takes a few seconds. Please don't close this page.
+                Confirming transaction receipt and queueing your print job. Please wait.
               </p>
             </div>
           </motion.div>
@@ -213,15 +339,15 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: "spring", stiffness: 380, damping: 28 }}
-            className="flex flex-col items-center gap-4 py-6"
+            className="flex flex-col items-center gap-4 py-8"
           >
             <div className="p-4 rounded-full bg-emerald-500/15">
               <CheckCircle2 className="h-10 w-10 text-emerald-500" />
             </div>
             <div className="text-center space-y-1">
-              <p className="font-bold text-lg">Payment confirmed!</p>
+              <p className="font-bold text-lg text-foreground">Payment Confirmed!</p>
               <p className="text-xs text-muted-foreground">
-                Your files are being sent to the printer.
+                Your files are now printing on the physical printer.
               </p>
             </div>
           </motion.div>
@@ -232,16 +358,36 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             key="failed"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-3"
+            className="space-y-4 py-2"
           >
-            <p className="text-sm text-destructive text-center font-medium">
-              Payment could not be verified. Please try again.
-            </p>
+            <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-destructive">Payment Incomplete</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {errorMessage || "The transaction could not be completed. No amount was deducted."}
+                </p>
+              </div>
+            </div>
+
             <Button
-              onClick={() => { setPayState("waiting"); setPollCount(0); }}
-              className="w-full rounded-xl text-sm"
+              type="button"
+              onClick={() => {
+                setPayState("waiting");
+                setErrorMessage("");
+              }}
+              className="w-full rounded-xl text-sm h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold cursor-pointer"
             >
-              Retry
+              Try Again
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onBack}
+              className="gap-2 text-sm w-full rounded-xl cursor-pointer"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to Preview
             </Button>
           </motion.div>
         )}
