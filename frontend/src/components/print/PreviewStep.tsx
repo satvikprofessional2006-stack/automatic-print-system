@@ -95,7 +95,7 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
     return parsePageRange(currentRange, docPages, currentMode);
   }, [currentRange, docPages, currentMode]);
 
-  const { totalPages, totalAmount } = useMemo(() => calcFilesAmount(files), [files]);
+  const { totalPages, totalAmount, bwPages, colorPages, bwA3Pages, colorA3Pages } = useMemo(() => calcFilesAmount(files), [files]);
 
   const hasInvalidRange = useMemo(() => {
     return files.some((f) => {
@@ -1091,13 +1091,34 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
 
       {/* ── Total Cost Banner ── */}
       <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-between">
-        <div className="space-y-0.5">
-          <p className="text-xs font-semibold text-foreground/80">Total to Print</p>
-          <p className="text-[11px] text-muted-foreground">
-            {totalPages} page{totalPages !== 1 ? "s" : ""} across {files.length} file{files.length !== 1 ? "s" : ""}
+        <div className="space-y-1">
+          <p className="text-xs font-semibold text-foreground/80">
+            Total to Print: <span className="font-bold text-foreground">{totalPages} page{totalPages !== 1 ? "s" : ""}</span> across {files.length} file{files.length !== 1 ? "s" : ""}
           </p>
+          <div className="flex flex-wrap items-center gap-1.5 text-[10.5px]">
+            {bwPages > 0 && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted text-foreground/80 font-medium border border-border/50">
+                📄 {bwPages} A4 B&amp;W
+              </span>
+            )}
+            {colorPages > 0 && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium border border-rose-500/20">
+                🎨 {colorPages} A4 Colour
+              </span>
+            )}
+            {bwA3Pages > 0 && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">
+                📑 {bwA3Pages} A3 B&amp;W
+              </span>
+            )}
+            {colorA3Pages > 0 && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium border border-purple-500/20">
+                🌈 {colorA3Pages} A3 Colour
+              </span>
+            )}
+          </div>
         </div>
-        <div className="text-right">
+        <div className="text-right shrink-0">
           <p className="text-xs font-semibold text-foreground/80">Total Due</p>
           <p className="font-bold text-lg text-primary">₹{totalAmount}</p>
         </div>
