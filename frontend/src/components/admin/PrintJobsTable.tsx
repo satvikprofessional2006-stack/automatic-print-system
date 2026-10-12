@@ -143,7 +143,11 @@ export function PrintJobsTable() {
             size: 0,
             originalId: j.id,
             status: j.status,
-            color: j.color || false
+            color: j.color || false,
+            pagesPerSheet: j.pages_per_sheet || j.pagesPerSheet || 1,
+            paperSize: j.paper_size || j.paperSize || "A4",
+            duplex: j.duplex,
+            copies: j.copies || 1,
           }))
         };
       });
@@ -350,6 +354,8 @@ export function PrintJobsTable() {
                 const isExpanded = expandedId === job.id;
                 const serial = filtered.length - ((currentPage - 1) * itemsPerPage + index);
                 const taskDisplayId = `RU-${String(serial).padStart(4, "0")}`;
+                const isAdminJob = (job.name || '').toLowerCase().includes('admin');
+                const nUpFile = job.files.find((f: any) => f.pagesPerSheet > 1);
                 return (
                   <React.Fragment key={job.id}>
                     <TableRow
@@ -365,16 +371,34 @@ export function PrintJobsTable() {
 
                       {/* Name */}
                       <TableCell className="font-medium text-foreground">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2.5">
                           <span className="font-mono text-primary font-bold text-xs sm:hidden shrink-0">{taskDisplayId}</span>
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold">
-                            {(job.name || 'A')[0].toUpperCase()}
+                          <div className={cn(
+                            "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
+                            isAdminJob
+                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                              : "bg-primary/10 text-primary"
+                          )}>
+                            {isAdminJob ? "👑" : (job.name || 'A')[0].toUpperCase()}
                           </div>
                           <div className="flex flex-col">
-                            <span className="text-sm">{job.name}</span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-sm font-semibold">{job.name}</span>
+                              {isAdminJob && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+                                  👑 Admin Print
+                                </span>
+                              )}
+                            </div>
                             {/* Mobile-only files info */}
-                            <span className="text-[10px] text-muted-foreground md:hidden mt-0.5">
-                              {job.files.length} file{job.files.length !== 1 ? "s" : ""} {job.totalPages > 0 && `· ${job.totalPages} pg`}
+                            <span className="text-[10px] text-muted-foreground md:hidden mt-0.5 flex items-center gap-1">
+                              <span>{job.files.length} file{job.files.length !== 1 ? "s" : ""}</span>
+                              {job.totalPages > 0 && <span>· {job.totalPages} pg</span>}
+                              {nUpFile && (
+                                <span className="px-1 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 font-bold">
+                                  {nUpFile.pagesPerSheet}-Up
+                                </span>
+                              )}
                             </span>
                           </div>
                         </div>
@@ -382,7 +406,7 @@ export function PrintJobsTable() {
 
                       {/* Files (Hidden on mobile) */}
                       <TableCell className="hidden md:table-cell">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           {job.files.length > 1 ? (
                             <Folder className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
                           ) : (
@@ -394,6 +418,11 @@ export function PrintJobsTable() {
                           {job.totalPages > 0 && (
                             <span className="text-[11px] text-muted-foreground">
                               · {job.totalPages} pg
+                            </span>
+                          )}
+                          {nUpFile && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
+                              {nUpFile.pagesPerSheet}-Up
                             </span>
                           )}
                         </div>
@@ -488,6 +517,21 @@ export function PrintJobsTable() {
                                       ) : (
                                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-muted text-foreground/70 border border-border/50 shrink-0">
                                           B&amp;W
+                                        </span>
+                                      )}
+                                      {f.pagesPerSheet > 1 && (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
+                                          {f.pagesPerSheet}-Up
+                                        </span>
+                                      )}
+                                      {f.paperSize === "A3" && (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">
+                                          A3
+                                        </span>
+                                      )}
+                                      {f.copies > 1 && (
+                                        <span className="text-[10px] text-muted-foreground font-mono font-bold shrink-0">
+                                          ×{f.copies}
                                         </span>
                                       )}
                                     </div>

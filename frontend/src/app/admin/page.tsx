@@ -9,6 +9,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { StatCards } from "@/components/StatCards";
 import { PrintJobsTable } from "@/components/admin/PrintJobsTable";
 import { RevenueTab } from "@/components/admin/RevenueTab";
+import { AdminPrintTab } from "@/components/admin/AdminPrintTab";
 import { Info } from "lucide-react";
 
 function AdminDashboardContent() {
@@ -56,6 +57,19 @@ function AdminDashboardContent() {
                   </div>
                 </div>
                 <PrintJobsTable />
+              </motion.div>
+            )}
+
+            {activeTab === "admin-print" && (
+              <motion.div
+                key="admin-print"
+                initial={{ opacity: 0, y: 12, scale: 0.99 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -12, scale: 0.99 }}
+                transition={{ type: "spring", stiffness: 420, damping: 30, mass: 0.7 }}
+                className="h-full flex flex-col min-h-0"
+              >
+                <AdminPrintTab onJobSubmitted={() => setActiveTab("logs")} />
               </motion.div>
             )}
 

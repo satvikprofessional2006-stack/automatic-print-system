@@ -15,6 +15,7 @@ export interface PrintFile {
     pages: number;
     doubleSided: boolean;
     paperSize?: "A4" | "A3";
+    pagesPerSheet?: 1 | 2 | 4;   // N-Up printing (1, 2, or 4 pages per physical sheet)
     pageRange?: string;          // "all", "odd", "even", or custom range like "1-3, 5"
     pageMode?: "all" | "odd" | "even" | "custom";
     selectedPagesCount?: number; // effective page count

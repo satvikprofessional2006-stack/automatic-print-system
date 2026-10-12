@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { LayoutDashboard, ClipboardList, IndianRupee } from "lucide-react";
+import { LayoutDashboard, ClipboardList, IndianRupee, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
@@ -12,6 +12,7 @@ interface SidebarProps {
 
 const navItems = [
   { id: "logs", label: "Print Logs", icon: ClipboardList },
+  { id: "admin-print", label: "Admin Print", icon: Printer },
   { id: "revenue", label: "Revenue", icon: IndianRupee },
   { id: "overview", label: "Overview", icon: LayoutDashboard },
 ];

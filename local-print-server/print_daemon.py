@@ -52,12 +52,13 @@ def update_job_status(job_id, status):
     except requests.exceptions.RequestException as e:
         print(f"Error updating job status: {e}")
 
-def print_job(filepath, copies, double_sided=False, color=False, layout="portrait", page_range="all", paper_size="A4"):
+def print_job(filepath, copies, double_sided=False, color=False, layout="portrait", page_range="all", paper_size="A4", pages_per_sheet=1):
     if MOCK_MODE:
         color_str = "Colour" if color else "B&W"
         layout_str = str(layout).capitalize()
         range_str = f"pages {page_range}" if page_range and page_range != "all" else "all pages"
-        print(f"[MOCK] Simulating {paper_size} {color_str} ({layout_str}, {range_str}) print for {filepath} ({copies} copies)")
+        n_up_str = f", {pages_per_sheet}-Up" if pages_per_sheet > 1 else ""
+        print(f"[MOCK] Simulating {paper_size} {color_str} ({layout_str}, {range_str}{n_up_str}) print for {filepath} ({copies} copies)")
         time.sleep(3)  # Simulate print time
         return True
     
@@ -91,6 +92,10 @@ def print_job(filepath, copies, double_sided=False, color=False, layout="portrai
             cmd.extend(["-o", "landscape", "-o", "orientation-requested=4"])
         else:
             cmd.extend(["-o", "orientation-requested=3"])
+
+        # Pages per sheet (N-Up: 2, 4 pages per physical sheet)
+        if pages_per_sheet in [2, 4, 6, 9, 16]:
+            cmd.extend(["-o", f"number-up={pages_per_sheet}"])
 
         # Page range handling for CUPS (All, Odd, Even, Custom)
         if page_range and str(page_range).lower() != "all" and str(page_range).strip() != "":
@@ -143,9 +148,10 @@ def process_job(job):
     paper_size = str(job.get("paper_size") or job.get("paperSize") or "A4").upper()
     if paper_size not in ["A4", "A3"]:
         paper_size = "A4"
+    pages_per_sheet = int(job.get("pages_per_sheet") or job.get("pagesPerSheet") or 1)
     page_range = job.get("page_range") or job.get("pageRange") or "all"
     
-    print(f"Found new job: {filename} ({copies} copies, {paper_size}, double-sided: {double_sided}, color: {color}, layout: {layout}, page_range: {page_range}). Processing in background thread.")
+    print(f"Found new job: {filename} ({copies} copies, {paper_size}, {pages_per_sheet}-Up, double-sided: {double_sided}, color: {color}, layout: {layout}, page_range: {page_range}). Processing in background thread.")
     
     try:
         # 1. Update status to printing
@@ -156,7 +162,7 @@ def process_job(job):
         
         if filepath:
             # 3. Print the file
-            success = print_job(filepath, copies, double_sided, color, layout, page_range, paper_size)
+            success = print_job(filepath, copies, double_sided, color, layout, page_range, paper_size, pages_per_sheet)
             
             # 4. Update final status
             if success:

@@ -124,6 +124,30 @@ export async function renderPdfPageToDataUrl(
   }
 }
 
+export async function countPdfPages(file: File): Promise<number> {
+  try {
+    const pdfjs = await getPdfjs();
+    if (!pdfjs) return 1;
+    const fileKey = `${file.name}_${file.size}_${file.lastModified}`;
+    let pdfDoc = docCache.get(fileKey);
+    if (!pdfDoc) {
+      const arrayBuffer = await file.arrayBuffer();
+      const loadingTask = pdfjs.getDocument({
+        data: arrayBuffer,
+        cMapUrl: "/cmaps/",
+        cMapPacked: true,
+        standardFontDataUrl: "/standard_fonts/",
+      });
+      pdfDoc = await loadingTask.promise;
+      docCache.set(fileKey, pdfDoc);
+    }
+    return pdfDoc.numPages || 1;
+  } catch (err) {
+    console.error("countPdfPages failed:", err);
+    return 1;
+  }
+}
+
 export function clearPdfRenderCache() {
   docCache.clear();
   pageCache.clear();

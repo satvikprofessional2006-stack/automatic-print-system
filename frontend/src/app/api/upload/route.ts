@@ -17,6 +17,8 @@ export async function POST(req: Request) {
     const layout = (formData.get('layout') as string) || 'portrait';
     const paperSize = ((formData.get('paperSize') as string) || 'A4').toUpperCase();
     const pageRange = (formData.get('pageRange') as string) || 'all';
+    const pagesPerSheetStr = formData.get('pagesPerSheet') as string;
+    const pagesPerSheet = parseInt(pagesPerSheetStr || '1', 10);
     const userName = formData.get('userName') as string || null;
     
     if (!file) {
@@ -53,6 +55,7 @@ export async function POST(req: Request) {
       color: isColor,
       layout: layout,
       paper_size: paperSize,
+      pages_per_sheet: pagesPerSheet > 1 ? pagesPerSheet : 1,
       page_range: pageRange,
       updatedAt: new Date().toISOString()
     };
@@ -64,12 +67,13 @@ export async function POST(req: Request) {
       .select()
       .single();
 
-    // If optional columns ('color', 'layout', 'paper_size', 'page_range') don't exist yet in Supabase schema, retry safely without throwing
-    if (dbError && (dbError.message?.includes('color') || dbError.message?.includes('layout') || dbError.message?.includes('paper_size') || dbError.message?.includes('page_range') || dbError.details?.includes('column') || dbError.code === 'PGRST204')) {
+    // If optional columns ('color', 'layout', 'paper_size', 'pages_per_sheet', 'page_range') don't exist yet in Supabase schema, retry safely without throwing
+    if (dbError && (dbError.message?.includes('color') || dbError.message?.includes('layout') || dbError.message?.includes('paper_size') || dbError.message?.includes('pages_per_sheet') || dbError.message?.includes('page_range') || dbError.details?.includes('column') || dbError.code === 'PGRST204')) {
       console.warn("Retrying insert without optional columns:", dbError.message);
       delete jobPayload.color;
       delete jobPayload.layout;
       delete jobPayload.paper_size;
+      delete jobPayload.pages_per_sheet;
       delete jobPayload.page_range;
       const retryResult = await supabase
         .from('PrintJob')
