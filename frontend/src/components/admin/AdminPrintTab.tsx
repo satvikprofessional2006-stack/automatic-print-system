@@ -78,6 +78,49 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
     );
   }, [currentSettings.pageRange, docPages, currentSettings.pageMode]);
 
+  // Effective pages list taking page range into account
+  const effectivePages: number[] = useMemo(() => {
+    if (parsedRange?.pages && parsedRange.pages.length > 0) {
+      return parsedRange.pages;
+    }
+    return Array.from({ length: docPages }, (_, i) => i + 1);
+  }, [parsedRange, docPages]);
+
+  const isSingleItem = currentFile?.type?.startsWith("image/") || effectivePages.length <= 1;
+
+  // Total physical sheets needed
+  const totalSheets = useMemo(() => {
+    if (isSingleItem) return 1;
+    return Math.max(1, Math.ceil(effectivePages.length / pagesPerSheet));
+  }, [isSingleItem, effectivePages.length, pagesPerSheet]);
+
+  // Current physical sheet index (0-based)
+  const activeSheetIndex = useMemo(() => {
+    if (isSingleItem) return 0;
+    const pIdx = Math.max(0, activePageNum - 1);
+    return Math.min(totalSheets - 1, Math.floor(pIdx / pagesPerSheet));
+  }, [isSingleItem, activePageNum, pagesPerSheet, totalSheets]);
+
+  // Array of page numbers (or null for empty slots) to display in the N-Up grid
+  const currentSlotPages = useMemo(() => {
+    const isImage = currentFile?.type?.startsWith("image/");
+    if (isImage || effectivePages.length <= 1) {
+      // For images or 1-page documents, duplicate across slots (tiled flyer/slip layout)
+      return Array.from({ length: pagesPerSheet }, () => 1);
+    }
+    const startIdx = activeSheetIndex * pagesPerSheet;
+    const slots: (number | null)[] = [];
+    for (let i = 0; i < pagesPerSheet; i++) {
+      const pIdx = startIdx + i;
+      if (pIdx < effectivePages.length) {
+        slots.push(effectivePages[pIdx]);
+      } else {
+        slots.push(null);
+      }
+    }
+    return slots;
+  }, [currentFile, effectivePages, pagesPerSheet, activeSheetIndex]);
+
   // Object URLs for images & preview
   useEffect(() => {
     const urls: Record<number, string> = {};
@@ -94,25 +137,30 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
     };
   }, [files.map((f) => f.name + f.size).join(",")]);
 
-  // Render active PDF page preview
+  // Render all active PDF pages needed for the current sheet preview
   useEffect(() => {
     if (!currentFile || currentFile.type !== "application/pdf") return;
-    const cacheKey = `${activeFileIndex}-${activePageNum}`;
-    if (pdfPageUrls[cacheKey]) return;
 
+    const pagesToFetch = currentSlotPages.filter((p): p is number => p !== null);
     let active = true;
-    renderPdfPageToDataUrl(currentFile.file, activePageNum, 1.2)
-      .then((res) => {
-        if (active && res?.dataUrl) {
-          setPdfPageUrls((prev) => ({ ...prev, [cacheKey]: res.dataUrl }));
-        }
-      })
-      .catch((err) => console.error("Admin PDF preview error:", err));
+
+    pagesToFetch.forEach((p) => {
+      const cacheKey = `${activeFileIndex}-${p}`;
+      if (pdfPageUrls[cacheKey]) return;
+
+      renderPdfPageToDataUrl(currentFile.file, p, 1.2)
+        .then((res) => {
+          if (active && res?.dataUrl) {
+            setPdfPageUrls((prev) => ({ ...prev, [cacheKey]: res.dataUrl }));
+          }
+        })
+        .catch((err) => console.error("Admin PDF preview error:", err));
+    });
 
     return () => {
       active = false;
     };
-  }, [activeFileIndex, activePageNum, currentFile]);
+  }, [activeFileIndex, currentSlotPages, currentFile]);
 
   // File Upload Handler
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -247,6 +295,48 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  // Render an individual page slot inside the N-Up physical sheet layout
+  const renderSlotContent = (pageNum: number | null, slotIndex: number) => {
+    if (pageNum === null) {
+      return (
+        <div className="w-full h-full min-h-0 border border-dashed border-zinc-300 rounded flex flex-col items-center justify-center p-1 text-center bg-zinc-50/40">
+          <span className="text-[8px] font-mono font-medium text-zinc-400 uppercase tracking-wider">
+            Empty
+          </span>
+        </div>
+      );
+    }
+
+    const isImage = currentFile?.type?.startsWith("image/");
+    const imgUrl = isImage
+      ? previewUrls[activeFileIndex]
+      : pdfPageUrls[`${activeFileIndex}-${pageNum}`];
+
+    return (
+      <div className="relative w-full h-full min-h-0 bg-white rounded border border-zinc-200/90 shadow-2xs overflow-hidden flex items-center justify-center p-1 group">
+        {imgUrl ? (
+          <img
+            src={imgUrl}
+            alt={`Page ${pageNum}`}
+            className="max-w-full max-h-full object-contain pointer-events-none select-none"
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-1 p-1 text-center">
+            <FileText className="h-4 w-4 text-primary/60 animate-pulse" />
+            <span className="text-[8px] font-mono text-zinc-500">
+              {isImage ? "Image" : `Page ${pageNum}`}
+            </span>
+          </div>
+        )}
+
+        {/* Micro page / slot tag */}
+        <div className="absolute top-0.5 left-0.5 px-1 py-0.2 rounded bg-black/70 text-white text-[7.5px] font-mono font-bold leading-tight pointer-events-none backdrop-blur-xs">
+          {isImage ? `#${slotIndex + 1}` : `p.${pageNum}`}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -785,69 +875,86 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
                 {/* Paper Safe Margin */}
                 <div className="absolute inset-1.5 border border-dashed border-zinc-300 pointer-events-none rounded-xs z-10" />
 
-                {/* Mockup Preview Area */}
+                {/* Mockup Preview Area (Tiled N-Up Sheet Grid) */}
                 <div
                   className={cn(
-                    "relative w-full h-full flex items-center justify-center overflow-hidden p-2 bg-white",
+                    "relative w-full h-full overflow-hidden p-2.5 bg-white transition-all",
                     !isColor && "grayscale contrast-[1.06] brightness-[0.98]"
                   )}
                 >
-                  {currentFile?.type?.startsWith("image/") && previewUrls[activeFileIndex] ? (
-                    <img
-                      src={previewUrls[activeFileIndex]}
-                      alt="Preview"
-                      className="max-w-full max-h-full object-contain rounded"
-                    />
-                  ) : currentFile?.type === "application/pdf" &&
-                    pdfPageUrls[`${activeFileIndex}-${activePageNum}`] ? (
-                    <img
-                      src={pdfPageUrls[`${activeFileIndex}-${activePageNum}`]}
-                      alt="PDF Page"
-                      className="max-w-full max-h-full object-contain rounded"
-                    />
+                  {pagesPerSheet === 1 ? (
+                    <div className="w-full h-full flex items-center justify-center">
+                      {renderSlotContent(currentSlotPages[0], 0)}
+                    </div>
+                  ) : pagesPerSheet === 2 ? (
+                    <div
+                      className={cn(
+                        "w-full h-full grid gap-1.5",
+                        isLandscape
+                          ? "grid-cols-2 grid-rows-1"
+                          : "grid-cols-1 grid-rows-2"
+                      )}
+                    >
+                      {renderSlotContent(currentSlotPages[0], 0)}
+                      {renderSlotContent(currentSlotPages[1], 1)}
+                    </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center gap-1.5 p-3 text-center">
-                      <FileText className="h-8 w-8 text-primary/60" />
-                      <p className="text-[11px] font-semibold text-zinc-800 truncate max-w-[150px]">
-                        {currentFile?.name}
-                      </p>
-                      <p className="text-[9.5px] text-zinc-500 font-mono">
-                        Page {activePageNum} of {docPages}
-                      </p>
+                    <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-1.5">
+                      {renderSlotContent(currentSlotPages[0], 0)}
+                      {renderSlotContent(currentSlotPages[1], 1)}
+                      {renderSlotContent(currentSlotPages[2], 2)}
+                      {renderSlotContent(currentSlotPages[3], 3)}
                     </div>
                   )}
 
                   {/* N-Up Indicator watermark on mockup */}
                   {pagesPerSheet > 1 && (
-                    <div className="absolute top-2 left-2 z-20 pointer-events-none px-1.5 py-0.5 rounded bg-primary text-primary-foreground text-[8px] font-bold font-mono">
+                    <div className="absolute top-2 right-2 z-20 pointer-events-none px-1.5 py-0.5 rounded bg-primary text-primary-foreground text-[8px] font-bold font-mono shadow-xs border border-white/20">
                       {pagesPerSheet}-UP
                     </div>
                   )}
                 </div>
               </motion.div>
 
-              {/* Page Stepper (if multi-page) */}
-              {docPages > 1 && (
-                <div className="flex items-center gap-2 mt-3 z-10 bg-background/90 px-3 py-1 rounded-xl border border-border/60 text-xs font-mono shadow-2xs">
-                  <button
-                    type="button"
-                    disabled={activePageNum <= 1}
-                    onClick={() => setActivePageNum(activePageNum - 1)}
-                    className="p-1 rounded hover:bg-muted disabled:opacity-30 cursor-pointer"
-                  >
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                  </button>
-                  <span>
-                    Page {activePageNum} / {docPages}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={activePageNum >= docPages}
-                    onClick={() => setActivePageNum(activePageNum + 1)}
-                    className="p-1 rounded hover:bg-muted disabled:opacity-30 cursor-pointer"
-                  >
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </button>
+              {/* Sheet Stepper */}
+              {(totalSheets > 1 || docPages > 1) && (
+                <div className="flex flex-col items-center gap-1 mt-3 z-10">
+                  <div className="flex items-center gap-2 bg-background/90 px-3 py-1 rounded-xl border border-border/60 text-xs font-mono shadow-2xs">
+                    <button
+                      type="button"
+                      disabled={activeSheetIndex <= 0}
+                      onClick={() => {
+                        const prevSheet = activeSheetIndex - 1;
+                        setActivePageNum(prevSheet * pagesPerSheet + 1);
+                      }}
+                      className="p-1 rounded hover:bg-muted disabled:opacity-30 cursor-pointer transition-colors"
+                      title="Previous Sheet"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </button>
+                    <span className="text-[11px] font-semibold">
+                      {pagesPerSheet > 1
+                        ? `Sheet ${activeSheetIndex + 1} / ${totalSheets}`
+                        : `Page ${activePageNum} / ${docPages}`}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={activeSheetIndex >= totalSheets - 1}
+                      onClick={() => {
+                        const nextSheet = activeSheetIndex + 1;
+                        setActivePageNum(nextSheet * pagesPerSheet + 1);
+                      }}
+                      className="p-1 rounded hover:bg-muted disabled:opacity-30 cursor-pointer transition-colors"
+                      title="Next Sheet"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  {pagesPerSheet > 1 && !isSingleItem && (
+                    <span className="text-[9.5px] text-muted-foreground font-mono">
+                      Showing pages {currentSlotPages.filter((p): p is number => p !== null).join(", ")}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
