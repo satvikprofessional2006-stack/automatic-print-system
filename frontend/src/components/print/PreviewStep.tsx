@@ -783,38 +783,73 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
         </div>
       </div>
 
-      {/* ── Native Print-Style Pages Dropdown Card ── */}
+      {/* ── Visible Page Selection Controls (All / Odd / Even / Custom) ── */}
       {docPages > 1 && (
-        <div className="p-3.5 rounded-2xl bg-card/75 border border-border/70 space-y-2.5 shadow-xs">
-          <div className="flex items-center justify-between gap-3">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-card/85 border border-border/70 space-y-3 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2">
-              <label htmlFor="pages-select" className="text-sm font-semibold text-foreground">
-                Pages
-              </label>
-              <span className="text-[11px] text-muted-foreground font-mono">
+              <span className="text-sm font-bold text-foreground">
+                Pages to Print
+              </span>
+              <span className="text-xs text-muted-foreground font-mono">
                 ({docPages} total)
               </span>
             </div>
 
-            <div className="relative min-w-[170px] sm:min-w-[210px]">
-              <select
-                id="pages-select"
-                value={currentMode}
-                onChange={(e) =>
-                  handlePageModeChange(e.target.value as "all" | "odd" | "even" | "custom")
-                }
-                className="w-full h-9 pl-3 pr-8 rounded-xl bg-background border border-border/80 text-xs font-semibold text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-2xs hover:border-border transition-colors"
+            {/* Direct, Visible Segmented Buttons (No hidden dropdown on mobile) */}
+            <div className="grid grid-cols-4 gap-1 p-1 bg-muted/70 dark:bg-muted/40 rounded-xl border border-border/60">
+              <button
+                type="button"
+                onClick={() => handlePageModeChange("all")}
+                className={cn(
+                  "py-1.5 px-2 rounded-lg text-xs font-semibold transition-all text-center cursor-pointer",
+                  currentMode === "all"
+                    ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                )}
               >
-                <option value="all">All</option>
-                <option value="odd">Odd pages only</option>
-                <option value="even">Even pages only</option>
-                <option value="custom">Customised</option>
-              </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePageModeChange("odd")}
+                className={cn(
+                  "py-1.5 px-2 rounded-lg text-xs font-semibold transition-all text-center cursor-pointer",
+                  currentMode === "odd"
+                    ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                )}
+              >
+                Odd
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePageModeChange("even")}
+                className={cn(
+                  "py-1.5 px-2 rounded-lg text-xs font-semibold transition-all text-center cursor-pointer",
+                  currentMode === "even"
+                    ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                )}
+              >
+                Even
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePageModeChange("custom")}
+                className={cn(
+                  "py-1.5 px-2 rounded-lg text-xs font-semibold transition-all text-center cursor-pointer flex items-center justify-center gap-1",
+                  currentMode === "custom"
+                    ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/40"
+                )}
+              >
+                <span>Custom</span>
+              </button>
             </div>
           </div>
 
-          {/* Customised Range Input (appears only when "Customised" is selected) */}
+          {/* Customised Range Input (appears immediately when "Custom" is selected) */}
           {currentMode === "custom" && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
@@ -822,7 +857,15 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
               exit={{ opacity: 0, height: 0 }}
               className="space-y-2 pt-2 border-t border-border/40"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-foreground/80">
+                    Custom Page Range:
+                  </span>
+                  <span className="text-[11px] font-mono text-muted-foreground">
+                    e.g. 1-5, 8, 11-13
+                  </span>
+                </div>
                 <input
                   type="text"
                   value={
@@ -834,7 +877,7 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
                   placeholder="e.g. 1-5, 8, 11-13"
                   autoFocus
                   className={cn(
-                    "w-full h-9.5 px-3 rounded-xl bg-background border text-xs font-mono transition-colors focus:outline-none focus:ring-2",
+                    "w-full h-10 px-3.5 rounded-xl bg-background border text-xs sm:text-sm font-mono transition-colors focus:outline-none focus:ring-2",
                     parsedRange.valid
                       ? "border-border/80 focus:ring-primary/40"
                       : "border-destructive text-destructive focus:ring-destructive/40"
@@ -843,10 +886,10 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
               </div>
 
               {/* Validation status and savings */}
-              <div className="flex items-center justify-between text-[11px] px-0.5">
+              <div className="flex flex-wrap items-center justify-between gap-1 text-[11px] px-0.5">
                 {parsedRange.valid ? (
                   <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                    <Check className="h-3 w-3" /> {parsedRange.count} of {docPages} page{parsedRange.count !== 1 ? "s" : ""} selected
+                    <Check className="h-3.5 w-3.5" /> {parsedRange.count} of {docPages} page{parsedRange.count !== 1 ? "s" : ""} selected
                     {parsedRange.count < docPages && (
                       <span className="text-muted-foreground font-normal ml-1">
                         (Saves ₹{(docPages - parsedRange.count) * (isColor ? COLOR_RATE : BW_RATE)})
@@ -855,10 +898,9 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
                   </span>
                 ) : (
                   <span className="text-destructive font-medium flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" /> {parsedRange.error || "Please enter page numbers (e.g. 1-5, 8)"}
+                    <AlertCircle className="h-3.5 w-3.5" /> {parsedRange.error || "Please enter page numbers (e.g. 1-5, 8)"}
                   </span>
                 )}
-                <span className="text-[10px] text-muted-foreground font-mono">e.g. 1-5, 8</span>
               </div>
             </motion.div>
           )}

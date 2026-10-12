@@ -249,6 +249,129 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
                   </div>
                 </div>
               </div>
+
+              {/* Pages Selection Row (All / Odd / Even / Custom) for multi-page documents */}
+              {docPages > 1 && (
+                <div className="pt-2 border-t border-border/40 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-foreground/80">Pages to print:</span>
+                    <div className="inline-flex items-center p-0.5 rounded-lg bg-muted/70 dark:bg-muted/40 border border-border/60 text-[11px]">
+                      {(["all", "odd", "even", "custom"] as const).map((mode) => {
+                        const currentFileMode =
+                          f.settings?.pageMode ||
+                          (f.settings?.pageRange === "odd"
+                            ? "odd"
+                            : f.settings?.pageRange === "even"
+                            ? "even"
+                            : f.settings?.pageRange && f.settings?.pageRange !== "all"
+                            ? "custom"
+                            : "all");
+                        const isModeActive = currentFileMode === mode;
+
+                        return (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => {
+                              const updated = [...files];
+                              const curr = updated[idx].settings || {
+                                color: false,
+                                copies: 1,
+                                layout: "portrait",
+                                pages: 1,
+                                doubleSided: false,
+                              };
+                              let range = "all";
+                              if (mode === "odd") range = "odd";
+                              else if (mode === "even") range = "even";
+                              else if (mode === "custom") {
+                                range =
+                                  curr.pageRange &&
+                                  !["all", "odd", "even"].includes(curr.pageRange)
+                                    ? curr.pageRange
+                                    : `1-${Math.min(docPages, 5)}`;
+                              }
+                              const parsed = parsePageRange(range, docPages, mode);
+                              updated[idx].settings = {
+                                ...curr,
+                                pageMode: mode,
+                                pageRange: range,
+                                selectedPagesCount: parsed.valid ? parsed.count : docPages,
+                              };
+                              onUpdateFiles(updated);
+                            }}
+                            className={cn(
+                              "px-2 py-0.5 rounded-md font-semibold transition-all capitalize cursor-pointer",
+                              isModeActive
+                                ? "bg-primary text-primary-foreground shadow-2xs font-bold"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            {mode}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Custom Page Input Field */}
+                  {(f.settings?.pageMode === "custom" ||
+                    (f.settings?.pageRange &&
+                      !["all", "odd", "even"].includes(f.settings.pageRange))) && (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={
+                            ["all", "odd", "even"].includes(f.settings?.pageRange || "")
+                              ? ""
+                              : f.settings?.pageRange || ""
+                          }
+                          onChange={(e) => {
+                            const updated = [...files];
+                            const curr = updated[idx].settings || {
+                              color: false,
+                              copies: 1,
+                              layout: "portrait",
+                              pages: 1,
+                              doubleSided: false,
+                            };
+                            const parsed = parsePageRange(e.target.value, docPages, "custom");
+                            updated[idx].settings = {
+                              ...curr,
+                              pageMode: "custom",
+                              pageRange: e.target.value,
+                              selectedPagesCount: parsed.valid ? parsed.count : docPages,
+                            };
+                            onUpdateFiles(updated);
+                          }}
+                          placeholder="e.g. 1-5, 8, 11-13"
+                          className={cn(
+                            "w-full h-8 px-2.5 rounded-lg bg-background border text-xs font-mono transition-colors focus:outline-none focus:ring-1",
+                            rangeRes.valid
+                              ? "border-border/80 focus:ring-primary"
+                              : "border-destructive text-destructive"
+                          )}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground px-0.5">
+                        <span>
+                          {rangeRes.valid ? (
+                            <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                              ✓ {rangeRes.count} of {docPages} pages selected
+                            </span>
+                          ) : (
+                            <span className="text-destructive font-medium">
+                              {rangeRes.error || "Invalid page range"}
+                            </span>
+                          )}
+                        </span>
+                        <span className="font-mono">e.g. 1-5, 8</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </motion.div>
           );
         })}
