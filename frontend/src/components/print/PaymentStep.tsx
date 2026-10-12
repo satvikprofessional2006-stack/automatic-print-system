@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { PrintJob, calcFilesAmount } from "@/lib/printStore";
+import { PrintJob, calcFilesAmount, parsePageRange, BW_RATE, COLOR_RATE } from "@/lib/printStore";
 import {
   CheckCircle2,
   Loader2,
@@ -12,7 +12,11 @@ import {
   CreditCard,
   AlertCircle,
   Sparkles,
+  FileCheck,
+  Edit,
+  FileText,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 declare global {
   interface Window {
@@ -218,8 +222,119 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
       <div>
         <h2 className="text-xl font-bold tracking-tight text-foreground">Secure Payment</h2>
         <p className="text-xs text-muted-foreground mt-1">
-          Complete payment using UPI (GPay, PhonePe, Paytm), Cards, or NetBanking.
+          Review your print settings and complete payment via UPI, Cards, or NetBanking.
         </p>
+      </div>
+
+      {/* ── Order Verification & Print Settings Review Card ── */}
+      <div className="rounded-2xl bg-card border border-border/70 p-4 sm:p-5 space-y-3 shadow-xs">
+        <div className="flex items-center justify-between pb-2 border-b border-border/50">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+              <FileCheck className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Print Order Verification</h3>
+              <p className="text-[11px] text-muted-foreground">
+                Verify settings before payment
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+            title="Edit document settings"
+          >
+            <Edit className="h-3.5 w-3.5" />
+            <span>Edit</span>
+          </button>
+        </div>
+
+        {/* Itemized File Settings Breakdown */}
+        <div className="space-y-2.5">
+          {job.files.map((f, idx) => {
+            const docPages = f.settings?.pages || 1;
+            const rangeRes = parsePageRange(f.settings?.pageRange, docPages, f.settings?.pageMode);
+            const effectivePages = rangeRes.valid ? rangeRes.count : docPages;
+            const copies = f.settings?.copies || 1;
+            const isDoubleSided = f.settings?.doubleSided || false;
+            const isColor = f.settings?.color || false;
+            const layout = f.settings?.layout || "portrait";
+            const rate = isColor ? COLOR_RATE : BW_RATE;
+            const printedSides = effectivePages * copies;
+            const physicalSheets = isDoubleSided
+              ? Math.ceil(effectivePages / 2) * copies
+              : printedSides;
+            const subtotal = printedSides * rate;
+
+            return (
+              <div
+                key={f.name + idx}
+                className="p-3 rounded-xl bg-muted/40 dark:bg-muted/20 border border-border/50 space-y-2"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <FileText className="h-4 w-4 text-primary shrink-0" />
+                    <p className="text-xs font-bold text-foreground truncate" title={f.name}>
+                      {f.name}
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-primary shrink-0">
+                    ₹{subtotal}
+                  </span>
+                </div>
+
+                {/* Settings Tag Pills */}
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span
+                    className={cn(
+                      "px-2 py-0.5 rounded-md font-semibold text-[10px]",
+                      isColor
+                        ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                        : "bg-muted text-foreground/80 border border-border/60"
+                    )}
+                  >
+                    {isColor ? "🎨 Colour (₹10/side)" : "📄 B&W (₹2/side)"}
+                  </span>
+
+                  <span className="px-2 py-0.5 rounded-md bg-muted text-foreground/80 border border-border/60 font-semibold text-[10px]">
+                    {isDoubleSided ? "🔄 Double-Sided" : "📑 Single-Sided"}
+                  </span>
+
+                  <span className="px-2 py-0.5 rounded-md bg-muted text-foreground/80 border border-border/60 font-semibold text-[10px] capitalize">
+                    {layout}
+                  </span>
+
+                  <span className="px-2 py-0.5 rounded-md bg-muted text-foreground/80 border border-border/60 font-semibold text-[10px]">
+                    {copies} {copies === 1 ? "Copy" : "Copies"}
+                  </span>
+
+                  <span className="px-2 py-0.5 rounded-md bg-muted text-foreground/80 border border-border/60 font-mono text-[10px]">
+                    {f.settings?.pageMode === "custom" && f.settings?.pageRange
+                      ? `Pages ${f.settings.pageRange} (${effectivePages} pgs)`
+                      : f.settings?.pageMode === "odd"
+                      ? `Odd pages (${effectivePages} pgs)`
+                      : f.settings?.pageMode === "even"
+                      ? `Even pages (${effectivePages} pgs)`
+                      : `All ${docPages} pages`}
+                  </span>
+                </div>
+
+                {/* Paper & Print calculation note */}
+                <div className="flex items-center justify-between text-[10.5px] text-muted-foreground pt-1 border-t border-border/30">
+                  <span>
+                    {printedSides} printed side{printedSides !== 1 ? "s" : ""} &bull; uses{" "}
+                    {physicalSheets} paper sheet{physicalSheets !== 1 ? "s" : ""}
+                  </span>
+                  <span className="font-mono">
+                    {printedSides} &times; ₹{rate}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Amount Due Card ── */}
