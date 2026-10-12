@@ -140,9 +140,9 @@ processing_jobs = set()
 
 def process_job(job):
     job_id = job["id"]
-    filename = job["filename"]
-    copies = job["copies"]
-    double_sided = job.get("doubleSided", False)
+    filename = job.get("filename", "document.pdf")
+    copies = job.get("copies", 1)
+    double_sided = bool(job.get("doubleSided") or job.get("double_sided", False))
     color = job.get("color", False)
     layout = job.get("layout", "portrait")
     paper_size = str(job.get("paper_size") or job.get("paperSize") or "A4").upper()

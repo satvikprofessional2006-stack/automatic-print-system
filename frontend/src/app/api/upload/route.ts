@@ -60,28 +60,65 @@ export async function POST(req: Request) {
       updatedAt: new Date().toISOString()
     };
 
-    // Create DB entry to get the UUID using Supabase JS
-    let { data: printJob, error: dbError } = await supabase
-      .from('PrintJob')
-      .insert([jobPayload])
-      .select()
-      .single();
+    // Resilient database insertion: dynamically strip any column that does not exist in Supabase schema
+    let printJob: any = null;
+    let dbError: any = null;
+    const currentPayload: any = { ...jobPayload };
 
-    // If optional columns ('color', 'layout', 'paper_size', 'pages_per_sheet', 'page_range') don't exist yet in Supabase schema, retry safely without throwing
-    if (dbError && (dbError.message?.includes('color') || dbError.message?.includes('layout') || dbError.message?.includes('paper_size') || dbError.message?.includes('pages_per_sheet') || dbError.message?.includes('page_range') || dbError.details?.includes('column') || dbError.code === 'PGRST204')) {
-      console.warn("Retrying insert without optional columns:", dbError.message);
-      delete jobPayload.color;
-      delete jobPayload.layout;
-      delete jobPayload.paper_size;
-      delete jobPayload.pages_per_sheet;
-      delete jobPayload.page_range;
-      const retryResult = await supabase
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const result = await supabase
         .from('PrintJob')
-        .insert([jobPayload])
+        .insert([currentPayload])
         .select()
         .single();
-      printJob = retryResult.data;
-      dbError = retryResult.error;
+
+      if (!result.error) {
+        printJob = result.data;
+        dbError = null;
+        break;
+      }
+
+      dbError = result.error;
+      const errorMsg = dbError.message || JSON.stringify(dbError);
+
+      // Check if a specific column is missing from Supabase schema
+      const colMatch = errorMsg.match(/Could not find the '([^']+)' column/i);
+      if (colMatch && colMatch[1]) {
+        const missingCol = colMatch[1];
+        console.warn(`Column '${missingCol}' missing from PrintJob schema. Stripping and retrying.`);
+        delete currentPayload[missingCol];
+        continue;
+      }
+
+      // If generic PGRST204 or column error, strip all non-core columns
+      if (dbError.code === 'PGRST204' || errorMsg.includes('column')) {
+        console.warn("Stripping all optional print options and retrying with base schema:", errorMsg);
+        delete currentPayload.doubleSided;
+        delete currentPayload.double_sided;
+        delete currentPayload.color;
+        delete currentPayload.layout;
+        delete currentPayload.paper_size;
+        delete currentPayload.pages_per_sheet;
+        delete currentPayload.page_range;
+        delete currentPayload.userName;
+
+        const fallbackResult = await supabase
+          .from('PrintJob')
+          .insert([currentPayload])
+          .select()
+          .single();
+
+        if (!fallbackResult.error) {
+          printJob = fallbackResult.data;
+          dbError = null;
+          break;
+        }
+        dbError = fallbackResult.error;
+        break;
+      }
+
+      // If it's a completely different DB error, stop looping
+      break;
     }
       
     if (dbError || !printJob) {
