@@ -602,6 +602,12 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
           {/* Printable Area Safe Margin Outline (faint dashed border) */}
           <div className="absolute inset-1.5 sm:inset-2 border border-dashed border-zinc-300 pointer-events-none rounded-xs z-10" />
 
+          {/* Paper Size Indicator Badge (top right of sheet) */}
+          <div className="absolute top-2 right-2 z-20 flex items-center gap-1 bg-black/75 backdrop-blur-md text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full shadow-xs pointer-events-none">
+            <span>{paperSize}</span>
+            <span className="opacity-70 text-[8px]">{isA3 ? "297×420mm" : "210×297mm"}</span>
+          </div>
+
           {/* Excluded Page Watermark Overlay */}
           {docPages > 1 && !isCurrentPageIncluded && (
             <div className="absolute inset-0 bg-white/75 dark:bg-black/60 z-15 backdrop-blur-[1px] flex flex-col items-center justify-center p-3 text-center pointer-events-none">
