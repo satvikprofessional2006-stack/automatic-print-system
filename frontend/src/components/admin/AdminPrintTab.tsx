@@ -330,11 +330,6 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
             </span>
           </div>
         )}
-
-        {/* Micro page / slot tag */}
-        <div className="absolute top-0.5 left-0.5 px-1 py-0.2 rounded bg-black/70 text-white text-[7.5px] font-mono font-bold leading-tight pointer-events-none backdrop-blur-xs">
-          {isImage ? `#${slotIndex + 1}` : `p.${pageNum}`}
-        </div>
       </div>
     );
   };
@@ -854,7 +849,14 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
           {/* Right Column: Live Sheet Preview Canvas (5 cols) */}
           <div className="lg:col-span-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-foreground">Live Sheet Preview</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-foreground">Live Sheet Preview</span>
+                {pagesPerSheet > 1 && (
+                  <span className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-mono font-bold border border-primary/20">
+                    {pagesPerSheet}-Up
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] text-muted-foreground font-mono">
                 {paperSize} ({isA3 ? "297×420mm" : "210×297mm"})
               </span>
@@ -904,13 +906,6 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
                       {renderSlotContent(currentSlotPages[1], 1)}
                       {renderSlotContent(currentSlotPages[2], 2)}
                       {renderSlotContent(currentSlotPages[3], 3)}
-                    </div>
-                  )}
-
-                  {/* N-Up Indicator watermark on mockup */}
-                  {pagesPerSheet > 1 && (
-                    <div className="absolute top-2 right-2 z-20 pointer-events-none px-1.5 py-0.5 rounded bg-primary text-primary-foreground text-[8px] font-bold font-mono shadow-xs border border-white/20">
-                      {pagesPerSheet}-UP
                     </div>
                   )}
                 </div>
