@@ -15,6 +15,7 @@ export async function POST(req: Request) {
     const doubleSidedStr = formData.get('doubleSided') as string;
     const colorStr = formData.get('color') as string;
     const layout = (formData.get('layout') as string) || 'portrait';
+    const paperSize = ((formData.get('paperSize') as string) || 'A4').toUpperCase();
     const pageRange = (formData.get('pageRange') as string) || 'all';
     const userName = formData.get('userName') as string || null;
     
@@ -51,6 +52,7 @@ export async function POST(req: Request) {
       doubleSided: doubleSided,
       color: isColor,
       layout: layout,
+      paper_size: paperSize,
       page_range: pageRange,
       updatedAt: new Date().toISOString()
     };
@@ -62,11 +64,12 @@ export async function POST(req: Request) {
       .select()
       .single();
 
-    // If 'color', 'layout', or 'page_range' column doesn't exist yet in Supabase schema, retry safely without throwing
-    if (dbError && (dbError.message?.includes('color') || dbError.message?.includes('layout') || dbError.message?.includes('page_range') || dbError.details?.includes('column') || dbError.code === 'PGRST204')) {
+    // If optional columns ('color', 'layout', 'paper_size', 'page_range') don't exist yet in Supabase schema, retry safely without throwing
+    if (dbError && (dbError.message?.includes('color') || dbError.message?.includes('layout') || dbError.message?.includes('paper_size') || dbError.message?.includes('page_range') || dbError.details?.includes('column') || dbError.code === 'PGRST204')) {
       console.warn("Retrying insert without optional columns:", dbError.message);
       delete jobPayload.color;
       delete jobPayload.layout;
+      delete jobPayload.paper_size;
       delete jobPayload.page_range;
       const retryResult = await supabase
         .from('PrintJob')

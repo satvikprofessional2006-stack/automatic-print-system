@@ -60,6 +60,7 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
     layout: "portrait",
     pages: 1,
     doubleSided: false,
+    paperSize: "A4",
     pageRange: "all",
     pageMode: "all",
   };
@@ -67,6 +68,8 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
   const docPages = Math.max(1, currentSettings.pages || 1);
   const isLandscape = currentSettings.layout === "landscape";
   const isColor = currentSettings.color || false;
+  const paperSize = currentSettings.paperSize || "A4";
+  const isA3 = paperSize === "A3";
   const isImage = currentFile?.type?.startsWith("image/");
   const isPdf = currentFile?.type === "application/pdf";
 
@@ -358,8 +361,44 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
           layout: "portrait",
           pages: 1,
           doubleSided: false,
+          paperSize: "A4",
         }),
         layout,
+      },
+    }));
+    onUpdateFiles(newFiles);
+  };
+
+  const setPaperSize = (paperSize: "A4" | "A3") => {
+    const newFiles = [...files];
+    const prevSettings = newFiles[activeFileIndex].settings || {
+      color: false,
+      copies: 1,
+      layout: "portrait",
+      pages: 1,
+      doubleSided: false,
+      paperSize: "A4",
+    };
+    newFiles[activeFileIndex].settings = {
+      ...prevSettings,
+      paperSize,
+    };
+    onUpdateFiles(newFiles);
+  };
+
+  const applyToAllPaperSize = (paperSize: "A4" | "A3") => {
+    const newFiles = files.map((f) => ({
+      ...f,
+      settings: {
+        ...(f.settings || {
+          color: false,
+          copies: 1,
+          layout: "portrait",
+          pages: 1,
+          doubleSided: false,
+          paperSize: "A4",
+        }),
+        paperSize,
       },
     }));
     onUpdateFiles(newFiles);
@@ -425,7 +464,7 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
                   "text-[9px] uppercase px-1.5 py-0.2 rounded font-mono",
                   isSelected ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
                 )}>
-                  {printCount} pg{printCount !== 1 ? "s" : ""} • {fLayout === "landscape" ? "L" : "P"}
+                  {printCount} pg{printCount !== 1 ? "s" : ""} • {fLayout === "landscape" ? "L" : "P"} • {f.settings?.paperSize || "A4"}
                 </span>
               </button>
             );
@@ -562,6 +601,12 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
         >
           {/* Printable Area Safe Margin Outline (faint dashed border) */}
           <div className="absolute inset-1.5 sm:inset-2 border border-dashed border-zinc-300 pointer-events-none rounded-xs z-10" />
+
+          {/* Paper Size Indicator Badge (top right of sheet) */}
+          <div className="absolute top-2 right-2 z-20 flex items-center gap-1 bg-black/75 backdrop-blur-md text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full shadow-xs pointer-events-none">
+            <span>{paperSize}</span>
+            <span className="opacity-70 text-[8px]">{isA3 ? "297×420mm" : "210×297mm"}</span>
+          </div>
 
           {/* Excluded Page Watermark Overlay */}
           {docPages > 1 && !isCurrentPageIncluded && (
@@ -772,6 +817,9 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
           )}
 
           <p className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5">
+            <span>Paper:</span>
+            <strong className="text-foreground uppercase">{paperSize}</strong>
+            <span>•</span>
             <span>Orientation:</span>
             <strong className="text-foreground capitalize">{currentSettings.layout || "portrait"}</strong>
             <span>•</span>
@@ -906,6 +954,69 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
           )}
         </div>
       )}
+
+      {/* ── Paper Sheet Size Selector (A4 vs A3) ── */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-semibold text-foreground/80 block">
+            Paper Sheet Size *
+          </label>
+          <span className="text-[11px] text-muted-foreground font-mono">
+            {isA3 ? "A3: ₹5 B&W / ₹20 Colour" : "A4: ₹2 B&W / ₹10 Colour"}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5 p-1.5 bg-muted/60 dark:bg-muted/30 rounded-2xl border border-border/50">
+          {/* A4 Button */}
+          <button
+            type="button"
+            onClick={() => setPaperSize("A4")}
+            className={cn(
+              "flex items-center justify-center gap-2.5 py-2.5 px-3 rounded-xl font-bold text-xs transition-all border cursor-pointer",
+              !isA3
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:bg-background/50"
+            )}
+          >
+            <span className="text-sm">📄</span>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-bold">A4 Standard</span>
+              <span className="text-[10px] font-normal opacity-80 font-mono">210 × 297 mm</span>
+            </div>
+          </button>
+
+          {/* A3 Button */}
+          <button
+            type="button"
+            onClick={() => setPaperSize("A3")}
+            className={cn(
+              "flex items-center justify-center gap-2.5 py-2.5 px-3 rounded-xl font-bold text-xs transition-all border cursor-pointer",
+              isA3
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:bg-background/50"
+            )}
+          >
+            <span className="text-sm">📑</span>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-bold">A3 Large Sheet</span>
+              <span className="text-[10px] font-normal opacity-80 font-mono">297 × 420 mm</span>
+            </div>
+          </button>
+        </div>
+
+        {/* Multi-file batch paper size button */}
+        {files.length > 1 && (
+          <div className="flex justify-end pt-0.5">
+            <button
+              type="button"
+              onClick={() => applyToAllPaperSize(paperSize)}
+              className="text-[11px] text-primary hover:underline font-medium cursor-pointer"
+            >
+              Apply {paperSize} size to all {files.length} files
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* ── Visual Orientation Selector (Interactive Miniature Paper Sheets) ── */}
       <div className="space-y-2">

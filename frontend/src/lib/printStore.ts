@@ -14,6 +14,7 @@ export interface PrintFile {
     layout: string;
     pages: number;
     doubleSided: boolean;
+    paperSize?: "A4" | "A3";
     pageRange?: string;          // "all", "odd", "even", or custom range like "1-3, 5"
     pageMode?: "all" | "odd" | "even" | "custom";
     selectedPagesCount?: number; // effective page count
@@ -35,16 +36,22 @@ export interface PrintJob {
 }
 
 // Pricing Rates
-export const BW_RATE = 2; // ₹2 per page for Black & White
-export const COLOR_RATE = 10; // ₹10 per page for Colour
+export const BW_RATE = 2; // ₹2 per page for A4 Black & White
+export const COLOR_RATE = 10; // ₹10 per page for A4 Colour
+export const BW_A3_RATE = 5; // ₹5 per page for A3 Black & White
+export const COLOR_A3_RATE = 20; // ₹20 per page for A3 Colour
 export const MIN_JOB_AMOUNT = 0; // No minimum order fee
 
 export interface AmountBreakdown {
   bwPages: number;
   colorPages: number;
+  bwA3Pages: number;
+  colorA3Pages: number;
   totalPages: number;
   bwAmount: number;
   colorAmount: number;
+  bwA3Amount: number;
+  colorA3Amount: number;
   totalAmount: number;
 }
 
@@ -151,6 +158,8 @@ export function parsePageRange(
 export function calcFilesAmount(files: PrintFile[]): AmountBreakdown {
   let bwPages = 0;
   let colorPages = 0;
+  let bwA3Pages = 0;
+  let colorA3Pages = 0;
 
   for (const f of files) {
     const docPages = f.settings?.pages || 1;
@@ -159,25 +168,41 @@ export function calcFilesAmount(files: PrintFile[]): AmountBreakdown {
     const rangeRes = parsePageRange(pageRange, docPages, pageMode);
     const effectivePages = rangeRes.valid ? rangeRes.count : docPages;
     const pages = effectivePages * (f.settings?.copies || 1);
+    const paperSize = f.settings?.paperSize || "A4";
+    const isA3 = paperSize === "A3";
 
-    if (f.settings?.color) {
-      colorPages += pages;
+    if (isA3) {
+      if (f.settings?.color) {
+        colorA3Pages += pages;
+      } else {
+        bwA3Pages += pages;
+      }
     } else {
-      bwPages += pages;
+      if (f.settings?.color) {
+        colorPages += pages;
+      } else {
+        bwPages += pages;
+      }
     }
   }
 
-  const totalPages = bwPages + colorPages;
+  const totalPages = bwPages + colorPages + bwA3Pages + colorA3Pages;
   const bwAmount = bwPages * BW_RATE;
   const colorAmount = colorPages * COLOR_RATE;
-  const totalAmount = bwAmount + colorAmount;
+  const bwA3Amount = bwA3Pages * BW_A3_RATE;
+  const colorA3Amount = colorA3Pages * COLOR_A3_RATE;
+  const totalAmount = bwAmount + colorAmount + bwA3Amount + colorA3Amount;
 
   return {
     bwPages,
     colorPages,
+    bwA3Pages,
+    colorA3Pages,
     totalPages,
     bwAmount,
     colorAmount,
+    bwA3Amount,
+    colorA3Amount,
     totalAmount,
   };
 }

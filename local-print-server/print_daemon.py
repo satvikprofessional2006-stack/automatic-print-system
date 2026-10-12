@@ -52,18 +52,18 @@ def update_job_status(job_id, status):
     except requests.exceptions.RequestException as e:
         print(f"Error updating job status: {e}")
 
-def print_job(filepath, copies, double_sided=False, color=False, layout="portrait", page_range="all"):
+def print_job(filepath, copies, double_sided=False, color=False, layout="portrait", page_range="all", paper_size="A4"):
     if MOCK_MODE:
         color_str = "Colour" if color else "B&W"
         layout_str = str(layout).capitalize()
         range_str = f"pages {page_range}" if page_range and page_range != "all" else "all pages"
-        print(f"[MOCK] Simulating {color_str} ({layout_str}, {range_str}) print for {filepath} ({copies} copies)")
+        print(f"[MOCK] Simulating {paper_size} {color_str} ({layout_str}, {range_str}) print for {filepath} ({copies} copies)")
         time.sleep(3)  # Simulate print time
         return True
     
     try:
         # We rely on CUPS built-in imagetopdf filter which correctly scales 
-        # images to A4, avoiding the Canon data light blink caused by sips.
+        # images to requested sheet size, avoiding the Canon data light blink caused by sips.
         print_filepath = filepath
 
         # 1. Un-pause the printer queue (Mac often pauses it if the printer sleeps)
@@ -103,7 +103,7 @@ def print_job(filepath, copies, double_sided=False, color=False, layout="portrai
                 clean_range = str(page_range).replace(" ", "")
                 cmd.extend(["-o", f"page-ranges={clean_range}"])
 
-        cmd.extend(["-o", "media=A4", "-o", "PageSize=A4", "-o", "fit-to-page"])
+        cmd.extend(["-o", f"media={paper_size}", "-o", f"PageSize={paper_size}", "-o", "fit-to-page"])
         cmd.append(print_filepath)
         
         result = subprocess.run(
@@ -140,9 +140,12 @@ def process_job(job):
     double_sided = job.get("doubleSided", False)
     color = job.get("color", False)
     layout = job.get("layout", "portrait")
+    paper_size = str(job.get("paper_size") or job.get("paperSize") or "A4").upper()
+    if paper_size not in ["A4", "A3"]:
+        paper_size = "A4"
     page_range = job.get("page_range") or job.get("pageRange") or "all"
     
-    print(f"Found new job: {filename} ({copies} copies, double-sided: {double_sided}, color: {color}, layout: {layout}, page_range: {page_range}). Processing in background thread.")
+    print(f"Found new job: {filename} ({copies} copies, {paper_size}, double-sided: {double_sided}, color: {color}, layout: {layout}, page_range: {page_range}). Processing in background thread.")
     
     try:
         # 1. Update status to printing
@@ -153,7 +156,7 @@ def process_job(job):
         
         if filepath:
             # 3. Print the file
-            success = print_job(filepath, copies, double_sided, color, layout, page_range)
+            success = print_job(filepath, copies, double_sided, color, layout, page_range, paper_size)
             
             # 4. Update final status
             if success:

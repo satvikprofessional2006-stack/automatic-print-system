@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { PrintJob, calcFilesAmount, parsePageRange, BW_RATE, COLOR_RATE } from "@/lib/printStore";
+import { PrintJob, calcFilesAmount, parsePageRange, BW_RATE, COLOR_RATE, BW_A3_RATE, COLOR_A3_RATE } from "@/lib/printStore";
 import {
   CheckCircle2,
   Loader2,
@@ -56,7 +56,7 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isGatewayReady, setIsGatewayReady] = useState<boolean | null>(null);
 
-  const { bwPages, colorPages } = calcFilesAmount(job.files);
+  const { bwPages, colorPages, bwA3Pages, colorA3Pages } = calcFilesAmount(job.files);
 
   // Pre-load Razorpay checkout SDK
   useEffect(() => {
@@ -74,6 +74,7 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
         formData.append("doubleSided", pf.settings?.doubleSided ? "true" : "false");
         formData.append("color", pf.settings?.color ? "true" : "false");
         formData.append("layout", pf.settings?.layout || "portrait");
+        formData.append("paperSize", pf.settings?.paperSize || "A4");
         formData.append("pageRange", pf.settings?.pageRange || "all");
         formData.append("userName", job.name);
         if (paymentId) {
@@ -261,7 +262,11 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             const isDoubleSided = f.settings?.doubleSided || false;
             const isColor = f.settings?.color || false;
             const layout = f.settings?.layout || "portrait";
-            const rate = isColor ? COLOR_RATE : BW_RATE;
+            const paperSize = f.settings?.paperSize || "A4";
+            const isA3 = paperSize === "A3";
+            const rate = isA3
+              ? (isColor ? COLOR_A3_RATE : BW_A3_RATE)
+              : (isColor ? COLOR_RATE : BW_RATE);
             const printedSides = effectivePages * copies;
             const physicalSheets = isDoubleSided
               ? Math.ceil(effectivePages / 2) * copies
@@ -287,6 +292,10 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
 
                 {/* Settings Tag Pills */}
                 <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span className="px-2 py-0.5 rounded-md bg-muted text-foreground/80 border border-border/60 font-semibold text-[10px] uppercase">
+                    {isA3 ? "📑 A3 Sheet" : "📄 A4 Sheet"}
+                  </span>
+
                   <span
                     className={cn(
                       "px-2 py-0.5 rounded-md font-semibold text-[10px]",
@@ -295,7 +304,7 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
                         : "bg-muted text-foreground/80 border border-border/60"
                     )}
                   >
-                    {isColor ? "🎨 Colour (₹10/side)" : "📄 B&W (₹2/side)"}
+                    {isColor ? `🎨 Colour (₹${rate}/side)` : `📄 B&W (₹${rate}/side)`}
                   </span>
 
                   <span className="px-2 py-0.5 rounded-md bg-muted text-foreground/80 border border-border/60 font-semibold text-[10px]">
@@ -325,7 +334,7 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
                 <div className="flex items-center justify-between text-[10.5px] text-muted-foreground pt-1 border-t border-border/30">
                   <span>
                     {printedSides} printed side{printedSides !== 1 ? "s" : ""} &bull; uses{" "}
-                    {physicalSheets} paper sheet{physicalSheets !== 1 ? "s" : ""}
+                    {physicalSheets} {paperSize} paper sheet{physicalSheets !== 1 ? "s" : ""}
                   </span>
                   <span className="font-mono">
                     {printedSides} &times; ₹{rate}
@@ -350,12 +359,22 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             </span>
             {bwPages > 0 && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted text-foreground/80 font-medium text-[10px] border border-border/50">
-                📄 {bwPages} B&amp;W
+                📄 {bwPages} A4 B&amp;W
               </span>
             )}
             {colorPages > 0 && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium text-[10px] border border-rose-500/20">
-                🎨 {colorPages} Colour
+                🎨 {colorPages} A4 Colour
+              </span>
+            )}
+            {bwA3Pages > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary font-medium text-[10px] border border-primary/20">
+                📑 {bwA3Pages} A3 B&amp;W
+              </span>
+            )}
+            {colorA3Pages > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium text-[10px] border border-purple-500/20">
+                🌈 {colorA3Pages} A3 Colour
               </span>
             )}
           </div>

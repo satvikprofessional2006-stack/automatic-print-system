@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { PrintFile, calcFilesAmount, parsePageRange, BW_RATE, COLOR_RATE, MIN_JOB_AMOUNT } from "@/lib/printStore";
+import { PrintFile, calcFilesAmount, parsePageRange, BW_RATE, COLOR_RATE, BW_A3_RATE, COLOR_A3_RATE, MIN_JOB_AMOUNT } from "@/lib/printStore";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ArrowLeft, FileText, FileImage, File as FileIcon, Settings, Info, Minus, Plus, Sparkles, CircleDot } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,7 @@ function fileIcon(type: string) {
 export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
   const [globalDoubleSided, setGlobalDoubleSided] = useState(false);
 
-  const { bwPages, colorPages, totalPages, totalAmount } = calcFilesAmount(files);
+  const { bwPages, colorPages, bwA3Pages, colorA3Pages, totalPages, totalAmount } = calcFilesAmount(files);
 
   const updateCopies = (index: number, delta: number) => {
     const newFiles = [...files];
@@ -38,6 +38,14 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
     const currentSettings = newFiles[index].settings || { color: false, copies: 1, layout: 'portrait', pages: 1, doubleSided: false };
     if (currentSettings.color === color) return;
     newFiles[index].settings = { ...currentSettings, color };
+    onUpdateFiles(newFiles);
+  };
+
+  const setPaperSize = (index: number, paperSize: "A4" | "A3") => {
+    const newFiles = [...files];
+    const currentSettings = newFiles[index].settings || { color: false, copies: 1, layout: 'portrait', pages: 1, doubleSided: false };
+    if (currentSettings.paperSize === paperSize) return;
+    newFiles[index].settings = { ...currentSettings, paperSize };
     onUpdateFiles(newFiles);
   };
 
@@ -138,7 +146,11 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
           const rangeRes = parsePageRange(f.settings?.pageRange, docPages, f.settings?.pageMode);
           const pages = rangeRes.valid ? rangeRes.count : docPages;
           const copies = f.settings?.copies || 1;
-          const rate = isColor ? COLOR_RATE : BW_RATE;
+          const paperSize = f.settings?.paperSize || "A4";
+          const isA3 = paperSize === "A3";
+          const bwRate = isA3 ? BW_A3_RATE : BW_RATE;
+          const colorRate = isA3 ? COLOR_A3_RATE : COLOR_RATE;
+          const rate = isColor ? colorRate : bwRate;
           const fileSubtotal = pages * copies * rate;
 
           return (
@@ -159,7 +171,7 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-foreground truncate">{f.name}</p>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      {pages} pg{pages !== 1 ? 's' : ''} &bull;{" "}
+                      <span className="font-semibold text-foreground/80 uppercase">{paperSize}</span> &bull; {pages} pg{pages !== 1 ? 's' : ''} &bull;{" "}
                       <span className="font-semibold text-foreground/80">₹{fileSubtotal}</span>
                     </p>
                   </div>
@@ -188,40 +200,72 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
                 </div>
               </div>
 
-              {/* Controls Row: B&W / Colour Segmented Pill + Duplex */}
+              {/* Controls Row: Paper Size (A4/A3) + B&W/Colour + Duplex */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/40">
-                {/* Clean Segmented Color / B&W Toggle */}
-                <div className="inline-flex items-center p-0.5 rounded-xl bg-muted/70 dark:bg-muted/40 border border-border/70 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setColorMode(idx, false)}
-                    className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
-                      !isColor
-                        ? "bg-background text-foreground shadow-xs font-bold"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    title="Switch to Black & White print"
-                  >
-                    <span>📄 B&W</span>
-                    <span className="text-[10px] font-mono opacity-60 font-normal">₹{BW_RATE}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setColorMode(idx, true)}
-                    className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
-                      isColor
-                        ? "bg-rose-500 text-white shadow-xs font-bold"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    title="Switch to Colour print"
-                  >
-                    <span>🎨 Colour</span>
-                    <span className={cn("text-[10px] font-mono font-normal", isColor ? "text-white/85" : "opacity-60")}>
-                      ₹{COLOR_RATE}
-                    </span>
-                  </button>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {/* Paper Size Pill: A4 vs A3 */}
+                  <div className="inline-flex items-center p-0.5 rounded-xl bg-muted/70 dark:bg-muted/40 border border-border/70 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setPaperSize(idx, "A4")}
+                      className={cn(
+                        "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                        !isA3
+                          ? "bg-background text-foreground shadow-xs font-bold"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                      title="A4 Standard Sheet (210×297mm)"
+                    >
+                      <span>📄 A4</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaperSize(idx, "A3")}
+                      className={cn(
+                        "flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                        isA3
+                          ? "bg-primary text-primary-foreground shadow-xs font-bold"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                      title="A3 Large Sheet (297×420mm)"
+                    >
+                      <span>📑 A3</span>
+                    </button>
+                  </div>
+
+                  {/* Clean Segmented Color / B&W Toggle with dynamic rate */}
+                  <div className="inline-flex items-center p-0.5 rounded-xl bg-muted/70 dark:bg-muted/40 border border-border/70 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setColorMode(idx, false)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                        !isColor
+                          ? "bg-background text-foreground shadow-xs font-bold"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                      title="Switch to Black & White print"
+                    >
+                      <span>B&W</span>
+                      <span className="text-[10px] font-mono opacity-60 font-normal">₹{bwRate}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setColorMode(idx, true)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                        isColor
+                          ? "bg-rose-500 text-white shadow-xs font-bold"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                      title="Switch to Colour print"
+                    >
+                      <span>Colour</span>
+                      <span className={cn("text-[10px] font-mono font-normal", isColor ? "text-white/85" : "opacity-60")}>
+                        ₹{colorRate}
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Duplex Toggle */}
@@ -259,7 +303,10 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
         <div className="space-y-0.5">
           <p className="text-xs font-semibold text-foreground/80">Total Pages</p>
           <p className="text-[11px] text-muted-foreground">
-            {totalPages} page{totalPages !== 1 ? 's' : ''} ({bwPages} B&amp;W, {colorPages} Colour)
+            {totalPages} page{totalPages !== 1 ? 's' : ''} ({bwPages + bwA3Pages} B&amp;W, {colorPages + colorA3Pages} Colour)
+            {(bwA3Pages + colorA3Pages > 0) && (
+              <span className="ml-1 text-primary font-medium">({bwA3Pages + colorA3Pages} A3)</span>
+            )}
           </p>
         </div>
         <div className="text-right">
