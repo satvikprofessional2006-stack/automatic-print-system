@@ -965,14 +965,13 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
             type="button"
             onClick={() => setPaperSize("A4")}
             className={cn(
-              "flex items-center justify-center gap-2.5 py-2.5 px-3 rounded-xl font-bold text-xs transition-all border cursor-pointer",
+              "flex items-center justify-center py-2.5 px-3 rounded-xl font-bold text-xs transition-all border cursor-pointer",
               !isA3
                 ? "bg-primary text-primary-foreground border-primary shadow-sm"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:bg-background/50"
             )}
           >
-            <span className="text-sm">📄</span>
-            <div className="flex flex-col text-left">
+            <div className="flex flex-col text-center sm:text-left">
               <span className="text-xs font-bold">A4 Standard</span>
               <span className="text-[10px] font-normal opacity-80 font-mono">210 × 297 mm</span>
             </div>
@@ -983,14 +982,13 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
             type="button"
             onClick={() => setPaperSize("A3")}
             className={cn(
-              "flex items-center justify-center gap-2.5 py-2.5 px-3 rounded-xl font-bold text-xs transition-all border cursor-pointer",
+              "flex items-center justify-center py-2.5 px-3 rounded-xl font-bold text-xs transition-all border cursor-pointer",
               isA3
                 ? "bg-primary text-primary-foreground border-primary shadow-sm"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:bg-background/50"
             )}
           >
-            <span className="text-sm">📑</span>
-            <div className="flex flex-col text-left">
+            <div className="flex flex-col text-center sm:text-left">
               <span className="text-xs font-bold">A3 Large Sheet</span>
               <span className="text-[10px] font-normal opacity-80 font-mono">297 × 420 mm</span>
             </div>
@@ -1103,23 +1101,27 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
           </p>
           <div className="flex flex-wrap items-center gap-1.5 text-[10.5px]">
             {bwPages > 0 && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted text-foreground/80 font-medium border border-border/50">
-                📄 {bwPages} A4 B&amp;W
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/80 text-foreground/90 font-medium border border-border/60">
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 shrink-0" />
+                <span>{bwPages} A4 B&amp;W</span>
               </span>
             )}
             {colorPages > 0 && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium border border-rose-500/20">
-                🎨 {colorPages} A4 Colour
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium border border-rose-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                <span>{colorPages} A4 Colour</span>
               </span>
             )}
             {bwA3Pages > 0 && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium border border-primary/20">
-                📑 {bwA3Pages} A3 B&amp;W
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium border border-blue-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                <span>{bwA3Pages} A3 B&amp;W</span>
               </span>
             )}
             {colorA3Pages > 0 && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium border border-purple-500/20">
-                🌈 {colorA3Pages} A3 Colour
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium border border-purple-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
+                <span>{colorA3Pages} A3 Colour</span>
               </span>
             )}
           </div>

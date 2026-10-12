@@ -293,7 +293,7 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
                 {/* Settings Tag Pills */}
                 <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
                   <span className="px-2 py-0.5 rounded-md bg-muted text-foreground/80 border border-border/60 font-semibold text-[10px] uppercase">
-                    {isA3 ? "📑 A3 Sheet" : "📄 A4 Sheet"}
+                    {isA3 ? "A3 Sheet" : "A4 Sheet"}
                   </span>
 
                   <span
@@ -304,11 +304,11 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
                         : "bg-muted text-foreground/80 border border-border/60"
                     )}
                   >
-                    {isColor ? `🎨 Colour (₹${rate}/side)` : `📄 B&W (₹${rate}/side)`}
+                    {isColor ? `Colour (₹${rate}/side)` : `B&W (₹${rate}/side)`}
                   </span>
 
                   <span className="px-2 py-0.5 rounded-md bg-muted text-foreground/80 border border-border/60 font-semibold text-[10px]">
-                    {isDoubleSided ? "🔄 Double-Sided" : "📑 Single-Sided"}
+                    {isDoubleSided ? "Double-Sided" : "Single-Sided"}
                   </span>
 
                   <span className="px-2 py-0.5 rounded-md bg-muted text-foreground/80 border border-border/60 font-semibold text-[10px] capitalize">
@@ -358,23 +358,27 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
               Job #{job.id} · {job.files.length} file{job.files.length !== 1 ? "s" : ""}
             </span>
             {bwPages > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted text-foreground/80 font-medium text-[10px] border border-border/50">
-                📄 {bwPages} A4 B&amp;W
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/80 text-foreground/90 font-medium text-[10px] border border-border/60">
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 shrink-0" />
+                <span>{bwPages} A4 B&amp;W</span>
               </span>
             )}
             {colorPages > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium text-[10px] border border-rose-500/20">
-                🎨 {colorPages} A4 Colour
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium text-[10px] border border-rose-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                <span>{colorPages} A4 Colour</span>
               </span>
             )}
             {bwA3Pages > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary font-medium text-[10px] border border-primary/20">
-                📑 {bwA3Pages} A3 B&amp;W
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium text-[10px] border border-blue-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                <span>{bwA3Pages} A3 B&amp;W</span>
               </span>
             )}
             {colorA3Pages > 0 && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium text-[10px] border border-purple-500/20">
-                🌈 {colorA3Pages} A3 Colour
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium text-[10px] border border-purple-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
+                <span>{colorA3Pages} A3 Colour</span>
               </span>
             )}
           </div>
