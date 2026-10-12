@@ -8,6 +8,8 @@ import {
   parsePageRange,
   BW_RATE,
   COLOR_RATE,
+  BW_A3_RATE,
+  COLOR_A3_RATE,
 } from "@/lib/printStore";
 import { renderPdfPageToDataUrl } from "@/lib/pdfRenderer";
 import { Button } from "@/components/ui/button";
@@ -437,38 +439,63 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
         </p>
       </div>
 
-      {/* ── Multi-file Selector Tabs (if more than 1 file) ── */}
+      {/* ── Multi-file Compact Switcher Bar (if more than 1 file) ── */}
       {files.length > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {files.map((f, idx) => {
-            const isSelected = idx === activeFileIndex;
-            const fLayout = f.settings?.layout || "portrait";
-            const fDocPages = f.settings?.pages || 1;
-            const fRange = parsePageRange(f.settings?.pageRange, fDocPages, f.settings?.pageMode);
-            const printCount = fRange.valid ? fRange.count : fDocPages;
+        <div className="flex items-center justify-between gap-2 p-1.5 bg-muted/60 dark:bg-muted/30 rounded-2xl border border-border/60 shadow-2xs">
+          {/* Previous File Button */}
+          <button
+            type="button"
+            disabled={activeFileIndex === 0}
+            onClick={() => setActiveFileIndex(activeFileIndex - 1)}
+            className="p-2 rounded-xl hover:bg-background text-foreground disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer shrink-0"
+            title="Previous file"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
 
-            return (
-              <button
-                key={f.name + idx}
-                type="button"
-                onClick={() => setActiveFileIndex(idx)}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border shrink-0",
-                  isSelected
-                    ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                    : "bg-muted/50 text-muted-foreground border-border/60 hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <span>{idx + 1}. {f.name.length > 14 ? f.name.slice(0, 12) + "…" : f.name}</span>
-                <span className={cn(
-                  "text-[9px] uppercase px-1.5 py-0.2 rounded font-mono",
-                  isSelected ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
-                )}>
-                  {printCount} pg{printCount !== 1 ? "s" : ""} • {fLayout === "landscape" ? "L" : "P"} • {f.settings?.paperSize || "A4"}
-                </span>
-              </button>
-            );
-          })}
+          {/* Center: Interactive Dropdown / Pill with full details */}
+          <div className="relative flex-1 min-w-0 flex items-center justify-center">
+            <select
+              value={activeFileIndex}
+              onChange={(e) => setActiveFileIndex(parseInt(e.target.value, 10))}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              aria-label="Select file to preview"
+            >
+              {files.map((f, idx) => {
+                const fSize = f.settings?.paperSize || "A4";
+                const fDocPages = f.settings?.pages || 1;
+                return (
+                  <option key={f.name + idx} value={idx}>
+                    File {idx + 1} of {files.length}: {f.name} ({fSize}, {fDocPages} pgs)
+                  </option>
+                );
+              })}
+            </select>
+
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background/80 border border-border/50 text-xs font-semibold text-foreground truncate max-w-full pointer-events-none shadow-2xs">
+              <span className="font-bold text-primary shrink-0">
+                {activeFileIndex + 1}/{files.length}
+              </span>
+              <span className="truncate" title={currentFile?.name}>
+                {currentFile?.name}
+              </span>
+              <span className="text-[10px] uppercase px-1.5 py-0.2 rounded font-mono bg-muted text-muted-foreground shrink-0">
+                {currentSettings.paperSize || "A4"}
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0 opacity-70" />
+            </div>
+          </div>
+
+          {/* Next File Button */}
+          <button
+            type="button"
+            disabled={activeFileIndex === files.length - 1}
+            onClick={() => setActiveFileIndex(activeFileIndex + 1)}
+            className="p-2 rounded-xl hover:bg-background text-foreground disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer shrink-0"
+            title="Next file"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
       )}
 
@@ -507,8 +534,8 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
             )}
             title="Switch to Black & White print"
           >
-            <span>📄 B&amp;W</span>
-            <span className="text-[10px] font-mono opacity-60 font-normal">₹{BW_RATE}</span>
+            <span>B&amp;W</span>
+            <span className="text-[10px] font-mono opacity-60 font-normal">₹{isA3 ? BW_A3_RATE : BW_RATE}</span>
           </button>
           <button
             type="button"
@@ -523,9 +550,9 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
             )}
             title="Switch to Colour print"
           >
-            <span>🎨 Colour</span>
+            <span>Colour</span>
             <span className={cn("text-[10px] font-mono font-normal", isColor ? "text-white/85" : "opacity-60")}>
-              ₹{COLOR_RATE}
+              ₹{isA3 ? COLOR_A3_RATE : COLOR_RATE}
             </span>
           </button>
         </div>
