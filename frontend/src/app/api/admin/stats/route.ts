@@ -49,12 +49,14 @@ export async function GET(req: Request) {
     }
 
     const normalized = processedJobs.map(group => {
+      const first = group[0];
+      const isAdmin = (first.userName || '').toLowerCase().includes('admin');
       const totalCopies = group.reduce((sum: number, j: any) => sum + (j.copies || 1), 0);
       const calculatedAmount = group.reduce(
         (sum: number, j: any) => sum + (j.copies || 1) * (j.color ? 10 : 2),
         0
       );
-      const amount = calculatedAmount;
+      const amount = isAdmin ? 0 : calculatedAmount;
       let overallStatus = 'completed';
       if (group.some((j: any) => j.status === 'failed')) overallStatus = 'failed';
       else if (group.some((j: any) => j.status === 'printing')) overallStatus = 'printing';

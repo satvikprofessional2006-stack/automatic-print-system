@@ -114,13 +114,14 @@ export function PrintJobsTable() {
 
       const normalized = processedJobs.map(group => {
         const first = group[0];
+        const isAdmin = (first.userName || '').toLowerCase().includes('admin');
         const totalCopies = group.reduce((sum: number, j: any) => sum + (j.copies || 1), 0);
         const explicitAmount = group.reduce((sum: number, j: any) => sum + (j.amount || 0), 0);
         const calculatedAmount = group.reduce(
           (sum: number, j: any) => sum + (j.copies || 1) * (j.color ? 10 : 2),
           0
         );
-        const totalAmount = explicitAmount > 0 ? explicitAmount : calculatedAmount;
+        const totalAmount = isAdmin ? 0 : (explicitAmount > 0 ? explicitAmount : calculatedAmount);
         
         let overallStatus = 'completed';
         if (group.some((j: any) => j.status === 'failed')) overallStatus = 'failed';
@@ -430,9 +431,15 @@ export function PrintJobsTable() {
 
                       {/* Amount */}
                       <TableCell className="hidden md:table-cell">
-                        <span className="text-sm font-bold font-mono text-foreground">
-                          ₹{job.amount}
-                        </span>
+                        {isAdminJob ? (
+                          <span className="text-xs font-mono font-bold text-muted-foreground bg-muted/60 border border-border/50 px-2 py-0.5 rounded-md">
+                            ₹0
+                          </span>
+                        ) : (
+                          <span className="text-sm font-bold font-mono text-foreground">
+                            ₹{job.amount}
+                          </span>
+                        )}
                       </TableCell>
 
                       {/* Status */}

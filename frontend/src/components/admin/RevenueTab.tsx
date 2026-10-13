@@ -209,7 +209,8 @@ export function RevenueTab() {
           (sum: number, j: any) => sum + (j.copies || 1) * (j.color ? 10 : 2),
           0
         );
-        const amount = explicitAmount > 0 ? explicitAmount : calculatedAmount;
+        const isAdmin = (first.userName || '').toLowerCase().includes('admin');
+        const amount = isAdmin ? 0 : (explicitAmount > 0 ? explicitAmount : calculatedAmount);
 
         let overallStatus: Transaction["status"] = "completed";
         if (group.some((j: any) => j.status === "failed")) overallStatus = "failed";
