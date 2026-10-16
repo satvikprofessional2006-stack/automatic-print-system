@@ -58,8 +58,8 @@ export function PrintFlow() {
         if (student?.email) {
           setStudentAuth(student);
           setDraftName(student.name || "");
-          const savedEnrollment = localStorage.getItem(`ru_enrollment_${student.email}`) || student.enrollmentNo || "";
-          setDraftEnrollment(savedEnrollment);
+          const savedEnrollment = localStorage.getItem(`ru_enrollment_${student.email}`) || "";
+          setDraftEnrollment(savedEnrollment.trim().length >= 8 ? savedEnrollment.trim() : "");
           setStep("details");
         }
       }
@@ -80,8 +80,8 @@ export function PrintFlow() {
   const handleAuthSuccess = (student: StudentAuth) => {
     setStudentAuth(student);
     setDraftName(student.name);
-    const savedEnrollment = localStorage.getItem(`ru_enrollment_${student.email}`) || student.enrollmentNo || "";
-    setDraftEnrollment(savedEnrollment);
+    const savedEnrollment = localStorage.getItem(`ru_enrollment_${student.email}`) || "";
+    setDraftEnrollment(savedEnrollment.trim().length >= 8 ? savedEnrollment.trim() : "");
     go("details", 1);
   };
 

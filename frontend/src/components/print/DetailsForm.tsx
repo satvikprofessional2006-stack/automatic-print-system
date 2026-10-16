@@ -48,18 +48,24 @@ export function DetailsForm({
 
   // Auto-fill and check stored enrollment ID on mount
   useEffect(() => {
-    if (studentAuth?.name && !name) {
+    if (studentAuth?.name) {
       onNameChange(studentAuth.name);
     }
 
     if (studentAuth?.email) {
-      const stored = localStorage.getItem(`ru_enrollment_${studentAuth.email}`);
-      if (stored) {
-        onEnrollmentChange(stored);
-        setIsAutoFilled(true);
-      } else if (studentAuth.enrollmentNo && !enrollmentNo) {
-        onEnrollmentChange(studentAuth.enrollmentNo);
-      }
+      try {
+        const stored = localStorage.getItem(`ru_enrollment_${studentAuth.email}`);
+        // Only consider it saved if it's the full ERP enrollment (not the short 5-digit email alias)
+        if (stored && stored.trim().length >= 8) {
+          onEnrollmentChange(stored.trim());
+          setIsAutoFilled(true);
+        } else {
+          onEnrollmentChange("");
+          setIsAutoFilled(false);
+          // Clean up old short alias from storage
+          localStorage.removeItem(`ru_enrollment_${studentAuth.email}`);
+        }
+      } catch {}
     }
   }, [studentAuth]);
 
@@ -74,8 +80,8 @@ export function DetailsForm({
     
     if (!enrollmentNo.trim()) {
       validationErrors.enrollmentNo = "Enrollment number is required.";
-    } else if (enrollmentNo.trim().length < 5) {
-      validationErrors.enrollmentNo = "Please enter a valid university enrollment number.";
+    } else if (enrollmentNo.trim().length < 8) {
+      validationErrors.enrollmentNo = "Please enter your full 10-digit ERP enrollment number (e.g. 2502140110).";
     }
     
     if (files.length === 0) {
@@ -92,7 +98,7 @@ export function DetailsForm({
       return;
     }
     
-    // Save enrollment number to localStorage linked to student's email
+    // Save full ERP enrollment number to localStorage linked to student's email
     if (studentAuth?.email && enrollmentNo.trim()) {
       try {
         localStorage.setItem(`ru_enrollment_${studentAuth.email}`, enrollmentNo.trim());
@@ -168,22 +174,32 @@ export function DetailsForm({
       )}
 
       <div className="space-y-3">
-        {/* Name */}
+        {/* Name — locked if signed in with Google */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold text-foreground/80">Full Name *</label>
             {studentAuth && (
-              <span className="text-[10px] text-muted-foreground">From Google account</span>
+              <span className="text-[10px] text-muted-foreground/80 font-medium">
+                Verified from Google (locked)
+              </span>
             )}
           </div>
           <Input
             placeholder="e.g. Satvik Kesarwani"
             value={name}
+            readOnly={!!studentAuth}
+            tabIndex={studentAuth ? -1 : 0}
             onChange={(e) => {
-              onNameChange(e.target.value);
-              if (errors.name) setErrors(prev => ({ ...prev, name: "" }));
+              if (!studentAuth) {
+                onNameChange(e.target.value);
+                if (errors.name) setErrors(prev => ({ ...prev, name: "" }));
+              }
             }}
-            className={cn("bg-background border-border/60", errors.name && "border-destructive focus-visible:ring-destructive")}
+            className={cn(
+              "bg-background border-border/60 transition-colors",
+              studentAuth && "bg-muted/40 text-foreground/90 cursor-default select-none border-border/40 focus-visible:ring-0",
+              errors.name && "border-destructive focus-visible:ring-destructive"
+            )}
           />
           {errors.name && <p className="text-xs text-destructive mt-1 px-1">{errors.name}</p>}
         </div>
@@ -200,13 +216,14 @@ export function DetailsForm({
               </span>
             ) : (
               <span className="text-[10px] text-muted-foreground">
-                Saved for future visits
+                Saved for future prints
               </span>
             )}
           </div>
           <Input
             placeholder="e.g. 2502140110"
             value={enrollmentNo}
+            autoFocus={!enrollmentNo}
             onChange={(e) => {
               onEnrollmentChange(e.target.value);
               setIsAutoFilled(false);
@@ -221,7 +238,7 @@ export function DetailsForm({
             <p className="text-xs text-destructive mt-1 px-1">{errors.enrollmentNo}</p>
           ) : (
             <p className="text-[10.5px] text-muted-foreground px-0.5">
-              Enter your official university enrollment number. It will be remembered automatically.
+              Enter your official 10-digit ERP enrollment number. It will be remembered automatically.
             </p>
           )}
         </div>

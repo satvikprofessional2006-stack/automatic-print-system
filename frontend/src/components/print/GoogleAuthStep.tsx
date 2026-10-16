@@ -36,9 +36,9 @@ export function GoogleAuthStep({ onSuccess }: Props) {
         throw new Error(data.error || "Authentication failed");
       }
 
-      // Check for previously saved enrollment ID for this email
+      // Check for previously saved enrollment ID for this email (only from localStorage)
       const savedEnrollment = typeof window !== "undefined"
-        ? localStorage.getItem(`ru_enrollment_${data.user.email}`) || data.user.shortRoll || ""
+        ? localStorage.getItem(`ru_enrollment_${data.user.email}`) || ""
         : "";
 
       const student: StudentAuth = {
@@ -83,7 +83,7 @@ export function GoogleAuthStep({ onSuccess }: Props) {
       }
 
       const savedEnrollment = typeof window !== "undefined"
-        ? localStorage.getItem(`ru_enrollment_${data.user.email}`) || data.user.shortRoll || ""
+        ? localStorage.getItem(`ru_enrollment_${data.user.email}`) || ""
         : "";
 
       const student: StudentAuth = {
