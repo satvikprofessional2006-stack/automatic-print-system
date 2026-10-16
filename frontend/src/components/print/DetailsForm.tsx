@@ -176,14 +176,7 @@ export function DetailsForm({
       <div className="space-y-3">
         {/* Name — locked if signed in with Google */}
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold text-foreground/80">Full Name *</label>
-            {studentAuth && (
-              <span className="text-[10px] text-muted-foreground/80 font-medium">
-                Verified from Google (locked)
-              </span>
-            )}
-          </div>
+          <label className="text-xs font-semibold text-foreground/80 block">Full Name *</label>
           <Input
             placeholder="e.g. Satvik Kesarwani"
             value={name}
