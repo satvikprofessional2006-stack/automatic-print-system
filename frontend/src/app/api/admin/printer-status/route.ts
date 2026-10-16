@@ -51,11 +51,7 @@ export async function GET(req: Request) {
     }
 
     if (!printerId) {
-      return NextResponse.json({
-        connectedPrinter: null,
-        message: 'No printer installed on system',
-        timestamp: new Date().toISOString(),
-      });
+      printerId = process.env.PRINTER_NAME || 'Canon_MF280_Series_2';
     }
 
     let displayName = printerId.replace(/_/g, ' ');
@@ -146,8 +142,8 @@ export async function GET(req: Request) {
       }
     }
 
-    // If supplies array is empty and it's Canon MF280 Series
-    if (supplies.length === 0 && printerId.toLowerCase().includes('mf280')) {
+    // If supplies array is empty
+    if (supplies.length === 0) {
       supplies = [
         {
           name: 'Canon Cartridge 072 Black Toner',

@@ -193,7 +193,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
       </div>
 
       {/* ── Section 1: Live Connected Printer & Toner Gauge (Only Connected Printer) ── */}
-      <Card className="border border-border/50 bg-gradient-to-br from-card/80 via-card/50 to-card/30 backdrop-blur-xl rounded-2xl shadow-sm overflow-hidden">
+      <Card className="shrink-0 border border-border/50 bg-gradient-to-br from-card/80 via-card/50 to-card/30 backdrop-blur-xl rounded-2xl shadow-sm">
         <CardContent className="p-5 sm:p-6 space-y-5">
           {/* Top row: Connected Printer Info & Connection Status */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/40">
@@ -323,7 +323,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
       </Card>
 
       {/* ── Section 2: Core Metrics (4 Cards) ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 shrink-0">
         {/* Total Batches */}
         <Card className="border border-border/40 bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
           <CardContent className="p-4 flex items-center gap-3.5">
@@ -406,7 +406,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
       </div>
 
       {/* ── Section 3: Quick Action Launchpad ── */}
-      <Card className="border border-border/40 bg-card/30 backdrop-blur-md rounded-2xl p-4 shadow-xs">
+      <Card className="shrink-0 border border-border/40 bg-card/30 backdrop-blur-md rounded-2xl p-4 shadow-xs">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-amber-500" />
@@ -469,7 +469,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
       </Card>
 
       {/* ── Section 4: Live Activity Stream (Recent Jobs) ── */}
-      <Card className="border border-border/40 bg-card/30 backdrop-blur-md rounded-2xl p-4 sm:p-5 shadow-xs">
+      <Card className="shrink-0 border border-border/40 bg-card/30 backdrop-blur-md rounded-2xl p-4 sm:p-5 shadow-xs">
         <div className="flex items-center justify-between mb-3.5">
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-emerald-500" />
