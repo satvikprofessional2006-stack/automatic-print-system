@@ -22,6 +22,8 @@ import {
   WifiOff,
   Wifi,
   Power,
+  XCircle,
+  Ban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -114,6 +116,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
     const completed = jobs.filter((j) => j.status === "completed" || j.status === "paid").length;
     const queued = jobs.filter((j) => j.status === "queued" || j.status === "printing").length;
     const failed = jobs.filter((j) => j.status === "failed").length;
+    const cancelled = jobs.filter((j) => j.status === "cancelled").length;
 
     const totalRevenue = jobs
       .filter((j) => j.status === "completed" || j.status === "paid")
@@ -130,6 +133,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
       completed,
       queued,
       failed,
+      cancelled,
       totalRevenue,
       totalPages,
       successRate,
@@ -322,43 +326,43 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
         </CardContent>
       </Card>
 
-      {/* ── Section 2: Core Metrics (4 Cards) ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 shrink-0">
-        {/* Total Batches */}
+      {/* ── Section 2: Core Metrics (6 Cards - Matching Old Overview & Adding Live Telemetry) ── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5 shrink-0">
+        {/* Total Jobs */}
         <Card className="border border-border/40 bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
-              <Printer className="h-5 w-5" />
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+              <Printer className="h-4.5 w-4.5" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider truncate">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
                 Total Jobs
               </p>
-              <p className="text-2xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
+              <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
                 {metrics.totalJobs}
               </p>
               <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                All time print batches
+                All time batches
               </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Completed & Success Rate */}
+        {/* Completed */}
         <Card className="border border-border/40 bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
-              <CheckCircle2 className="h-5 w-5" />
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+              <CheckCircle2 className="h-4.5 w-4.5" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider truncate">
-                Success Rate
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
+                Completed
               </p>
-              <p className="text-2xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
-                {metrics.successRate}%
+              <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
+                {metrics.completed}
               </p>
-              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5 truncate">
-                {metrics.completed} successful prints
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5 truncate">
+                Successfully printed
               </p>
             </div>
           </CardContent>
@@ -366,19 +370,76 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
 
         {/* In Queue */}
         <Card className="border border-border/40 bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
-              <Clock className="h-5 w-5" />
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
+              <Clock className="h-4.5 w-4.5" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider truncate">
-                Active Queue
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
+                In Queue
               </p>
-              <p className="text-2xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
+              <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
                 {metrics.queued}
               </p>
               <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                {metrics.queued === 0 ? "Queue clear & idle" : "Spooling to hardware"}
+                Pending / active
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Failed */}
+        <Card
+          className={cn(
+            "border bg-card/40 backdrop-blur-md rounded-2xl shadow-xs transition-colors",
+            metrics.failed > 0 ? "border-rose-500/30 bg-rose-500/5" : "border-border/40"
+          )}
+        >
+          <CardContent className="p-4 flex items-center gap-3">
+            <div
+              className={cn(
+                "p-2 rounded-xl shrink-0",
+                metrics.failed > 0
+                  ? "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              <XCircle className="h-4.5 w-4.5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
+                Failed
+              </p>
+              <p
+                className={cn(
+                  "text-xl font-extrabold font-mono tracking-tight mt-0.5",
+                  metrics.failed > 0 ? "text-rose-600 dark:text-rose-400" : "text-foreground"
+                )}
+              >
+                {metrics.failed}
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                Failed to print
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cancelled */}
+        <Card className="border border-border/40 bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-muted text-muted-foreground shrink-0">
+              <Ban className="h-4.5 w-4.5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
+                Cancelled
+              </p>
+              <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
+                {metrics.cancelled}
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                Cancelled by admin
               </p>
             </div>
           </CardContent>
@@ -386,19 +447,19 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
 
         {/* Revenue */}
         <Card className="border border-border/40 bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
-              <IndianRupee className="h-5 w-5" />
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
+              <IndianRupee className="h-4.5 w-4.5" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider truncate">
-                Total Revenue
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
+                Revenue
               </p>
-              <p className="text-2xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
+              <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
                 ₹{metrics.totalRevenue.toLocaleString("en-IN")}
               </p>
               <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                {metrics.totalPages} pages billed
+                Paid jobs total
               </p>
             </div>
           </CardContent>
