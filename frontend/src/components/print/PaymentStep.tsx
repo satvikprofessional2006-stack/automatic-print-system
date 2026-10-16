@@ -227,33 +227,28 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
         </p>
       </div>
 
-      {/* ── Order Verification & Print Settings Review Card ── */}
+      {/* ── Order Summary Card ── */}
       <div className="rounded-2xl bg-card border border-border/70 p-4 sm:p-5 space-y-3 shadow-xs">
-        <div className="flex items-center justify-between pb-2 border-b border-border/50">
+        <div className="flex items-center justify-between pb-2 border-b border-border/40">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-              <FileCheck className="h-4 w-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-foreground">Print Order Verification</h3>
-              <p className="text-[11px] text-muted-foreground">
-                Verify settings before payment
-              </p>
-            </div>
+            <h3 className="text-sm font-bold text-foreground">Order Summary</h3>
+            <span className="text-xs text-muted-foreground font-mono">
+              ({job.files.length} {job.files.length === 1 ? "file" : "files"})
+            </span>
           </div>
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
             title="Edit document settings"
           >
-            <Edit className="h-3.5 w-3.5" />
+            <Edit className="h-3 w-3" />
             <span>Edit</span>
           </button>
         </div>
 
-        {/* Itemized File Settings Breakdown */}
-        <div className="space-y-2.5">
+        {/* Clean File Items List */}
+        <div className="divide-y divide-border/30">
           {job.files.map((f, idx) => {
             const docPages = f.settings?.pages || 1;
             const rangeRes = parsePageRange(f.settings?.pageRange, docPages, f.settings?.pageMode);
@@ -261,83 +256,43 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             const copies = f.settings?.copies || 1;
             const isDoubleSided = f.settings?.doubleSided || false;
             const isColor = f.settings?.color || false;
-            const layout = f.settings?.layout || "portrait";
             const paperSize = f.settings?.paperSize || "A4";
             const isA3 = paperSize === "A3";
             const rate = isA3
               ? (isColor ? COLOR_A3_RATE : BW_A3_RATE)
               : (isColor ? COLOR_RATE : BW_RATE);
             const printedSides = effectivePages * copies;
-            const physicalSheets = isDoubleSided
-              ? Math.ceil(effectivePages / 2) * copies
-              : printedSides;
             const subtotal = printedSides * rate;
+
+            // Simple, clean bullet description
+            const details: string[] = [];
+            details.push(isColor ? "Colour" : "B&W");
+            details.push(paperSize);
+            details.push(isDoubleSided ? "Double-sided" : "Single-sided");
+            if (copies > 1) {
+              details.push(`${copies} copies`);
+            }
+            details.push(`${effectivePages} ${effectivePages === 1 ? "page" : "pages"}`);
 
             return (
               <div
                 key={f.name + idx}
-                className="p-3 rounded-xl bg-muted/40 dark:bg-muted/20 border border-border/50 space-y-2"
+                className="py-2.5 first:pt-1 last:pb-1 flex items-center justify-between gap-3"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <FileText className="h-4 w-4 text-primary shrink-0" />
-                    <p className="text-xs font-bold text-foreground truncate" title={f.name}>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <p className="text-xs font-semibold text-foreground truncate" title={f.name}>
                       {f.name}
                     </p>
                   </div>
-                  <span className="text-xs font-mono font-bold text-primary shrink-0">
+                  <p className="text-[11px] text-muted-foreground mt-0.5 pl-5.5">
+                    {details.join(" · ")}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs font-mono font-bold text-foreground">
                     ₹{subtotal}
-                  </span>
-                </div>
-
-                {/* Settings Tag Pills */}
-                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                  <span className="px-2 py-0.5 rounded-md bg-muted text-foreground/80 border border-border/60 font-semibold text-[10px] uppercase">
-                    {isA3 ? "A3 Sheet" : "A4 Sheet"}
-                  </span>
-
-                  <span
-                    className={cn(
-                      "px-2 py-0.5 rounded-md font-semibold text-[10px]",
-                      isColor
-                        ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
-                        : "bg-muted text-foreground/80 border border-border/60"
-                    )}
-                  >
-                    {isColor ? `Colour (₹${rate}/side)` : `B&W (₹${rate}/side)`}
-                  </span>
-
-                  <span className="px-2 py-0.5 rounded-md bg-muted text-foreground/80 border border-border/60 font-semibold text-[10px]">
-                    {isDoubleSided ? "Double-Sided" : "Single-Sided"}
-                  </span>
-
-                  <span className="px-2 py-0.5 rounded-md bg-muted text-foreground/80 border border-border/60 font-semibold text-[10px] capitalize">
-                    {layout}
-                  </span>
-
-                  <span className="px-2 py-0.5 rounded-md bg-muted text-foreground/80 border border-border/60 font-semibold text-[10px]">
-                    {copies} {copies === 1 ? "Copy" : "Copies"}
-                  </span>
-
-                  <span className="px-2 py-0.5 rounded-md bg-muted text-foreground/80 border border-border/60 font-mono text-[10px]">
-                    {f.settings?.pageMode === "custom" && f.settings?.pageRange
-                      ? `Pages ${f.settings.pageRange} (${effectivePages} pgs)`
-                      : f.settings?.pageMode === "odd"
-                      ? `Odd pages (${effectivePages} pgs)`
-                      : f.settings?.pageMode === "even"
-                      ? `Even pages (${effectivePages} pgs)`
-                      : `All ${docPages} pages`}
-                  </span>
-                </div>
-
-                {/* Paper & Print calculation note */}
-                <div className="flex items-center justify-between text-[10.5px] text-muted-foreground pt-1 border-t border-border/30">
-                  <span>
-                    {printedSides} printed side{printedSides !== 1 ? "s" : ""} &bull; uses{" "}
-                    {physicalSheets} {paperSize} paper sheet{physicalSheets !== 1 ? "s" : ""}
-                  </span>
-                  <span className="font-mono">
-                    {printedSides} &times; ₹{rate}
                   </span>
                 </div>
               </div>
