@@ -44,12 +44,15 @@ export async function POST(req: Request) {
     // Generate UUID manually since we bypassed Prisma's auto-generation
     const jobId = crypto.randomUUID();
     
+    const isAdminUpload = (userName || '').toLowerCase().includes('admin');
+    const initialStatus = isAdminUpload ? 'queued' : 'paid';
+
     // Create DB entry payload
     const jobPayload: any = {
       id: jobId,
       filename: originalFilename,
       copies: copies,
-      status: 'queued',
+      status: initialStatus,
       userName: userName,
       doubleSided: doubleSided,
       color: isColor,

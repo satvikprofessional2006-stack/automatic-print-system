@@ -24,6 +24,7 @@ import {
   Folder,
   ChevronDown,
   ChevronUp,
+  Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +32,7 @@ const STATUS_STYLES: Record<string, string> = {
   queued: "bg-blue-500/15 text-blue-800 dark:text-blue-200 border border-blue-500/30",
   pending_payment:
     "bg-amber-500/20 text-amber-900 dark:text-amber-200 border border-amber-500/40",
-  paid: "bg-blue-500/15 text-blue-800 dark:text-blue-200 border border-blue-500/30",
+  paid: "bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30",
   printing:
     "bg-violet-500/15 text-violet-800 dark:text-violet-200 border border-violet-500/30",
   completed: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30",
@@ -40,9 +41,9 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  queued: "Queued",
+  queued: "In Queue",
   pending_payment: "Pending Payment",
-  paid: "Paid",
+  paid: "Awaiting Release",
   printing: "Printing",
   completed: "Done",
   failed: "Failed",
@@ -127,6 +128,7 @@ export function PrintJobsTable() {
         if (group.some((j: any) => j.status === 'failed')) overallStatus = 'failed';
         else if (group.some((j: any) => j.status === 'printing')) overallStatus = 'printing';
         else if (group.some((j: any) => j.status === 'queued')) overallStatus = 'queued';
+        else if (group.some((j: any) => j.status === 'paid')) overallStatus = 'paid';
         else if (group.every((j: any) => j.status === 'cancelled')) overallStatus = 'cancelled';
 
         return {
@@ -160,7 +162,7 @@ export function PrintJobsTable() {
     }
   };
 
-  const handleAction = async (id: string, action: 'cancel' | 'retry') => {
+  const handleAction = async (id: string, action: 'cancel' | 'retry' | 'approve') => {
     if (!user?.password) return;
     try {
       const res = await fetch(`/api/admin/jobs/${id}/${action}`, {
@@ -176,6 +178,59 @@ export function PrintJobsTable() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleApproveBatch = async (jobGroup: any[]) => {
+    if (!user?.password) return;
+    
+    // Find all files in this batch that can be approved
+    const approvableIds = jobGroup
+      .filter(f => f.status === 'paid' || f.status === 'pending_payment')
+      .map(f => f.originalId || f.id);
+      
+    if (approvableIds.length === 0) return;
+    
+    try {
+      const promises = approvableIds.map(id => 
+        fetch(`/api/admin/jobs/${id}/approve`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${user.password}`
+          }
+        })
+      );
+      
+      await Promise.all(promises);
+      load();
+    } catch (err) {
+      console.error("Failed to approve batch", err);
+    }
+  };
+
+  const handleRetryBatch = async (jobGroup: any[]) => {
+    if (!user?.password) return;
+    
+    const retryableIds = jobGroup
+      .filter(f => f.status === 'failed')
+      .map(f => f.originalId || f.id);
+      
+    if (retryableIds.length === 0) return;
+    
+    try {
+      const promises = retryableIds.map(id => 
+        fetch(`/api/admin/jobs/${id}/retry`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${user.password}`
+          }
+        })
+      );
+      
+      await Promise.all(promises);
+      load();
+    } catch (err) {
+      console.error("Failed to retry batch", err);
     }
   };
 
@@ -226,8 +281,8 @@ export function PrintJobsTable() {
 
   const statusTabs: Array<{ id: string; label: string; count: number }> = [
     { id: "ALL", label: "All", count: jobs.length },
-    { id: "pending_payment", label: "Pending", count: jobs.filter((j) => j.status === "pending_payment").length },
-    { id: "paid", label: "Paid", count: jobs.filter((j) => j.status === "paid").length },
+    { id: "paid", label: "Awaiting Release", count: jobs.filter((j) => j.status === "paid").length },
+    { id: "queued", label: "In Queue", count: jobs.filter((j) => j.status === "queued").length },
     { id: "printing", label: "Printing", count: jobs.filter((j) => j.status === "printing").length },
     { id: "completed", label: "Done", count: jobs.filter((j) => j.status === "completed").length },
     { id: "failed", label: "Failed", count: jobs.filter((j) => j.status === "failed").length },
@@ -464,26 +519,56 @@ export function PrintJobsTable() {
 
                       {/* Actions & Expand toggle */}
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          {job.status !== 'completed' && job.status !== 'cancelled' && (
-                            <div className="flex items-center">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-[11px] px-3 font-bold rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 hover:bg-rose-500/20 hover:border-rose-500/30 transition-all shadow-sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCancelBatch(job.originalJobs);
-                                }}
-                              >
-                                {job.files.length > 1 ? "Cancel Batch" : "Cancel"}
-                              </Button>
-                            </div>
+                        <div className="flex items-center justify-end gap-2">
+                          {/* Accept & Print for Paid / Awaiting Release jobs */}
+                          {job.status === 'paid' && (
+                            <Button
+                              size="sm"
+                              className="h-7 text-[11px] px-3 font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all gap-1.5 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleApproveBatch(job.originalJobs);
+                              }}
+                            >
+                              <Printer className="h-3.5 w-3.5" />
+                              Accept & Print
+                            </Button>
                           )}
+
+                          {/* Retry Print for Failed jobs */}
+                          {job.status === 'failed' && (
+                            <Button
+                              size="sm"
+                              className="h-7 text-[11px] px-3 font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all gap-1.5 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRetryBatch(job.originalJobs);
+                              }}
+                            >
+                              <RefreshCw className="h-3.5 w-3.5" />
+                              Retry Print
+                            </Button>
+                          )}
+
+                          {/* Cancel button if not completed and not cancelled */}
+                          {job.status !== 'completed' && job.status !== 'cancelled' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[11px] px-2.5 font-bold rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20 hover:bg-rose-500/20 hover:border-rose-500/30 transition-all shadow-xs cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCancelBatch(job.originalJobs);
+                              }}
+                            >
+                              {job.files.length > 1 ? "Cancel Batch" : "Cancel"}
+                            </Button>
+                          )}
+
                           {isExpanded ? (
-                            <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0 cursor-pointer" />
                           ) : (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 cursor-pointer" />
                           )}
                         </div>
                       </TableCell>
@@ -543,6 +628,20 @@ export function PrintJobsTable() {
                                       )}
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
+                                      {f.status === 'paid' && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 text-[11px] px-2.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 font-semibold"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleAction(f.originalId, 'approve');
+                                          }}
+                                        >
+                                          <Printer className="w-3.5 h-3.5 mr-1" />
+                                          Accept
+                                        </Button>
+                                      )}
                                       {f.status === 'failed' && (
                                         <Button
                                           variant="ghost"
@@ -569,8 +668,8 @@ export function PrintJobsTable() {
                                           Cancel
                                         </Button>
                                       )}
-                                      <Badge variant="outline" className="text-[10px] ml-2">
-                                        {f.status}
+                                      <Badge variant="outline" className={`text-[10px] ml-2 ${STATUS_STYLES[f.status] || ''}`}>
+                                        {STATUS_LABEL[f.status] || f.status}
                                       </Badge>
                                     </div>
                                   </div>

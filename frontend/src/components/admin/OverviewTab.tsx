@@ -110,20 +110,36 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
     return () => clearInterval(interval);
   }, []);
 
+  const handleApproveJob = async (jobId: string) => {
+    if (!user?.password) return;
+    try {
+      const res = await fetch(`/api/admin/jobs/${jobId}/approve`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${user.password}` },
+      });
+      if (res.ok) {
+        fetchJobs();
+      }
+    } catch (e) {
+      console.error("Failed to approve job:", e);
+    }
+  };
+
   // Aggregate stats from jobs
   const metrics = useMemo(() => {
     const totalJobs = jobs.length;
-    const completed = jobs.filter((j) => j.status === "completed" || j.status === "paid").length;
+    const completed = jobs.filter((j) => j.status === "completed").length;
+    const awaitingRelease = jobs.filter((j) => j.status === "paid").length;
     const queued = jobs.filter((j) => j.status === "queued" || j.status === "printing").length;
     const failed = jobs.filter((j) => j.status === "failed").length;
     const cancelled = jobs.filter((j) => j.status === "cancelled").length;
 
     const totalRevenue = jobs
-      .filter((j) => j.status === "completed" || j.status === "paid")
+      .filter((j) => j.status === "completed" || j.status === "paid" || j.status === "queued" || j.status === "printing")
       .reduce((sum, j) => sum + (j.amount || (j.copies || 1) * (j.color ? 10 : 2)), 0);
 
     const totalPages = jobs
-      .filter((j) => j.status === "completed" || j.status === "paid")
+      .filter((j) => j.status === "completed" || j.status === "paid" || j.status === "queued" || j.status === "printing")
       .reduce((sum, j) => sum + (j.copies || 1), 0);
 
     const successRate = totalJobs > 0 ? ((completed / totalJobs) * 100).toFixed(1) : "100";
@@ -131,6 +147,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
     return {
       totalJobs,
       completed,
+      awaitingRelease,
       queued,
       failed,
       cancelled,
@@ -330,18 +347,36 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
           </CardContent>
         </Card>
 
-        {/* Completed */}
-        <Card className="border-none bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
+        {/* Awaiting Release (Counter Queue) */}
+        <Card
+          onClick={() => onNavigate("logs")}
+          className={cn(
+            "border-none bg-card/40 backdrop-blur-md rounded-2xl shadow-xs cursor-pointer hover:bg-card/70 transition-colors",
+            metrics.awaitingRelease > 0 && "bg-amber-500/10 border border-amber-500/20"
+          )}
+        >
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
-              <CheckCircle2 className="h-4.5 w-4.5" />
+            <div
+              className={cn(
+                "p-2 rounded-xl shrink-0",
+                metrics.awaitingRelease > 0
+                  ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              <AlertTriangle className="h-4.5 w-4.5" />
             </div>
             <div className="min-w-0">
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
-                Completed
+                Awaiting Release
               </p>
-              <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
-                {metrics.completed}
+              <p
+                className={cn(
+                  "text-xl font-extrabold font-mono tracking-tight mt-0.5",
+                  metrics.awaitingRelease > 0 ? "text-amber-600 dark:text-amber-400" : "text-foreground"
+                )}
+              >
+                {metrics.awaitingRelease}
               </p>
             </div>
           </CardContent>
@@ -359,6 +394,23 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
               </p>
               <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
                 {metrics.queued}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Completed */}
+        <Card className="border-none bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+              <CheckCircle2 className="h-4.5 w-4.5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
+                Done
+              </p>
+              <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
+                {metrics.completed}
               </p>
             </div>
           </CardContent>
@@ -393,23 +445,6 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
                 )}
               >
                 {metrics.failed}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Cancelled */}
-        <Card className="border-none bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-muted text-muted-foreground shrink-0">
-              <Ban className="h-4.5 w-4.5" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
-                Cancelled
-              </p>
-              <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
-                {metrics.cancelled}
               </p>
             </div>
           </CardContent>
@@ -514,7 +549,6 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
         ) : (
           <div className="space-y-2">
             {recentJobs.map((job) => {
-              const isPaidOrCompleted = job.status === "completed" || job.status === "paid";
               const isFailed = job.status === "failed";
               const isPrinting = job.status === "printing";
 
@@ -553,16 +587,39 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
                       </span>
                     )}
 
+                    {job.status === "paid" && (
+                      <Button
+                        size="sm"
+                        className="h-7 text-[11px] px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium gap-1 shadow-xs cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleApproveJob(job.id);
+                        }}
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        Accept
+                      </Button>
+                    )}
+
                     <Badge
                       variant="outline"
                       className={cn(
-                        "text-[10px] capitalize font-medium",
-                        isPaidOrCompleted && "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-                        isPrinting && "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 animate-pulse",
-                        isFailed && "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                        "text-[10px] font-medium",
+                        job.status === "completed" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                        job.status === "paid" && "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold",
+                        job.status === "queued" && "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400",
+                        isPrinting && "border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 animate-pulse",
+                        isFailed && "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400",
+                        job.status === "cancelled" && "border-zinc-500/30 bg-zinc-500/10 text-zinc-600 dark:text-zinc-400"
                       )}
                     >
-                      {job.status === "completed" ? "Done" : job.status}
+                      {job.status === "completed"
+                        ? "Done"
+                        : job.status === "paid"
+                        ? "Awaiting Release"
+                        : job.status === "queued"
+                        ? "In Queue"
+                        : job.status}
                     </Badge>
                   </div>
                 </div>

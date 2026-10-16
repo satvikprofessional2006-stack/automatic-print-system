@@ -53,6 +53,19 @@ export default function StatusPage() {
   return (
     <main>
       <div className="card status-container">
+        {(job.status === 'paid' || job.status === 'pending_payment') && (
+          <>
+            <div className="status-icon">🎟️</div>
+            <h2>Order Ready at Counter</h2>
+            <div className="queue-position" style={{ background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' }}>
+              Payment Verified!
+            </div>
+            <p style={{ marginTop: '12px' }}>
+              Show your <strong>Task ID ({job.orderId || job.id})</strong> to the operator at the print counter to release and collect your prints.
+            </p>
+          </>
+        )}
+
         {job.status === 'queued' && (
           <>
             <div className="status-icon">⏳</div>
@@ -108,6 +121,7 @@ export default function StatusPage() {
         )}
 
         <div style={{ marginTop: '30px', textAlign: 'left', fontSize: '14px', color: '#666' }}>
+          <p><strong>Order / Task ID:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{job.orderId || job.id}</span></p>
           <p><strong>File:</strong> {job.filename}</p>
           <p><strong>Copies:</strong> {job.copies}</p>
         </div>
