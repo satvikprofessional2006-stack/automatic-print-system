@@ -10,21 +10,15 @@ import {
   Printer,
   Droplet,
   RefreshCw,
-  Layers,
   CheckCircle2,
   Clock,
-  XCircle,
   IndianRupee,
-  FileText,
   ArrowRight,
-  TrendingUp,
   AlertTriangle,
   Zap,
   Activity,
-  Download,
   BookOpen,
   ClipboardList,
-  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,16 +27,15 @@ interface Supply {
   level: number;
   color: string;
   type: string;
+  isLow: boolean;
 }
 
-interface PrinterInfo {
+interface ConnectedPrinterInfo {
   id: string;
   name: string;
-  model: string;
-  state: "idle" | "printing" | "stopped" | "offline";
-  stateReasons: string;
+  state: "idle" | "printing" | "standby" | "offline";
+  statusText: string;
   isOnline: boolean;
-  isDefault: boolean;
   supplies: Supply[];
 }
 
@@ -52,16 +45,14 @@ interface OverviewTabProps {
 
 export function OverviewTab({ onNavigate }: OverviewTabProps) {
   const { user, logout } = useAuth();
-  const [printers, setPrinters] = useState<PrinterInfo[]>([]);
-  const [selectedPrinterId, setSelectedPrinterId] = useState<string>("");
-  const [loadingPrinters, setLoadingPrinters] = useState(false);
+  const [printer, setPrinter] = useState<ConnectedPrinterInfo | null>(null);
+  const [loadingPrinter, setLoadingPrinter] = useState(false);
   const [jobs, setJobs] = useState<any[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
-  // Fetch printer hardware and toner levels
+  // Fetch dynamically detected connected printer
   const fetchPrinterStatus = async () => {
-    setLoadingPrinters(true);
+    setLoadingPrinter(true);
     try {
       const res = await fetch("/api/admin/printer-status", {
         headers: { Authorization: `Bearer ${user?.password || "admin"}` },
@@ -69,16 +60,12 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
       });
       if (res.ok) {
         const data = await res.json();
-        setPrinters(data.printers || []);
-        if (!selectedPrinterId && data.printers?.length > 0) {
-          const def = data.printers.find((p: PrinterInfo) => p.isDefault) || data.printers[0];
-          setSelectedPrinterId(def.id);
-        }
+        setPrinter(data.connectedPrinter || null);
       }
     } catch (e) {
       console.error("Failed to fetch printer status:", e);
     } finally {
-      setLoadingPrinters(false);
+      setLoadingPrinter(false);
     }
   };
 
@@ -102,7 +89,6 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
       console.error("Failed to fetch jobs for overview:", e);
     } finally {
       setLoadingJobs(false);
-      setLastUpdated(new Date());
     }
   };
 
@@ -118,10 +104,6 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
 
     return () => clearInterval(interval);
   }, []);
-
-  const activePrinter = useMemo(() => {
-    return printers.find((p) => p.id === selectedPrinterId) || printers[0] || null;
-  }, [printers, selectedPrinterId]);
 
   // Aggregate stats from jobs
   const metrics = useMemo(() => {
@@ -164,7 +146,8 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
     return "bg-zinc-400 dark:bg-zinc-200 shadow-zinc-500/20";
   };
 
-  const getTonerBorderColor = (colorHex: string) => {
+  const getTonerBorderColor = (colorHex: string, isLow: boolean) => {
+    if (isLow) return "border-rose-500/40 bg-rose-500/5";
     const cleanHex = colorHex.toLowerCase();
     if (cleanHex.includes("00ffff") || cleanHex.includes("cyan")) return "border-cyan-500/30 bg-cyan-500/5";
     if (cleanHex.includes("ff00ff") || cleanHex.includes("magenta")) return "border-pink-500/30 bg-pink-500/5";
@@ -185,7 +168,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Real-time printer hardware supplies, active queues, and print operations.
+            Real-time connected printer hardware supplies, active queues, and print operations.
           </p>
         </div>
 
@@ -197,19 +180,19 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
               fetchPrinterStatus();
               fetchJobs();
             }}
-            disabled={loadingPrinters || loadingJobs}
+            disabled={loadingPrinter || loadingJobs}
             className="h-9 gap-1.5 text-xs rounded-xl bg-card/60 hover:bg-card border-border/70 text-foreground cursor-pointer"
           >
-            <RefreshCw className={cn("h-3.5 w-3.5", (loadingPrinters || loadingJobs) && "animate-spin")} />
+            <RefreshCw className={cn("h-3.5 w-3.5", (loadingPrinter || loadingJobs) && "animate-spin")} />
             Sync Hardware
           </Button>
         </div>
       </div>
 
-      {/* ── Section 1: Live Printer Hardware & Toner Gauges (Hero Card) ── */}
+      {/* ── Section 1: Live Connected Printer & Toner Gauge (Only Connected Printer) ── */}
       <Card className="border border-border/50 bg-gradient-to-br from-card/80 via-card/50 to-card/30 backdrop-blur-xl rounded-2xl shadow-sm overflow-hidden">
         <CardContent className="p-5 sm:p-6 space-y-5">
-          {/* Top row: Printer Selection & Status */}
+          {/* Top row: Connected Printer Info */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/40">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
@@ -218,42 +201,43 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-bold text-foreground">
-                    {activePrinter?.name || "Canon Printer"}
+                    {printer?.name || "Detecting Connected Printer..."}
                   </h3>
-                  {activePrinter?.isDefault && (
-                    <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 font-semibold">
-                      System Default
-                    </Badge>
-                  )}
+                  <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 font-semibold">
+                    Connected Active Printer
+                  </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
-                  <span>Connection: CUPS IPP Network</span>
+                  <span>Connection: CUPS Direct / IPP</span>
                   <span>•</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">Port 631 Active</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">Local Spooler Active</span>
                 </p>
               </div>
             </div>
 
-            {/* Printer Switcher & Hardware State */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {printers.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedPrinterId(p.id)}
+            {/* Hardware Status Badge */}
+            <div className="flex items-center gap-2">
+              <div
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 border",
+                  printer?.state === "printing"
+                    ? "bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 animate-pulse"
+                    : printer?.supplies.some((s) => s.isLow)
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
+                    : "bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400"
+                )}
+              >
+                <span
                   className={cn(
-                    "px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border",
-                    selectedPrinterId === p.id
-                      ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                      : "bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border-border/40"
+                    "h-2 w-2 rounded-full",
+                    printer?.state === "printing"
+                      ? "bg-blue-500 animate-ping"
+                      : printer?.supplies.some((s) => s.isLow)
+                      ? "bg-amber-500"
+                      : "bg-emerald-500 animate-pulse"
                   )}
-                >
-                  {p.name}
-                </button>
-              ))}
-
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-xs font-semibold shrink-0">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="capitalize">{activePrinter?.state === "idle" ? "Ready & Spooling" : activePrinter?.state}</span>
+                />
+                <span>{printer?.statusText || "Ready & Spooling"}</span>
               </div>
             </div>
           </div>
@@ -264,7 +248,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
               <div className="flex items-center gap-2">
                 <Droplet className="h-4 w-4 text-primary" />
                 <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  Live Toner / Ink Levels
+                  Live Toner / Ink Telemetry
                 </span>
               </div>
               <span className="text-[11px] text-muted-foreground font-mono">
@@ -272,12 +256,11 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
               </span>
             </div>
 
-            {activePrinter?.supplies && activePrinter.supplies.length > 0 ? (
+            {printer?.supplies && printer.supplies.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                {activePrinter.supplies.map((supply, idx) => {
-                  const isLow = supply.level <= 15;
+                {printer.supplies.map((supply, idx) => {
                   const progressColor = getTonerProgressColor(supply.color, supply.level);
-                  const borderColor = getTonerBorderColor(supply.color);
+                  const borderColor = getTonerBorderColor(supply.color, supply.isLow);
 
                   return (
                     <div
@@ -294,7 +277,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
                             style={{ backgroundColor: supply.color }}
                           />
                           <span className="text-xs font-bold text-foreground truncate" title={supply.name}>
-                            {supply.name.replace("Canon NPG-88 ", "").replace("Canon Cartridge 072 ", "")}
+                            {supply.name}
                           </span>
                         </div>
                         <span className="font-mono text-xs font-extrabold text-foreground">
@@ -314,9 +297,9 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
 
                       <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                         <span className="truncate">{supply.name}</span>
-                        {isLow ? (
+                        {supply.isLow ? (
                           <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-bold">
-                            <AlertTriangle className="h-3 w-3" /> Low
+                            <AlertTriangle className="h-3 w-3" /> Low Toner Alert
                           </span>
                         ) : (
                           <span className="text-emerald-600 dark:text-emerald-400 font-medium">Optimal</span>
@@ -327,8 +310,9 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
                 })}
               </div>
             ) : (
-              <div className="p-4 rounded-xl bg-muted/20 text-center text-xs text-muted-foreground">
-                No toner telemetry reported for this printer.
+              <div className="p-4 rounded-xl bg-muted/20 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                <span>Printer hardware ready • No supply warnings reported</span>
               </div>
             )}
           </div>
