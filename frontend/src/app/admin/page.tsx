@@ -10,6 +10,7 @@ import { StatCards } from "@/components/StatCards";
 import { PrintJobsTable } from "@/components/admin/PrintJobsTable";
 import { RevenueTab } from "@/components/admin/RevenueTab";
 import { AdminPrintTab } from "@/components/admin/AdminPrintTab";
+import { OverviewTab } from "@/components/admin/OverviewTab";
 import { Info } from "lucide-react";
 
 function AdminDashboardContent() {
@@ -93,15 +94,9 @@ function AdminDashboardContent() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -12, scale: 0.99 }}
                 transition={{ type: "spring", stiffness: 420, damping: 30, mass: 0.7 }}
-                className="h-full overflow-y-auto space-y-6"
+                className="h-full overflow-hidden"
               >
-                <div className="flex flex-col gap-1">
-                  <h2 className="text-2xl font-bold tracking-tight">Overview</h2>
-                  <p className="text-xs text-muted-foreground/80">
-                    Summary of print activity across all stations.
-                  </p>
-                </div>
-                <StatCards />
+                <OverviewTab onNavigate={(tab) => setActiveTab(tab)} />
               </motion.div>
             )}
           </AnimatePresence>
