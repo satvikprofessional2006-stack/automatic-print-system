@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   Loader2,
   ArrowLeft,
-  ShieldCheck,
   CreditCard,
   AlertCircle,
   Sparkles,
@@ -345,11 +344,14 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
           </div>
         </div>
 
-        <div className="hidden sm:flex flex-col items-end gap-1 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1 font-semibold text-foreground">
-            <ShieldCheck className="h-4 w-4 text-emerald-600" />
-            <span>256-Bit Encrypted</span>
+        <div className="hidden sm:flex flex-col items-end gap-1.5">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#3395FF]/10 border border-[#3395FF]/25">
+            <svg viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-auto">
+              <path d="M11.2 4.8c0-1.44 1.184-2.016 3.12-2.016 2.784 0 6.304.848 9.088 2.352V.352C20.816.128 18.336 0 15.856 0 9.504 0 5.2 3.2 5.2 8.32c0 8.112 11.184 6.816 11.184 10.32 0 1.696-1.472 2.24-3.536 2.24-3.056 0-6.96-1.264-10.048-2.96v4.848C5.856 23.744 8.624 24 11.408 24c6.512 0 10.992-3.12 10.992-8.288 0-8.752-11.2-7.2-11.2-10.912z" fill="#3395FF"/>
+              <path d="M33.2 2.56 28.592 22.4h-4.08L19.92 2.56h4.512l2.928 14.16 2.928-14.16H33.2zM38.352 2.56v19.84h-4.08V2.56h4.08zM54.8 2.56c-1.68 0-3.12.624-4.016 1.84l-.272-1.568h-3.6V24l4.064-.864V18.08c.88.64 2.192 1.008 3.52 1.008 3.552 0 6.784-2.864 6.784-8.288C61.28 5.36 58.272 2.56 54.8 2.56zm-.752 13.28c-.864 0-1.68-.32-2.112-.816v-7.136c.464-.544 1.296-.88 2.112-.88 1.616 0 2.736 1.808 2.736 4.4 0 2.64-1.104 4.432-2.736 4.432z" fill="#3395FF"/>
+            </svg>
           </div>
+          <span className="text-[9px] text-muted-foreground font-medium">Secure Gateway</span>
         </div>
       </div>
 
