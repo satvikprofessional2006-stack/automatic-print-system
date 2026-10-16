@@ -40,6 +40,7 @@ import {
   Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BW_RATE, COLOR_RATE } from "@/lib/printStore";
 
 export interface TransactionFile {
   originalId: string;
@@ -411,6 +412,8 @@ export function RevenueTab() {
     const totalRevenue = paidList.reduce((sum, t) => sum + t.amount, 0);
     const totalPaidOrders = paidList.length;
     const totalPagesBilled = paidList.reduce((sum, t) => sum + t.totalPages, 0);
+    const totalBwPages = paidList.reduce((sum, t) => sum + (t.bwPages || 0), 0);
+    const totalColorPages = paidList.reduce((sum, t) => sum + (t.colorPages || 0), 0);
     const aov = totalPaidOrders > 0 ? (totalRevenue / totalPaidOrders).toFixed(1) : "0";
 
     const now = new Date();
@@ -427,6 +430,8 @@ export function RevenueTab() {
       totalRevenue,
       totalPaidOrders,
       totalPagesBilled,
+      totalBwPages,
+      totalColorPages,
       aov,
       todayRevenue,
       pendingOrders,
@@ -649,8 +654,13 @@ export function RevenueTab() {
               <p className="text-2xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
                 {stats.totalPagesBilled.toLocaleString("en-IN")}
               </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                ₹1/pg (min ₹5/job)
+              <p 
+                className="text-[10px] text-muted-foreground mt-0.5 truncate"
+                title={`Official Rates: ₹${BW_RATE}/pg B&W · ₹${COLOR_RATE}/pg Colour (No min fee)`}
+              >
+                {stats.totalBwPages > 0 || stats.totalColorPages > 0
+                  ? `${stats.totalBwPages} B&W · ${stats.totalColorPages} Colour`
+                  : `₹${BW_RATE}/pg B&W · ₹${COLOR_RATE}/pg Colour`}
               </p>
             </div>
           </CardContent>
