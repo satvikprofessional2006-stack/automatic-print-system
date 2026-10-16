@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Printer } from "lucide-react";
 
 interface PrinterIntroProps {
   onZoomStart?: () => void;
@@ -23,6 +24,9 @@ interface Particle {
 
 export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
+  const [cardVisible, setCardVisible] = useState(true);
   const [isDone, setIsDone] = useState(false);
   const hasTriggeredZoom = useRef(false);
 
@@ -43,15 +47,15 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     if (!ctx) return;
 
     let animationFrameId: number;
-    const startTime = performance.now();
+    let particles: Particle[] = [];
+    let startTime: number | null = null;
 
-    // RU Design tokens
     const isDark = document.documentElement.classList.contains("dark");
     const bgColor = isDark ? "#1F1F1F" : "#FFEDD2";
-    const cardBg = isDark ? "#2A2A2A" : "#FFFFFF";
-    const cardBorder = isDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.08)";
-    const textColor = isDark ? "#FFEDD2" : "#191919";
-    const primaryRed = "#CC0033"; // Official Rishihood Red
+    const primaryRed = "#CC0033";
+    const white = "#FFFFFF";
+    const cardBgColor = isDark ? "#2A2A2A" : "#FFFFFF";
+    const slateDark = isDark ? "#151515" : "#1E293B";
 
     const updateDimensions = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -67,80 +71,74 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     updateDimensions();
     window.addEventListener("resize", updateDimensions);
 
-    // Particle pool for the disintegration
-    const particles: Particle[] = [];
-    const isMobile = window.innerWidth < 768;
-    const cardW = isMobile ? 260 : 330;
-    const cardH = isMobile ? 180 : 215;
+    // Timeline constants
+    const T_BREAK = 1.2;       // When card dissolves into pixels
+    const T_ZOOM = 1.35;      // When main page starts zooming in
+    const T_FADE = 2.2;       // When canvas background starts fading to reveal site
+    const T_FINISH = 2.8;     // Total animation end
 
-    // Create particles mapped to the card geometry
-    const step = isMobile ? 5 : 4;
-    const numX = Math.floor(cardW / step);
-    const numY = Math.floor(cardH / step);
+    // Build particle matrix from card dimensions
+    const spawnParticles = () => {
+      const isMobile = window.innerWidth < 768;
+      const cardW = isMobile ? 270 : 330;
+      const cardH = isMobile ? 180 : 210;
+      const step = isMobile ? 5 : 4;
+      const numX = Math.floor(cardW / step);
+      const numY = Math.floor(cardH / step);
 
-    for (let iy = 0; iy < numY; iy++) {
-      for (let ix = 0; ix < numX; ix++) {
-        const localX = (ix - numX / 2) * step;
-        const localY = (iy - numY / 2) * step;
+      particles = [];
 
-        let pColor = cardBg;
+      for (let iy = 0; iy < numY; iy++) {
+        for (let ix = 0; ix < numX; ix++) {
+          const localX = (ix - numX / 2) * step;
+          const localY = (iy - numY / 2) * step;
 
-        // Top red accent bar
-        if (iy < 3) {
-          pColor = primaryRed;
-        }
-        // Printer body area in center
-        else if (iy >= 7 && iy <= 19 && ix >= numX * 0.25 && ix <= numX * 0.75) {
-          if (iy <= 11 && ix >= numX * 0.38 && ix <= numX * 0.62) {
-            // Paper entering slot
-            pColor = isDark ? "#E2E8F0" : "#FFFFFF";
-          } else if (iy >= 15 && ix >= numX * 0.35 && ix <= numX * 0.65) {
-            // Paper exit tray with red print stripe
-            pColor = iy === 16 ? primaryRed : (isDark ? "#F8FAFC" : "#FFFFFF");
-          } else {
-            // Printer chassis
-            pColor = isDark ? "#151515" : "#1E293B";
+          let pColor = cardBgColor;
+
+          // Top red accent bar
+          if (iy < 3) {
+            pColor = primaryRed;
           }
-        }
-        // Logo / text region
-        else if (iy > 25 && iy < 34 && Math.random() < 0.6) {
-          pColor = primaryRed;
-        }
+          // Center printer area
+          else if (iy >= 7 && iy <= 19 && ix >= numX * 0.25 && ix <= numX * 0.75) {
+            if (iy <= 11 && ix >= numX * 0.38 && ix <= numX * 0.62) {
+              pColor = white;
+            } else if (iy >= 15 && ix >= numX * 0.35 && ix <= numX * 0.65) {
+              pColor = iy === 16 ? primaryRed : white;
+            } else {
+              pColor = slateDark;
+            }
+          }
+          // Typography region
+          else if (iy > 25 && iy < 35 && Math.random() < 0.65) {
+            pColor = primaryRed;
+          }
 
-        // Moderate outward drift + forward acceleration towards camera
-        const angle = Math.atan2(localY, localX) + (Math.random() - 0.5) * 0.4;
-        const speed = Math.random() * 3.5 + 2.0;
+          const angle = Math.atan2(localY, localX) + (Math.random() - 0.5) * 0.4;
+          const speed = Math.random() * 3.5 + 2.0;
 
-        particles.push({
-          x: localX,
-          y: localY,
-          z: 0,
-          vx: Math.cos(angle) * speed * 1.5,
-          vy: Math.sin(angle) * speed * 1.5,
-          // Slower, graceful forward speed (negative Z moves towards screen)
-          vz: -(Math.random() * 7 + 8),
-          size: step * (Math.random() * 0.4 + 0.8),
-          color: pColor,
-          alpha: 1,
-          active: true,
-        });
+          particles.push({
+            x: localX,
+            y: localY,
+            z: 0,
+            vx: Math.cos(angle) * speed * 1.6,
+            vy: Math.sin(angle) * speed * 1.6,
+            // Forward velocity towards camera
+            vz: -(Math.random() * 7 + 8),
+            size: step * (Math.random() * 0.4 + 0.8),
+            color: pColor,
+            alpha: 1,
+            active: true,
+          });
+        }
       }
-    }
+    };
 
-    // Pacing Timeline (Smooth & Cinematic)
-    // 0.0s - 1.2s: Printer materializes and hovers cleanly
-    // 1.2s - 1.4s: Begins dividing into pixels
-    // 1.4s: onZoomStart() -> First page starts scaling from small to large
-    // 1.4s - 2.8s: Pixels accelerate forward towards screen, flying past viewer
-    // 2.3s - 2.8s: Canvas background smoothly fades to transparent so the zoomed page is revealed
-    // 2.9s: Finish & unmount
-    const T_APPEAR = 1.2;
-    const T_ZOOM_TRIGGER = 1.4;
-    const T_FADE_START = 2.2;
-    const T_END = 2.9;
+    spawnParticles();
 
-    const render = (now: number) => {
-      const elapsed = (now - startTime) / 1000;
+    const render = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = (timestamp - startTime) / 1000;
       const width = window.innerWidth;
       const height = window.innerHeight;
       const centerX = width / 2;
@@ -148,144 +146,55 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
       ctx.clearRect(0, 0, width, height);
 
-      // Canvas background opacity (fades out near the end to seamlessly reveal the zoomed main page)
-      let canvasBgAlpha = 1;
-      if (elapsed > T_FADE_START) {
-        canvasBgAlpha = Math.max(0, 1 - (elapsed - T_FADE_START) / (T_END - T_FADE_START));
+      // Background fade out near end
+      let bgAlpha = 1;
+      if (elapsed > T_FADE) {
+        bgAlpha = Math.max(0, 1 - (elapsed - T_FADE) / (T_FINISH - T_FADE));
       }
 
-      if (canvasBgAlpha > 0) {
+      if (bgAlpha > 0) {
         ctx.save();
-        ctx.globalAlpha = canvasBgAlpha;
+        ctx.globalAlpha = bgAlpha;
         ctx.fillStyle = bgColor;
         ctx.fillRect(0, 0, width, height);
         ctx.restore();
       }
 
-      // Trigger main page zoom right as disintegration starts
-      if (elapsed >= T_ZOOM_TRIGGER && !hasTriggeredZoom.current) {
+      // Hide DOM card right when particles take over
+      if (elapsed >= T_BREAK && cardVisible) {
+        setCardVisible(false);
+      }
+
+      // Trigger main page small-to-large zoom
+      if (elapsed >= T_ZOOM && !hasTriggeredZoom.current) {
         hasTriggeredZoom.current = true;
         if (onZoomStart) {
           onZoomStart();
         }
       }
 
-      // ── PHASE 1: Crisp Card Materializes & Hovers (0.0s - 1.2s) ──
-      if (elapsed < T_APPEAR) {
-        const progress = Math.min(elapsed / 0.6, 1);
-        // Smooth easing in
-        const easeScale = 0.85 + 0.15 * Math.sin(progress * Math.PI * 0.5);
-        const floatY = Math.sin(elapsed * 3.5) * 4;
-
-        ctx.save();
-        ctx.translate(centerX, centerY + floatY);
-        ctx.scale(easeScale, easeScale);
-        ctx.globalAlpha = progress;
-
-        // Card Shadow
-        ctx.shadowColor = isDark ? "rgba(0,0,0,0.5)" : "rgba(180,100,50,0.12)";
-        ctx.shadowBlur = 24;
-        ctx.shadowOffsetY = 12;
-
-        // Main Card Body
-        ctx.fillStyle = cardBg;
-        ctx.beginPath();
-        ctx.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 20);
-        ctx.fill();
-
-        ctx.shadowColor = "transparent";
-
-        // Border
-        ctx.strokeStyle = cardBorder;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 20);
-        ctx.stroke();
-
-        // Top Rishihood Red Accent Bar
-        ctx.fillStyle = primaryRed;
-        ctx.beginPath();
-        ctx.roundRect(-cardW / 2, -cardH / 2, cardW, 6, [20, 20, 0, 0]);
-        ctx.fill();
-
-        // ── Minimalist RU Printer Graphic ──
-        const py = -24;
-
-        // Input paper
-        ctx.fillStyle = isDark ? "#E2E8F0" : "#F8FAFC";
-        ctx.beginPath();
-        ctx.roundRect(-36, py - 38, 72, 32, [4, 4, 0, 0]);
-        ctx.fill();
-        ctx.fillStyle = primaryRed;
-        ctx.fillRect(-28, py - 30, 56, 3);
-        ctx.fillStyle = isDark ? "#94A3B8" : "#CBD5E1";
-        ctx.fillRect(-28, py - 24, 42, 2.5);
-
-        // Printer Chassis
-        ctx.fillStyle = isDark ? "#171717" : "#1E293B";
-        ctx.beginPath();
-        ctx.roundRect(-60, py - 10, 120, 48, 8);
-        ctx.fill();
-
-        // Printer slot
-        ctx.fillStyle = isDark ? "#080808" : "#0F172A";
-        ctx.fillRect(-46, py + 12, 92, 8);
-
-        // Output paper sliding out
-        ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath();
-        ctx.roundRect(-38, py + 16, 76, 26, [0, 0, 4, 4]);
-        ctx.fill();
-        ctx.fillStyle = primaryRed;
-        ctx.fillRect(-30, py + 24, 48, 2.5);
-        ctx.fillStyle = "#94A3B8";
-        ctx.fillRect(-30, py + 30, 34, 2);
-
-        // Status LEDs
-        ctx.fillStyle = primaryRed;
-        ctx.beginPath();
-        ctx.arc(-42, py + 2, 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = "#10B981";
-        ctx.beginPath();
-        ctx.arc(-32, py + 2, 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // ── Typography ──
-        ctx.fillStyle = textColor;
-        ctx.font = "bold 17px -apple-system, BlinkMacSystemFont, 'Poppins', sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("RU Print Portal", 0, cardH / 2 - 38);
-
-        ctx.fillStyle = primaryRed;
-        ctx.font = "600 11px -apple-system, BlinkMacSystemFont, 'Poppins', sans-serif";
-        ctx.fillText("Rishihood University", 0, cardH / 2 - 20);
-
-        ctx.restore();
-      }
-      // ── PHASE 2: PIXELS DISINTEGRATE & RUSH TOWARDS US (1.2s - 2.8s) ──
-      else if (elapsed >= T_APPEAR && elapsed < T_END) {
-        const explodeTime = elapsed - T_APPEAR;
+      // PIXELS BREAK & RUSH FORWARD TOWARDS SCREEN
+      if (elapsed >= T_BREAK && elapsed < T_FINISH) {
+        const explodeTime = elapsed - T_BREAK;
         const fov = 320;
 
         for (let i = 0; i < particles.length; i++) {
           const p = particles[i];
           if (!p.active) continue;
 
-          // Slower, smooth quadratic forward acceleration
+          // Smooth quadratic forward acceleration
           const accel = 1 + Math.pow(explodeTime, 1.8) * 2.2;
           p.z += p.vz * accel;
           p.x += p.vx * accel * 0.7;
           p.y += p.vy * accel * 0.7;
 
-          // Once particle passes behind camera/eyes
+          // Passes behind camera
           if (p.z <= -fov + 10) {
             p.active = false;
             continue;
           }
 
-          // 3D Perspective Projection:
+          // 3D Perspective Projection
           const depth = Math.max(fov + p.z, 6);
           const scale = fov / depth;
           const px = centerX + p.x * scale;
@@ -293,20 +202,18 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
           const pSize = Math.max(p.size * scale, 2);
 
-          // Warp streak toward camera
+          // Warp streak calculation
           const prevDepth = Math.max(fov + (p.z - p.vz * 1.6), 8);
           const prevScale = fov / prevDepth;
           const prevPx = centerX + p.x * prevScale;
           const prevPy = centerY + p.y * prevScale;
 
-          // Overall particle fade out synchronized with transition
-          const depthOpacity = Math.min(1, depth / 120);
-          const fadeOutFactor = elapsed > T_FADE_START ? Math.max(0, 1 - (elapsed - T_FADE_START) / (T_END - T_FADE_START)) : 1;
+          const depthOpacity = Math.min(1, depth / 130);
+          const fadeFactor = elapsed > T_FADE ? Math.max(0, 1 - (elapsed - T_FADE) / (T_FINISH - T_FADE)) : 1;
 
           ctx.save();
-          ctx.globalAlpha = depthOpacity * fadeOutFactor;
+          ctx.globalAlpha = depthOpacity * fadeFactor;
 
-          // Motion streak trail
           if (scale > 1.15) {
             ctx.strokeStyle = p.color;
             ctx.lineWidth = Math.min(pSize * 0.75, 8);
@@ -317,15 +224,14 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
             ctx.stroke();
           }
 
-          // Pixel fragment
           ctx.fillStyle = p.color;
           ctx.fillRect(px - pSize / 2, py - pSize / 2, pSize, pSize);
 
           ctx.restore();
         }
       }
-      // ── PHASE 3: Finish & Complete ──
-      else {
+
+      if (elapsed >= T_FINISH) {
         handleFinish();
         return;
       }
@@ -339,20 +245,78 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", updateDimensions);
     };
-  }, [handleFinish, onZoomStart]);
+  }, [handleFinish, onZoomStart, cardVisible]);
 
   if (isDone) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="fixed inset-0 z-[9999] pointer-events-none select-none overflow-hidden"
-      >
-        <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
-      </motion.div>
-    </AnimatePresence>
+    <div className="fixed inset-0 z-[9999] pointer-events-none select-none flex items-center justify-center overflow-hidden">
+      {/* 3D Pixel Disintegration Canvas */}
+      <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
+
+      {/* 
+        Crisp DOM Card:
+        Perfect 1:1 match with RU Print Portal design tokens (Tailwind, Poppins, Rishihood Red).
+        Floats gently for 1.2s, then dissolves right as the canvas particles explode!
+      */}
+      <AnimatePresence>
+        {cardVisible && (
+          <motion.div
+            ref={cardRef}
+            initial={{ scale: 0.85, opacity: 0, y: 15 }}
+            animate={{
+              scale: 1,
+              opacity: 1,
+              y: [0, -5, 0],
+            }}
+            exit={{ scale: 1.08, opacity: 0 }}
+            transition={{
+              duration: 0.5,
+              y: { repeat: Infinity, duration: 2.2, ease: "easeInOut" },
+            }}
+            className="relative z-10 w-[270px] sm:w-[330px] p-6 rounded-2xl bg-card text-card-foreground border border-border/80 shadow-2xl flex flex-col items-center text-center"
+          >
+            {/* Top Rishihood Red Accent Line */}
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#CC0033] rounded-t-2xl" />
+
+            {/* Printer Graphic */}
+            <div className="relative mt-2 mb-4 flex items-center justify-center">
+              {/* Paper feed sheet */}
+              <div className="absolute -top-3 w-16 h-8 bg-background border border-border/70 rounded-t-md flex flex-col items-center pt-1 gap-0.5">
+                <div className="w-10 h-0.5 bg-[#CC0033]" />
+                <div className="w-8 h-0.5 bg-muted-foreground/40" />
+              </div>
+
+              {/* Printer Body */}
+              <div className="relative z-10 w-24 h-14 rounded-lg bg-slate-900 dark:bg-zinc-900 border border-slate-700/60 shadow-md flex flex-col items-center justify-between p-1.5">
+                <div className="w-full flex items-center justify-between px-1">
+                  <div className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#CC0033] animate-pulse" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  </div>
+                  <Printer className="w-3.5 h-3.5 text-slate-400" />
+                </div>
+
+                {/* Output slot */}
+                <div className="w-20 h-2 bg-black/60 rounded-xs" />
+
+                {/* Printed paper output */}
+                <div className="w-16 h-3 bg-white rounded-b-xs shadow-xs flex items-center justify-center">
+                  <div className="w-10 h-0.5 bg-[#CC0033]" />
+                </div>
+              </div>
+            </div>
+
+            {/* Typography */}
+            <h2 className="text-base sm:text-lg font-bold text-foreground tracking-tight">
+              RU Print Portal
+            </h2>
+            <p className="text-xs font-semibold text-[#CC0033] mt-0.5">
+              Rishihood University
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
