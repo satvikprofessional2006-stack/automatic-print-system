@@ -53,6 +53,7 @@ export interface TransactionFile {
 export interface Transaction {
   id: string;
   internalId: string;
+  seqNumber: number;
   name: string;
   userType: string;
   course?: string;
@@ -187,6 +188,7 @@ export function RevenueTab() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [activeSubView, setActiveSubView] = useState<"daywise" | "transactions" | "register">("daywise");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const itemsPerPage = 12;
 
   const loadData = async () => {
@@ -280,6 +282,7 @@ export function RevenueTab() {
         return {
           id: first.id,
           internalId,
+          seqNumber,
           name: first.userName || "Student",
           userType: course === "FACULTY" ? "Faculty" : "Student",
           course,
@@ -466,10 +469,12 @@ export function RevenueTab() {
     return Math.max(...dayWiseData.map((d) => d.totalRevenue), 1);
   }, [dayWiseData]);
 
-  // Export CSV
-  // Export CSV in Official University Register Logbook Format
+  // Export CSV in Official University Register Logbook Format (Chronological Order: 1 -> 94)
   const handleExportCSV = () => {
     if (fullyFilteredTransactions.length === 0) return;
+
+    // Export chronologically: oldest print first (S. No. 1) up to newest print (S. No. 94)
+    const sortedForCsv = [...fullyFilteredTransactions].sort((a, b) => a.seqNumber - b.seqNumber);
 
     const headers = [
       "S. No.",
@@ -486,7 +491,7 @@ export function RevenueTab() {
       "Amount",
     ];
 
-    const rows = fullyFilteredTransactions.map((t, idx) => {
+    const rows = sortedForCsv.map((t, idx) => {
       const d = new Date(t.createdAt);
       const dateFormatted = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getFullYear()).slice(-2)}`;
       
@@ -494,7 +499,7 @@ export function RevenueTab() {
       const hasBw = (t.bwPages || 0) > 0;
 
       return [
-        idx + 1,
+        t.seqNumber || (idx + 1),
         `"${dateFormatted}"`,
         `"${(t.name || "").replace(/"/g, '""')}"`,
         `"${t.course || "CSDS"}"`,
@@ -523,9 +528,17 @@ export function RevenueTab() {
     document.body.removeChild(link);
   };
 
-  // Pagination for transactions list
-  const totalPages = Math.ceil(fullyFilteredTransactions.length / itemsPerPage);
-  const paginatedTransactions = fullyFilteredTransactions.slice(
+  // Sort order applied for UI list display
+  const displayTransactions = useMemo(() => {
+    if (sortOrder === "asc") {
+      return [...fullyFilteredTransactions].sort((a, b) => a.seqNumber - b.seqNumber);
+    }
+    return [...fullyFilteredTransactions].sort((a, b) => b.seqNumber - a.seqNumber);
+  }, [fullyFilteredTransactions, sortOrder]);
+
+  // Pagination for transactions and register views
+  const totalPages = Math.ceil(displayTransactions.length / itemsPerPage);
+  const paginatedTransactions = displayTransactions.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -853,6 +866,19 @@ export function RevenueTab() {
               </select>
             </div>
 
+            {/* Sort Order Toggle */}
+            <button
+              onClick={() => {
+                setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"));
+                setCurrentPage(1);
+              }}
+              className="flex items-center gap-1.5 bg-muted/30 hover:bg-muted/50 border border-border/40 rounded-xl px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground font-medium transition-colors cursor-pointer"
+              title="Click to toggle between Newest First and Oldest First"
+            >
+              <ArrowUpDown className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span>{sortOrder === "desc" ? "Newest First" : "Oldest First"}</span>
+            </button>
+
             {(selectedSingleDay || period !== "all" || statusFilter !== "ALL" || search) && (
               <Button
                 variant="ghost"
@@ -1023,7 +1049,19 @@ export function RevenueTab() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-amber-500/5 dark:bg-amber-500/10 hover:bg-amber-500/5 border-none">
-                  <TableHead className="font-semibold text-muted-foreground/80 w-14 text-center px-2">S. No.</TableHead>
+                  <TableHead 
+                    onClick={() => {
+                      setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"));
+                      setCurrentPage(1);
+                    }}
+                    className="font-semibold text-muted-foreground/80 w-16 text-center px-2 cursor-pointer hover:text-foreground select-none"
+                    title="Click to toggle S. No. order"
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      <span>S. No.</span>
+                      <ArrowUpDown className="h-3 w-3 text-primary/70" />
+                    </div>
+                  </TableHead>
                   <TableHead className="font-semibold text-muted-foreground/80 w-24">Date</TableHead>
                   <TableHead className="font-semibold text-muted-foreground/80 min-w-[140px]">Name</TableHead>
                   <TableHead className="font-semibold text-muted-foreground/80 w-24">Course</TableHead>
@@ -1045,8 +1083,7 @@ export function RevenueTab() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedTransactions.map((tx, idx) => {
-                    const serialNo = (currentPage - 1) * itemsPerPage + idx + 1;
+                  paginatedTransactions.map((tx) => {
                     const d = new Date(tx.createdAt);
                     const dateFormatted = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getFullYear()).slice(-2)}`;
                     const hasColor = (tx.colorPages || 0) > 0;
@@ -1061,7 +1098,7 @@ export function RevenueTab() {
                         >
                           {/* S. No. */}
                           <TableCell className="text-center font-mono text-xs font-semibold text-muted-foreground px-2">
-                            {serialNo}
+                            {tx.seqNumber}
                           </TableCell>
 
                           {/* Date (DD-MM-YY) */}
