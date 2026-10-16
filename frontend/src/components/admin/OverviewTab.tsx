@@ -19,6 +19,9 @@ import {
   Activity,
   BookOpen,
   ClipboardList,
+  WifiOff,
+  Wifi,
+  Power,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -35,7 +38,7 @@ interface ConnectedPrinterInfo {
   name: string;
   state: "idle" | "printing" | "standby" | "offline";
   statusText: string;
-  isOnline: boolean;
+  isConnected: boolean;
   supplies: Supply[];
 }
 
@@ -96,11 +99,11 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
     fetchPrinterStatus();
     fetchJobs();
 
-    // Poll printer status every 15 seconds
+    // Poll printer status every 10 seconds for real-time connection telemetry
     const interval = setInterval(() => {
       fetchPrinterStatus();
       fetchJobs();
-    }, 15000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, []);
@@ -192,10 +195,17 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
       {/* ── Section 1: Live Connected Printer & Toner Gauge (Only Connected Printer) ── */}
       <Card className="border border-border/50 bg-gradient-to-br from-card/80 via-card/50 to-card/30 backdrop-blur-xl rounded-2xl shadow-sm overflow-hidden">
         <CardContent className="p-5 sm:p-6 space-y-5">
-          {/* Top row: Connected Printer Info */}
+          {/* Top row: Connected Printer Info & Connection Status */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/40">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
+              <div
+                className={cn(
+                  "p-2.5 rounded-xl shrink-0 transition-colors",
+                  printer?.isConnected
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                )}
+              >
                 <Printer className="h-6 w-6" />
               </div>
               <div>
@@ -204,41 +214,34 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
                     {printer?.name || "Detecting Connected Printer..."}
                   </h3>
                   <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 font-semibold">
-                    Connected Active Printer
+                    Current Printer
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
                   <span>Connection: CUPS Direct / IPP</span>
                   <span>•</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">Local Spooler Active</span>
+                  {printer?.isConnected ? (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">Ready for Spooling</span>
+                  ) : (
+                    <span className="text-rose-500 font-medium">Power off or USB disconnected</span>
+                  )}
                 </p>
               </div>
             </div>
 
-            {/* Hardware Status Badge */}
+            {/* Hardware Live Connection Badge */}
             <div className="flex items-center gap-2">
-              <div
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 border",
-                  printer?.state === "printing"
-                    ? "bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 animate-pulse"
-                    : printer?.supplies.some((s) => s.isLow)
-                    ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
-                    : "bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400"
-                )}
-              >
-                <span
-                  className={cn(
-                    "h-2 w-2 rounded-full",
-                    printer?.state === "printing"
-                      ? "bg-blue-500 animate-ping"
-                      : printer?.supplies.some((s) => s.isLow)
-                      ? "bg-amber-500"
-                      : "bg-emerald-500 animate-pulse"
-                  )}
-                />
-                <span>{printer?.statusText || "Ready & Spooling"}</span>
-              </div>
+              {printer?.isConnected ? (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 border bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="capitalize">{printer.statusText || "Connected & Ready"}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 border bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400">
+                  <span className="h-2 w-2 rounded-full bg-rose-500" />
+                  <span>Printer Disconnected / Offline</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -252,7 +255,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
                 </span>
               </div>
               <span className="text-[11px] text-muted-foreground font-mono">
-                Hardware query via IPP
+                {printer?.isConnected ? "Live Hardware IPP" : "Last Recorded Reading"}
               </span>
             </div>
 
