@@ -8,11 +8,12 @@ export default function Page() {
   const [showIntro, setShowIntro] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Check if intro has already been played in this browser session
-    // You can test it by clearing sessionStorage or passing ?intro=true in the URL
+    // Check if intro has already been shown to this user
+    // "No repetition" rule: once shown, it stores in localStorage and never repeats
+    // URL param `?intro=true` can be used to preview it anytime
     const urlParams = new URLSearchParams(window.location.search);
     const forceIntro = urlParams.get("intro") === "true";
-    const hasSeenIntro = sessionStorage.getItem("ru_intro_seen");
+    const hasSeenIntro = localStorage.getItem("ru_portal_intro_shown");
 
     if (forceIntro || !hasSeenIntro) {
       setShowIntro(true);
@@ -21,7 +22,7 @@ export default function Page() {
     }
   }, []);
 
-  // During SSR / first hydration tick, render PrintFlow directly or hold
+  // During SSR / first hydration tick, render PrintFlow directly
   if (showIntro === null) {
     return <PrintFlow />;
   }

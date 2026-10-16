@@ -2,19 +2,15 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, FastForward } from "lucide-react";
 
 interface PrinterIntroProps {
   onComplete: () => void;
-  autoPlayAudio?: boolean;
 }
 
-interface PixelParticle {
-  // 3D coordinates relative to center
+interface Particle {
   x: number;
   y: number;
   z: number;
-  // Velocity in 3D
   vx: number;
   vy: number;
   vz: number;
@@ -24,86 +20,19 @@ interface PixelParticle {
   active: boolean;
 }
 
-export function PrinterIntroAnimation({ onComplete, autoPlayAudio = true }: PrinterIntroProps) {
+export function PrinterIntroAnimation({ onComplete }: PrinterIntroProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [phase, setPhase] = useState<"appear" | "scanning" | "exploding" | "transition" | "done">("appear");
-  const [isSkipped, setIsSkipped] = useState(false);
-  const [statusText, setStatusText] = useState("INITIALIZING RU PRINT PORTAL...");
+  const [isDone, setIsDone] = useState(false);
 
   const handleFinish = useCallback(() => {
     try {
-      sessionStorage.setItem("ru_intro_seen", "true");
+      localStorage.setItem("ru_portal_intro_shown", "true");
     } catch {
       // ignore
     }
+    setIsDone(true);
     onComplete();
   }, [onComplete]);
-
-  // Subtle sci-fi sound effects synthesized natively via Web Audio API
-  const playSfx = useCallback((type: "hum" | "shatter" | "warp") => {
-    try {
-      const AudioCtx =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      if (ctx.state === "suspended") {
-        ctx.resume();
-      }
-
-      const now = ctx.currentTime;
-      if (type === "hum") {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(140, now);
-        osc.frequency.exponentialRampToValueAtTime(340, now + 0.9);
-        gain.gain.setValueAtTime(0.01, now);
-        gain.gain.linearRampToValueAtTime(0.05, now + 0.3);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 1.1);
-      } else if (type === "shatter") {
-        const bufferSize = Math.floor(ctx.sampleRate * 0.4);
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-          data[i] = Math.random() * 2 - 1;
-        }
-        const noise = ctx.createBufferSource();
-        noise.buffer = buffer;
-        const filter = ctx.createBiquadFilter();
-        filter.type = "bandpass";
-        filter.frequency.setValueAtTime(2000, now);
-        filter.Q.setValueAtTime(3, now);
-        const gain = ctx.createGain();
-        gain.gain.setValueAtTime(0.08, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(ctx.destination);
-        noise.start(now);
-      } else if (type === "warp") {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(90, now);
-        osc.frequency.exponentialRampToValueAtTime(750, now + 0.8);
-        gain.gain.setValueAtTime(0.02, now);
-        gain.gain.linearRampToValueAtTime(0.07, now + 0.35);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.85);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.85);
-      }
-    } catch {
-      // Autoplay or browser security might silently ignore
-    }
-  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -113,6 +42,14 @@ export function PrinterIntroAnimation({ onComplete, autoPlayAudio = true }: Prin
 
     let animationFrameId: number;
     const startTime = performance.now();
+
+    // RU Design tokens
+    const isDark = document.documentElement.classList.contains("dark");
+    const bgColor = isDark ? "#1F1F1F" : "#FFEDD2";
+    const cardBg = isDark ? "#2A2A2A" : "#FFFFFF";
+    const cardBorder = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)";
+    const textColor = isDark ? "#FFEDD2" : "#191919";
+    const primaryRed = "#CC0033"; // Official Rishihood Red
 
     const updateDimensions = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -128,150 +65,69 @@ export function PrinterIntroAnimation({ onComplete, autoPlayAudio = true }: Prin
     updateDimensions();
     window.addEventListener("resize", updateDimensions);
 
-    // Build the Printer Matrix
-    const particles: PixelParticle[] = [];
+    // Particle pool for the disintegration
+    const particles: Particle[] = [];
     const isMobile = window.innerWidth < 768;
-    const particleStep = isMobile ? 4 : 3;
+    const cardW = isMobile ? 260 : 320;
+    const cardH = isMobile ? 180 : 210;
 
-    const offWidth = 260;
-    const offHeight = 220;
-    const offCanvas = document.createElement("canvas");
-    offCanvas.width = offWidth;
-    offCanvas.height = offHeight;
-    const offCtx = offCanvas.getContext("2d");
+    // Create particles mapped to the card geometry
+    const step = isMobile ? 5 : 4;
+    const numX = Math.floor(cardW / step);
+    const numY = Math.floor(cardH / step);
 
-    if (offCtx) {
-      offCtx.clearRect(0, 0, offWidth, offHeight);
+    for (let iy = 0; iy < numY; iy++) {
+      for (let ix = 0; ix < numX; ix++) {
+        const localX = (ix - numX / 2) * step;
+        const localY = (iy - numY / 2) * step;
 
-      // Top paper entering (white / cyan glow)
-      offCtx.fillStyle = "#F0F9FF";
-      offCtx.beginPath();
-      offCtx.roundRect(70, 10, 120, 52, [8, 8, 0, 0]);
-      offCtx.fill();
-
-      // Ruled lines on paper
-      offCtx.fillStyle = "#38BDF8";
-      offCtx.fillRect(85, 24, 70, 3);
-      offCtx.fillRect(85, 33, 90, 3);
-      offCtx.fillRect(85, 42, 75, 3);
-
-      // Printer main top shelf / paper feeder slot
-      offCtx.fillStyle = "#1E293B";
-      offCtx.beginPath();
-      offCtx.roundRect(40, 54, 180, 24, 6);
-      offCtx.fill();
-
-      // Main Printer Body (cyberpunk gradient chassis)
-      const bodyGrad = offCtx.createLinearGradient(30, 70, 230, 160);
-      bodyGrad.addColorStop(0, "#0F172A");
-      bodyGrad.addColorStop(0.5, "#1E293B");
-      bodyGrad.addColorStop(1, "#0A0F1D");
-      offCtx.fillStyle = bodyGrad;
-      offCtx.beginPath();
-      offCtx.roundRect(26, 72, 208, 86, 16);
-      offCtx.fill();
-
-      // Front Bevel & metallic edge highlight
-      offCtx.strokeStyle = "#38BDF8";
-      offCtx.lineWidth = 3;
-      offCtx.beginPath();
-      offCtx.roundRect(28, 74, 204, 82, 14);
-      offCtx.stroke();
-
-      // Glowing LED Screen / Status Bar
-      offCtx.fillStyle = "#0284C7";
-      offCtx.beginPath();
-      offCtx.roundRect(45, 88, 58, 24, 6);
-      offCtx.fill();
-      offCtx.fillStyle = "#38BDF8";
-      offCtx.fillRect(52, 96, 34, 4);
-      offCtx.fillRect(52, 103, 22, 3);
-
-      // Status indicator lights (Emerald & Cyan)
-      offCtx.fillStyle = "#10B981";
-      offCtx.beginPath();
-      offCtx.arc(118, 100, 4.5, 0, Math.PI * 2);
-      offCtx.fill();
-
-      offCtx.fillStyle = "#00F2FE";
-      offCtx.beginPath();
-      offCtx.arc(132, 100, 4.5, 0, Math.PI * 2);
-      offCtx.fill();
-
-      // Output Tray slot
-      offCtx.fillStyle = "#020617";
-      offCtx.fillRect(44, 122, 172, 16);
-
-      // Printed document sliding out (bright white with indigo glow)
-      offCtx.fillStyle = "#FFFFFF";
-      offCtx.beginPath();
-      offCtx.roundRect(60, 128, 140, 58, [0, 0, 8, 8]);
-      offCtx.fill();
-
-      // Document printed graphics
-      offCtx.fillStyle = "#6366F1";
-      offCtx.fillRect(75, 142, 110, 4);
-      offCtx.fillRect(75, 153, 85, 4);
-      offCtx.fillRect(75, 164, 100, 4);
-
-      // Gold Seal on printed certificate
-      offCtx.fillStyle = "#F59E0B";
-      offCtx.beginPath();
-      offCtx.arc(175, 158, 7, 0, Math.PI * 2);
-      offCtx.fill();
-
-      // Sample image data to build particle grid
-      const imgData = offCtx.getImageData(0, 0, offWidth, offHeight);
-      const data = imgData.data;
-
-      const initialZ = 450; // Starting depth
-
-      for (let y = 0; y < offHeight; y += particleStep) {
-        for (let x = 0; x < offWidth; x += particleStep) {
-          const index = (y * offWidth + x) * 4;
-          const a = data[index + 3];
-
-          if (a > 30) {
-            const r = data[index];
-            const g = data[index + 1];
-            const b = data[index + 2];
-
-            const scaleFactor = isMobile ? 1.6 : 2.2;
-            const relX = (x - offWidth / 2) * scaleFactor;
-            const relY = (y - offHeight / 2) * scaleFactor;
-
-            // Explosion kinematics: outward + intense forward acceleration towards the user
-            const spreadAngle = Math.atan2(relY, relX) + (Math.random() - 0.5) * 0.5;
-            const speed = Math.random() * 5 + 3;
-
-            particles.push({
-              x: relX,
-              y: relY,
-              z: initialZ,
-              vx: Math.cos(spreadAngle) * speed * 2.8,
-              vy: Math.sin(spreadAngle) * speed * 2.8,
-              // vz accelerates forward towards the user's screen
-              vz: -(Math.random() * 20 + 22),
-              size: (particleStep + 0.5) * (Math.random() * 0.5 + 0.9),
-              color: `rgb(${r}, ${g}, ${b})`,
-              alpha: a / 255,
-              active: true,
-            });
+        // Assign realistic colors based on card components
+        let pColor = cardBg;
+        // Top red accent bar
+        if (iy < 2) {
+          pColor = primaryRed;
+        }
+        // Printer body area in center
+        else if (iy >= 7 && iy <= 18 && ix >= numX * 0.25 && ix <= numX * 0.75) {
+          if (iy <= 10 && ix >= numX * 0.38 && ix <= numX * 0.62) {
+            // Paper entering slot
+            pColor = isDark ? "#E2E8F0" : "#FFFFFF";
+          } else if (iy >= 15 && ix >= numX * 0.35 && ix <= numX * 0.65) {
+            // Paper exit tray with red print stripe
+            pColor = iy === 16 ? primaryRed : (isDark ? "#F8FAFC" : "#FFFFFF");
+          } else {
+            // Printer chassis
+            pColor = isDark ? "#151515" : "#1E293B";
           }
         }
+        // Logo / text region
+        else if (iy > 24 && iy < 32 && Math.random() < 0.6) {
+          pColor = primaryRed;
+        }
+
+        // Outward angle + forward acceleration
+        const angle = Math.atan2(localY, localX) + (Math.random() - 0.5) * 0.6;
+        const speed = Math.random() * 6 + 3;
+
+        particles.push({
+          x: localX,
+          y: localY,
+          z: 0,
+          vx: Math.cos(angle) * speed * 2.5,
+          vy: Math.sin(angle) * speed * 2.5,
+          // vz accelerates rapidly towards the user (negative Z)
+          vz: -(Math.random() * 22 + 26),
+          size: step * (Math.random() * 0.5 + 0.8),
+          color: pColor,
+          alpha: 1,
+          active: true,
+        });
       }
     }
 
-    if (autoPlayAudio) {
-      setTimeout(() => playSfx("hum"), 120);
-    }
-
-    let shatterSoundPlayed = false;
-    let warpSoundPlayed = false;
-
-    // Timeline durations
-    const T_SCAN = 1.3;
-    const T_END = 3.1;
+    // Timing (Total 2.0s: 0.7s display, 1.0s pixel rush, 0.3s fade into site)
+    const T_APPEAR = 0.7;
+    const T_END = 1.9;
 
     const render = (now: number) => {
       const elapsed = (now - startTime) / 1000;
@@ -282,164 +138,149 @@ export function PrinterIntroAnimation({ onComplete, autoPlayAudio = true }: Prin
 
       ctx.clearRect(0, 0, width, height);
 
-      // Deep cinematic ambient background
-      const bgGrad = ctx.createRadialGradient(
-        centerX,
-        centerY,
-        40,
-        centerX,
-        centerY,
-        Math.max(width, height) * 0.85
-      );
-      bgGrad.addColorStop(0, "#081126");
-      bgGrad.addColorStop(0.5, "#030712");
-      bgGrad.addColorStop(1, "#000105");
-      ctx.fillStyle = bgGrad;
+      // Background matches RU portal theme
+      ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, width, height);
 
-      // Cyberpunk perspective grid floor
-      ctx.save();
-      ctx.strokeStyle = "rgba(56, 189, 248, 0.08)";
-      ctx.lineWidth = 1;
-      const gridHorizon = centerY + 140;
-      for (let i = -14; i <= 14; i++) {
+      // PHASE 1: Crisp, beautiful card appears and hovers
+      if (elapsed < T_APPEAR) {
+        const progress = Math.min(elapsed / 0.4, 1);
+        const easeScale = 0.85 + 0.15 * Math.sin(progress * Math.PI * 0.5);
+        const floatY = Math.sin(elapsed * 5) * 3;
+
+        ctx.save();
+        ctx.translate(centerX, centerY + floatY);
+        ctx.scale(easeScale, easeScale);
+        ctx.globalAlpha = progress;
+
+        // Card Shadow
+        ctx.shadowColor = isDark ? "rgba(0,0,0,0.5)" : "rgba(180,100,50,0.12)";
+        ctx.shadowBlur = 24;
+        ctx.shadowOffsetY = 12;
+
+        // Main Card
+        ctx.fillStyle = cardBg;
         ctx.beginPath();
-        ctx.moveTo(centerX + i * 45, gridHorizon);
-        ctx.lineTo(centerX + i * 260, height);
-        ctx.stroke();
-      }
-      for (let gy = gridHorizon; gy < height; gy += 24) {
-        ctx.beginPath();
-        ctx.moveTo(0, gy);
-        ctx.lineTo(width, gy);
-        ctx.stroke();
-      }
-      ctx.restore();
-
-      const fov = 340;
-
-      // PHASE 1 & 2: Printer Materialization and Scan
-      if (elapsed < T_SCAN) {
-        if (elapsed > 0.3 && phase !== "scanning") {
-          setPhase("scanning");
-          setStatusText("SCANNING PRINT MATRIX...");
-        }
-
-        const floatY = Math.sin(elapsed * 4.5) * 5;
-        const introAlpha = Math.min(elapsed / 0.5, 1);
-
-        // Glowing cyan aura behind printer
-        const auraGrad = ctx.createRadialGradient(
-          centerX,
-          centerY + floatY,
-          10,
-          centerX,
-          centerY + floatY,
-          200
-        );
-        auraGrad.addColorStop(0, `rgba(56, 189, 248, ${0.4 * introAlpha})`);
-        auraGrad.addColorStop(0.5, `rgba(99, 102, 241, ${0.2 * introAlpha})`);
-        auraGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = auraGrad;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY + floatY, 210, 0, Math.PI * 2);
+        ctx.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 20);
         ctx.fill();
 
-        // Render initial intact particle matrix
-        for (let i = 0; i < particles.length; i++) {
-          const p = particles[i];
-          const scale = fov / (fov + p.z);
-          const px = centerX + p.x * scale;
-          const py = centerY + (p.y + floatY) * scale;
-          const pSize = Math.max(p.size * scale, 1.2);
+        ctx.shadowColor = "transparent";
 
-          ctx.fillStyle = p.color;
-          ctx.globalAlpha = p.alpha * introAlpha;
-          ctx.fillRect(px - pSize / 2, py - pSize / 2, pSize, pSize);
-        }
+        // Border
+        ctx.strokeStyle = cardBorder;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 20);
+        ctx.stroke();
 
-        // Horizontal laser scanner beam
-        if (elapsed > 0.25) {
-          const scanProgress = (elapsed - 0.25) / (T_SCAN - 0.25);
-          const beamY = centerY - 120 + scanProgress * 240;
+        // Top Rishihood Red Accent Bar
+        ctx.fillStyle = primaryRed;
+        ctx.beginPath();
+        ctx.roundRect(-cardW / 2, -cardH / 2, cardW, 6, [20, 20, 0, 0]);
+        ctx.fill();
 
-          const beamGrad = ctx.createLinearGradient(centerX - 180, beamY, centerX + 180, beamY);
-          beamGrad.addColorStop(0, "rgba(56, 189, 248, 0)");
-          beamGrad.addColorStop(0.5, "rgba(56, 189, 248, 0.95)");
-          beamGrad.addColorStop(1, "rgba(56, 189, 248, 0)");
+        // ── Minimalist RU Printer Graphic ──
+        const py = -24;
 
-          ctx.fillStyle = beamGrad;
-          ctx.fillRect(centerX - 180, beamY - 2, 360, 4);
+        // Input paper
+        ctx.fillStyle = isDark ? "#E2E8F0" : "#F8FAFC";
+        ctx.beginPath();
+        ctx.roundRect(-36, py - 38, 72, 32, [4, 4, 0, 0]);
+        ctx.fill();
+        ctx.fillStyle = primaryRed;
+        ctx.fillRect(-28, py - 30, 56, 3);
+        ctx.fillStyle = isDark ? "#94A3B8" : "#CBD5E1";
+        ctx.fillRect(-28, py - 24, 42, 2.5);
 
-          ctx.shadowColor = "#38bdf8";
-          ctx.shadowBlur = 14;
-          ctx.fillStyle = "#FFFFFF";
-          ctx.fillRect(centerX - 90, beamY - 1, 180, 2);
-          ctx.shadowBlur = 0;
-        }
+        // Printer Chassis
+        ctx.fillStyle = isDark ? "#171717" : "#1E293B";
+        ctx.beginPath();
+        ctx.roundRect(-60, py - 10, 120, 48, 8);
+        ctx.fill();
 
-        ctx.globalAlpha = 1;
+        // Printer slot
+        ctx.fillStyle = isDark ? "#080808" : "#0F172A";
+        ctx.fillRect(-46, py + 12, 92, 8);
+
+        // Output paper sliding out
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.roundRect(-38, py + 16, 76, 26, [0, 0, 4, 4]);
+        ctx.fill();
+        ctx.fillStyle = primaryRed;
+        ctx.fillRect(-30, py + 24, 48, 2.5);
+        ctx.fillStyle = "#94A3B8";
+        ctx.fillRect(-30, py + 30, 34, 2);
+
+        // Status LED
+        ctx.fillStyle = primaryRed;
+        ctx.beginPath();
+        ctx.arc(-42, py + 2, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#10B981";
+        ctx.beginPath();
+        ctx.arc(-32, py + 2, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // ── Typography ──
+        ctx.fillStyle = textColor;
+        ctx.font = "bold 17px -apple-system, BlinkMacSystemFont, 'Poppins', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("RU Print Portal", 0, cardH / 2 - 38);
+
+        ctx.fillStyle = primaryRed;
+        ctx.font = "600 11px -apple-system, BlinkMacSystemFont, 'Poppins', sans-serif";
+        ctx.fillText("Rishihood University", 0, cardH / 2 - 20);
+
+        ctx.restore();
       }
-      // PHASE 3: BREAKS INTO PIXELS & ALL PIXELS COME TOWARDS US (WARP TRANSITION)
-      else if (elapsed >= T_SCAN && elapsed < T_END) {
-        if (!shatterSoundPlayed) {
-          shatterSoundPlayed = true;
-          if (autoPlayAudio) playSfx("shatter");
-        }
+      // PHASE 2: PRINTER BREAKS INTO PIXELS & PIXELS RUSH FORWARD DIRECTLY TOWARDS US
+      else if (elapsed >= T_APPEAR && elapsed < T_END) {
+        const explodeTime = elapsed - T_APPEAR;
+        const fov = 300;
 
-        if (elapsed >= T_SCAN + 0.25 && !warpSoundPlayed) {
-          warpSoundPlayed = true;
-          if (autoPlayAudio) playSfx("warp");
-        }
-
-        if (phase !== "exploding") {
-          setPhase("exploding");
-          setStatusText("WARP DISINTEGRATION · ENTERING RU PORTAL...");
-        }
-
-        const explodeTime = elapsed - T_SCAN;
-
-        // Render all pixels bursting into 3D and flying forward towards the user
         for (let i = 0; i < particles.length; i++) {
           const p = particles[i];
           if (!p.active) continue;
 
-          // Exponential forward acceleration towards the user's eyes
-          const accel = 1 + explodeTime * 3.5;
+          // Non-linear forward acceleration towards the user's eyes
+          const accel = 1 + explodeTime * 3.6;
           p.z += p.vz * accel;
-          p.x += p.vx * accel * 0.8;
-          p.y += p.vy * accel * 0.8;
+          p.x += p.vx * accel * 0.7;
+          p.y += p.vy * accel * 0.7;
 
-          // Once particle passes behind camera/eyes
-          if (p.z <= -fov + 15) {
+          // Particle passes behind screen/camera
+          if (p.z <= -fov + 10) {
             p.active = false;
             continue;
           }
 
           // 3D Perspective Projection:
-          // As z approaches -fov, depth becomes tiny and scale explodes upwards!
-          const depth = Math.max(fov + p.z, 6);
+          // as z approaches -fov, depth drops and scale shoots up!
+          const depth = Math.max(fov + p.z, 5);
           const scale = fov / depth;
           const px = centerX + p.x * scale;
           const py = centerY + p.y * scale;
 
-          const pSize = Math.max(p.size * scale, 2.5);
+          // Pixel size dramatically magnifies as it rushes into user
+          const pSize = Math.max(p.size * scale, 2);
 
-          // Calculate previous frame position to draw warp motion streak
-          const prevDepth = Math.max(fov + (p.z - p.vz * 2.2), 10);
+          // Warp motion streak
+          const prevDepth = Math.max(fov + (p.z - p.vz * 2.0), 8);
           const prevScale = fov / prevDepth;
           const prevPx = centerX + p.x * prevScale;
           const prevPy = centerY + p.y * prevScale;
 
-          const opacity = Math.min(1, depth / 160);
+          const opacity = Math.min(1, depth / 150);
 
           ctx.save();
-          ctx.globalAlpha = p.alpha * opacity;
+          ctx.globalAlpha = opacity;
 
-          // High-speed warp streaks towards the camera
-          if (scale > 1.1) {
+          // Streak trail
+          if (scale > 1.2) {
             ctx.strokeStyle = p.color;
-            ctx.lineWidth = Math.min(pSize * 0.85, 12);
+            ctx.lineWidth = Math.min(pSize * 0.8, 8);
             ctx.lineCap = "round";
             ctx.beginPath();
             ctx.moveTo(prevPx, prevPy);
@@ -447,41 +288,24 @@ export function PrinterIntroAnimation({ onComplete, autoPlayAudio = true }: Prin
             ctx.stroke();
           }
 
-          // Glowing pixel core
+          // Pixel block
           ctx.fillStyle = p.color;
           ctx.fillRect(px - pSize / 2, py - pSize / 2, pSize, pSize);
-
-          // Bright white hot-center for particles zooming directly past user
-          if (scale > 2.2) {
-            ctx.fillStyle = "#FFFFFF";
-            ctx.fillRect(px - pSize / 4, py - pSize / 4, pSize / 2, pSize / 2);
-          }
 
           ctx.restore();
         }
 
-        // Warp bloom / radiant flash transition as pixels fly past us
-        if (explodeTime > 0.75) {
-          const flashProgress = Math.min((explodeTime - 0.75) / 0.55, 1);
-          const flashGrad = ctx.createRadialGradient(
-            centerX,
-            centerY,
-            20,
-            centerX,
-            centerY,
-            Math.max(width, height)
-          );
-          flashGrad.addColorStop(0, `rgba(56, 189, 248, ${flashProgress * 0.75})`);
-          flashGrad.addColorStop(0.5, `rgba(255, 255, 255, ${flashProgress * 0.95})`);
-          flashGrad.addColorStop(1, `rgba(255, 255, 255, ${flashProgress * 0.6})`);
-          ctx.fillStyle = flashGrad;
+        // Dissolve into website
+        if (explodeTime > 0.5) {
+          const fadeProgress = Math.min((explodeTime - 0.5) / 0.6, 1);
+          ctx.fillStyle = bgColor;
+          ctx.globalAlpha = fadeProgress;
           ctx.fillRect(0, 0, width, height);
+          ctx.globalAlpha = 1;
         }
       }
-
-      // PHASE 4: Smooth completion & hand-off to main page
-      if (elapsed >= T_END) {
-        setPhase("done");
+      // PHASE 3: Finish and guide directly to main website
+      else {
         handleFinish();
         return;
       }
@@ -495,72 +319,19 @@ export function PrinterIntroAnimation({ onComplete, autoPlayAudio = true }: Prin
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", updateDimensions);
     };
-  }, [handleFinish, autoPlayAudio, playSfx, phase]);
+  }, [handleFinish]);
 
-  const handleSkip = () => {
-    setIsSkipped(true);
-    handleFinish();
-  };
-
-  if (isSkipped) return null;
+  if (isDone) return null;
 
   return (
     <AnimatePresence>
       <motion.div
-        ref={containerRef}
         initial={{ opacity: 1 }}
-        exit={{ opacity: 0, scale: 1.05 }}
-        transition={{ duration: 0.6, ease: "easeInOut" }}
-        className="fixed inset-0 z-[9999] flex flex-col items-center justify-between bg-black select-none overflow-hidden"
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.35, ease: "easeInOut" }}
+        className="fixed inset-0 z-[9999] pointer-events-none select-none overflow-hidden"
       >
-        {/* Fullscreen 3D Canvas */}
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 block w-full h-full cursor-default"
-        />
-
-        {/* Top Header: Brand & Skip Button */}
-        <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pt-6 flex items-center justify-between pointer-events-auto">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-400/30 flex items-center justify-center backdrop-blur-md">
-              <Sparkles className="w-4 h-4 text-sky-400 animate-pulse" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-semibold uppercase tracking-wider text-sky-400 font-mono">
-                Rishihood University
-              </span>
-              <span className="text-[10px] text-slate-400">Autonomous Print System</span>
-            </div>
-          </div>
-
-          {/* Skip Button */}
-          <button
-            onClick={handleSkip}
-            className="group flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 border border-white/15 text-slate-300 hover:text-white text-xs font-medium backdrop-blur-md transition-all shadow-lg"
-          >
-            <span>Skip Intro</span>
-            <FastForward className="w-3.5 h-3.5 text-sky-400 group-hover:translate-x-0.5 transition-transform" />
-          </button>
-        </div>
-
-        {/* Bottom Status text with glowing cyberpunk style */}
-        <div className="relative z-10 pb-12 flex flex-col items-center text-center px-4 pointer-events-none">
-          <motion.div
-            key={statusText}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="flex items-center gap-2"
-          >
-            <div className="w-2 h-2 rounded-full bg-sky-400 animate-ping" />
-            <p className="font-mono text-xs sm:text-sm font-semibold tracking-widest text-sky-400 drop-shadow-[0_0_12px_rgba(56,189,248,0.8)]">
-              {statusText}
-            </p>
-          </motion.div>
-          <p className="text-[11px] text-slate-500 mt-2 font-mono">
-            Direct Cloud Print • Campus Kiosk Network
-          </p>
-        </div>
+        <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
       </motion.div>
     </AnimatePresence>
   );
