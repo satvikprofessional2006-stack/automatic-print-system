@@ -22,10 +22,19 @@ export interface PrintFile {
   };
 }
 
+export interface StudentAuth {
+  name: string;
+  email: string;
+  picture?: string;
+  enrollmentNo?: string;
+  department?: string;
+}
+
 export interface PrintJob {
   id: string;           
   userType: UserType;
   name: string;
+  email?: string;
   enrollmentNo?: string; 
   files: PrintFile[];
   totalPages: number;   

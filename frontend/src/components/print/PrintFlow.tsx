@@ -1,24 +1,24 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UserTypeSelect } from "@/components/print/UserTypeSelect";
+import { GoogleAuthStep } from "@/components/print/GoogleAuthStep";
 import { DetailsForm } from "@/components/print/DetailsForm";
 import { PrintOptions } from "@/components/print/PrintOptions";
 import { PreviewStep } from "@/components/print/PreviewStep";
 import { PaymentStep } from "@/components/print/PaymentStep";
 import { PrintSuccess } from "@/components/print/PrintSuccess";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { UserType, PrintFile, PrintJob, calcFilesAmount } from "@/lib/printStore";
-import { Printer, ChevronRight, ArrowLeft } from "lucide-react";
+import { UserType, PrintFile, PrintJob, StudentAuth, calcFilesAmount } from "@/lib/printStore";
+import { Printer, ChevronRight, ArrowLeft, LogOut, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Step = "type" | "details" | "options" | "preview" | "payment" | "success";
+type Step = "auth" | "details" | "options" | "preview" | "payment" | "success";
 
 const STEPS: { id: Step; label: string }[] = [
-  { id: "type", label: "Who are you?" },
-  { id: "details", label: "Your details" },
-  { id: "options", label: "Print Settings" },
+  { id: "auth", label: "Sign In" },
+  { id: "details", label: "Upload & Info" },
+  { id: "options", label: "Settings" },
   { id: "preview", label: "Preview" },
   { id: "payment", label: "Payment" },
   { id: "success", label: "Printing" },
@@ -39,15 +39,34 @@ const slideVariants = {
 };
 
 export function PrintFlow() {
-  const [step, setStep] = useState<Step>("type");
+  const [step, setStep] = useState<Step>("auth");
   const [dir, setDir] = useState(1);
 
-  const [userType, setUserType] = useState<UserType>("student");
+  const [studentAuth, setStudentAuth] = useState<StudentAuth | null>(null);
   const [activeJob, setActiveJob] = useState<PrintJob | null>(null);
 
   const [draftName, setDraftName] = useState("");
   const [draftEnrollment, setDraftEnrollment] = useState("");
   const [draftFiles, setDraftFiles] = useState<PrintFile[]>([]);
+
+  // Restore authenticated student session on initial page load
+  useEffect(() => {
+    try {
+      const savedSession = localStorage.getItem("ru_student_session");
+      if (savedSession) {
+        const student: StudentAuth = JSON.parse(savedSession);
+        if (student?.email) {
+          setStudentAuth(student);
+          setDraftName(student.name || "");
+          const savedEnrollment = localStorage.getItem(`ru_enrollment_${student.email}`) || student.enrollmentNo || "";
+          setDraftEnrollment(savedEnrollment);
+          setStep("details");
+        }
+      }
+    } catch (e) {
+      console.error("Session restore error:", e);
+    }
+  }, []);
 
   const go = (next: Step, direction: number) => {
     setDir(direction);
@@ -58,13 +77,28 @@ export function PrintFlow() {
 
   // ── handlers ────────────────────────────────────────────────────────────────
 
-  const handleTypeSelect = (type: UserType) => {
-    setUserType(type);
+  const handleAuthSuccess = (student: StudentAuth) => {
+    setStudentAuth(student);
+    setDraftName(student.name);
+    const savedEnrollment = localStorage.getItem(`ru_enrollment_${student.email}`) || student.enrollmentNo || "";
+    setDraftEnrollment(savedEnrollment);
     go("details", 1);
+  };
+
+  const handleSignOut = () => {
+    try {
+      localStorage.removeItem("ru_student_session");
+    } catch {}
+    setStudentAuth(null);
+    setDraftName("");
+    setDraftEnrollment("");
+    setDraftFiles([]);
+    go("auth", -1);
   };
 
   const handleDetailsNext = (data: {
     name: string;
+    email?: string;
     enrollmentNo?: string;
     files: PrintFile[];
     totalPages: number;
@@ -72,8 +106,9 @@ export function PrintFlow() {
   }) => {
     const job: PrintJob = {
       id: Math.random().toString(36).slice(2, 10).toUpperCase(),
-      userType,
+      userType: "student",
       name: data.name,
+      email: data.email || studentAuth?.email,
       enrollmentNo: data.enrollmentNo,
       files: data.files,
       totalPages: data.totalPages,
@@ -113,10 +148,13 @@ export function PrintFlow() {
 
   const handleReset = () => {
     setActiveJob(null);
-    setDraftName("");
-    setDraftEnrollment("");
     setDraftFiles([]);
-    go("type", -1);
+    // Returning users start directly at details since they remain signed in
+    if (studentAuth) {
+      go("details", -1);
+    } else {
+      go("auth", -1);
+    }
   };
 
   return (
@@ -124,16 +162,16 @@ export function PrintFlow() {
       {/* ── Top bar ── */}
       <header className="h-14 shrink-0 flex items-center justify-between bg-[#FFE5CD] dark:bg-card border-b border-border/60 px-4 sm:px-8 shadow-xs">
         <div className="flex items-center gap-2 sm:gap-4">
-          {step !== "type" && (
+          {step !== "auth" && (
             <button 
               onClick={() => {
-                if (step === "details") go("type", -1);
+                if (step === "details") go("auth", -1);
                 else if (step === "options") go("details", -1);
                 else if (step === "preview") go("options", -1);
                 else if (step === "payment") go("preview", -1);
-                else if (step === "success") go("type", -1);
+                else if (step === "success") go(studentAuth ? "details" : "auth", -1);
               }}
-              className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors mr-1 sm:mr-0"
+              className="flex items-center justify-center h-8 w-8 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors mr-1 sm:mr-0 cursor-pointer"
               title="Go back"
             >
               <ArrowLeft className="h-4 w-4 text-foreground/80" />
@@ -154,7 +192,26 @@ export function PrintFlow() {
             </div>
           </div>
         </div>
-        <ThemeToggle />
+
+        {/* Right side: user pill & theme toggle */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {studentAuth && (
+            <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-card/70 border border-border/60 text-xs shadow-2xs">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-semibold text-foreground truncate max-w-[140px]">
+                {studentAuth.name.split(" ")[0]}
+              </span>
+              <button
+                onClick={handleSignOut}
+                className="text-muted-foreground hover:text-foreground text-[10px] ml-1 p-0.5"
+                title="Sign out"
+              >
+                <LogOut className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* ── Main content ── */}
@@ -174,7 +231,7 @@ export function PrintFlow() {
                         className={cn(
                           "h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-300",
                           isActive
-                            ? "bg-primary border-primary text-primary-foreground scale-110"
+                            ? "bg-primary border-primary text-primary-foreground scale-110 shadow-xs"
                             : isDone
                             ? "bg-primary/20 border-primary text-primary"
                             : "bg-muted/50 border-border/50 text-muted-foreground"
@@ -218,19 +275,20 @@ export function PrintFlow() {
                   exit="exit"
                   transition={{ type: "spring", stiffness: 380, damping: 30, mass: 0.8 }}
                 >
-                  {step === "type" && (
-                    <UserTypeSelect onSelect={handleTypeSelect} />
+                  {step === "auth" && (
+                    <GoogleAuthStep onSuccess={handleAuthSuccess} />
                   )}
                   {step === "details" && (
                     <DetailsForm
-                      userType={userType}
+                      studentAuth={studentAuth}
                       name={draftName}
                       onNameChange={setDraftName}
                       enrollmentNo={draftEnrollment}
                       onEnrollmentChange={setDraftEnrollment}
                       files={draftFiles}
                       onFilesChange={setDraftFiles}
-                      onBack={() => go("type", -1)}
+                      onBack={() => go("auth", -1)}
+                      onSignOut={handleSignOut}
                       onNext={handleDetailsNext}
                     />
                   )}
@@ -253,35 +311,26 @@ export function PrintFlow() {
                   {step === "payment" && activeJob && (
                     <PaymentStep
                       job={activeJob}
-                      onBack={() => go("preview", -1)}
                       onPaid={handlePaid}
+                      onBack={() => go("preview", -1)}
                     />
                   )}
                   {step === "success" && activeJob && (
-                    <PrintSuccess job={activeJob} onReset={handleReset} />
+                    <PrintSuccess
+                      job={activeJob}
+                      onReset={handleReset}
+                    />
                   )}
                 </motion.div>
               </AnimatePresence>
             </div>
           </div>
 
-          {/* Admin link */}
-          {step === "type" && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="mt-2 text-center"
-            >
-              <a 
-                href="/admin" 
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground/70 hover:text-primary transition-colors"
-              >
-                Admin portal
-                <ChevronRight className="h-3 w-3" />
-              </a>
-            </motion.div>
-          )}
+          {/* Footer note */}
+          <p className="text-center text-[11px] text-muted-foreground/60">
+            Official Rishihood University Direct Print System
+          </p>
+
         </div>
       </div>
     </div>

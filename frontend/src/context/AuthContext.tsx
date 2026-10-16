@@ -5,6 +5,8 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 export interface User {
   id: string;
   name: string;
+  email?: string;
+  picture?: string;
   role: "admin" | "operator";
   password?: string;
 }
@@ -14,12 +16,12 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: (credential?: string, demoEmail?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// ─── Hardcoded credentials ─────────────────────────────────────────────────
 const SESSION_KEY = "ruprint_session";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -40,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Standard username & password login for admin
   const login = async (
     username: string,
     password: string
@@ -49,20 +52,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: "Invalid username." };
       }
 
-      const res = await fetch('/api/admin/jobs', {
-        headers: { 'Authorization': `Bearer ${password}` }
+      const res = await fetch("/api/admin/jobs", {
+        headers: { Authorization: `Bearer ${password}` },
       });
-      
+
       if (!res.ok) {
         return { success: false, error: "Invalid password." };
       }
-      
-      const loggedInUser: User = { id: "1", name: username || "Admin", role: "admin", password };
+
+      const loggedInUser: User = {
+        id: "1",
+        name: username || "Admin",
+        role: "admin",
+        password,
+      };
+
       localStorage.setItem(SESSION_KEY, JSON.stringify(loggedInUser));
       setUser(loggedInUser);
       return { success: true };
     } catch (err) {
       return { success: false, error: "Connection error." };
+    }
+  };
+
+  // Google OAuth login for admin (verifies domain & admin privileges)
+  const loginWithGoogle = async (
+    credential?: string,
+    demoEmail?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch("/api/auth/google/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          credential,
+          demoEmail,
+          roleRequired: "admin",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || "Admin verification failed." };
+      }
+
+      const loggedInUser: User = {
+        id: "admin-" + data.user.email,
+        name: data.user.name || "Admin",
+        email: data.user.email,
+        picture: data.user.picture,
+        role: "admin",
+        password: data.adminToken || "ruprint2026",
+      };
+
+      localStorage.setItem(SESSION_KEY, JSON.stringify(loggedInUser));
+      setUser(loggedInUser);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: "Connection error with authentication server." };
     }
   };
 
@@ -78,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user,
         isLoading,
         login,
+        loginWithGoogle,
         logout,
       }}
     >
