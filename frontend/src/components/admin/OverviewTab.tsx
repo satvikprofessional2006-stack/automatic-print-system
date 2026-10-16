@@ -222,18 +222,27 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
               </div>
             </div>
 
-            {/* Hardware Live Connection Badge */}
-            <div className="flex items-center gap-2">
+            {/* Hardware Live Connection Badge & Start Server Action */}
+            <div className="flex items-center gap-2 flex-wrap">
               {printer?.isConnected ? (
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 border bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400">
                   <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="capitalize">{printer.statusText || "Connected & Ready"}</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 border bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400">
-                  <span className="h-2 w-2 rounded-full bg-rose-500" />
-                  <span>Printer Disconnected / Offline</span>
-                </div>
+                <>
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 border bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400">
+                    <span className="h-2 w-2 rounded-full bg-rose-500" />
+                    <span>Printer Disconnected / Offline</span>
+                  </div>
+                  <a
+                    href="ruprint://start"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs transition-colors cursor-pointer shrink-0"
+                  >
+                    <Power className="h-3.5 w-3.5" />
+                    Start Print Server
+                  </a>
+                </>
               )}
             </div>
           </div>
