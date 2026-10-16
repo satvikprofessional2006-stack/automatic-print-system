@@ -303,18 +303,6 @@ export function GoogleAuthStep({ onSuccess }: Props) {
           </div>
         )}
       </div>
-
-      {/* Security Feature Highlights */}
-      <div className="grid grid-cols-2 gap-3 text-center">
-        <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
-          <p className="text-xs font-bold text-foreground">Single Sign-On</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">Use your official college ID</p>
-        </div>
-        <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
-          <p className="text-xs font-bold text-foreground">Auto-Fill</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">Enrollment No. remembered</p>
-        </div>
-      </div>
     </div>
   );
 }
