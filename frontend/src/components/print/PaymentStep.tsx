@@ -263,12 +263,18 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
               : (isColor ? COLOR_RATE : BW_RATE);
             const printedSides = effectivePages * copies;
             const subtotal = printedSides * rate;
+            const layout = f.settings?.layout || "portrait";
+            const orientation = layout.toLowerCase() === "landscape" ? "Landscape" : "Portrait";
 
             // Simple, clean bullet description
             const details: string[] = [];
             details.push(isColor ? "Colour" : "B&W");
             details.push(paperSize);
+            details.push(orientation);
             details.push(isDoubleSided ? "Double-sided" : "Single-sided");
+            if (f.settings?.pagesPerSheet && f.settings.pagesPerSheet > 1) {
+              details.push(`${f.settings.pagesPerSheet}-up`);
+            }
             if (copies > 1) {
               details.push(`${copies} copies`);
             }
