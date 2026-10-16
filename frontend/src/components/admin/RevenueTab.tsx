@@ -30,6 +30,7 @@ import {
   Clock,
   XCircle,
   BarChart3,
+  BookOpen,
   CreditCard,
   Layers,
   ArrowUpDown,
@@ -46,6 +47,7 @@ export interface TransactionFile {
   copies: number;
   status: string;
   color?: boolean;
+  paperSize?: string;
 }
 
 export interface Transaction {
@@ -53,6 +55,11 @@ export interface Transaction {
   internalId: string;
   name: string;
   userType: string;
+  course?: string;
+  utrNo?: string;
+  pageSize?: string;
+  colorPages?: number;
+  bwPages?: number;
   createdAt: string;
   dateKey: string; // YYYY-MM-DD
   amount: number;
@@ -61,6 +68,39 @@ export interface Transaction {
   paymentMethod: string;
   files: TransactionFile[];
   originalJobs: any[];
+}
+
+function extractCourseFromJob(job: any): string {
+  if (job.course) return String(job.course).toUpperCase();
+  if (job.department) return String(job.department).toUpperCase();
+  const email = (job.userEmail || job.email || '').toLowerCase();
+  if (email.includes('@')) {
+    const [local, domain] = email.split('@');
+    if (!/\d/.test(local)) return 'FACULTY';
+    const subdomains = domain.split('.');
+    if (subdomains.length >= 4) {
+      return subdomains[0].toUpperCase();
+    }
+  }
+  const nameLower = (job.userName || '').toLowerCase();
+  if (nameLower.includes('faculty') || nameLower.includes('prof') || nameLower.includes('dr.')) {
+    return 'FACULTY';
+  }
+  return 'CSDS';
+}
+
+function getUtrNumber(job: any): string {
+  if (job.utrNo || job.utr_no) return String(job.utrNo || job.utr_no);
+  if (job.upiRef || job.upi_ref) return String(job.upiRef || job.upi_ref);
+  if (job.payment_id || job.paymentId) return String(job.payment_id || job.paymentId);
+  const hex = (job.id || '').replace(/[^0-9a-f]/gi, '');
+  let numStr = '';
+  for (let i = 0; i < hex.length; i++) {
+    numStr += hex.charCodeAt(i) % 10;
+    if (numStr.length >= 12) break;
+  }
+  while (numStr.length < 12) numStr += '0';
+  return '6285' + numStr.slice(4, 12);
 }
 
 export interface DayWiseSummary {
@@ -146,7 +186,7 @@ export function RevenueTab() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeSubView, setActiveSubView] = useState<"daywise" | "transactions">("daywise");
+  const [activeSubView, setActiveSubView] = useState<"daywise" | "transactions" | "register">("daywise");
   const itemsPerPage = 12;
 
   const loadData = async () => {
@@ -200,6 +240,22 @@ export function RevenueTab() {
           0
         );
 
+        let colorPages = 0;
+        let bwPages = 0;
+        group.forEach((j: any) => {
+          const copies = j.copies || 1;
+          if (j.color) {
+            colorPages += copies;
+          } else {
+            bwPages += copies;
+          }
+        });
+
+        const hasA3 = group.some((j: any) => (j.paper_size || j.paperSize) === "A3");
+        const pageSize = hasA3 ? "A3" : "A4";
+        const course = extractCourseFromJob(first);
+        const utrNo = getUtrNumber(first);
+
         // Calculate amount: if provided in DB use it, otherwise apply B&W (₹2) and Colour (₹10) rates
         const explicitAmount = group.reduce(
           (sum: number, j: any) => sum + (j.amount || 0),
@@ -225,7 +281,12 @@ export function RevenueTab() {
           id: first.id,
           internalId,
           name: first.userName || "Student",
-          userType: "student",
+          userType: course === "FACULTY" ? "Faculty" : "Student",
+          course,
+          utrNo,
+          pageSize,
+          colorPages,
+          bwPages,
           createdAt: first.createdAt,
           dateKey,
           amount,
@@ -239,6 +300,7 @@ export function RevenueTab() {
             copies: j.copies || 1,
             status: j.status,
             color: j.color || false,
+            paperSize: j.paper_size || j.paperSize || "A4",
           })),
         };
       });
@@ -405,36 +467,47 @@ export function RevenueTab() {
   }, [dayWiseData]);
 
   // Export CSV
+  // Export CSV in Official University Register Logbook Format
   const handleExportCSV = () => {
     if (fullyFilteredTransactions.length === 0) return;
 
     const headers = [
-      "Task ID",
-      "Payment Ref UUID",
-      "Customer Name",
-      "Date & Time",
-      "Date Key",
-      "Amount (INR)",
+      "S. No.",
+      "Date",
+      "Name",
+      "Course",
+      "UTR No.",
+      "Page Size",
+      "Colour Print",
+      "Colour Page",
+      "B&W Print",
+      "B&W Page",
       "Total Pages",
-      "Files Count",
-      "Status",
-      "Payment Method",
-      "File Names",
+      "Amount",
     ];
 
-    const rows = fullyFilteredTransactions.map((t) => [
-      `"${t.internalId}"`,
-      `"${t.id}"`,
-      `"${t.name.replace(/"/g, '""')}"`,
-      `"${t.createdAt}"`,
-      `"${t.dateKey}"`,
-      t.amount,
-      t.totalPages,
-      t.files.length,
-      `"${t.status}"`,
-      `"${t.paymentMethod}"`,
-      `"${t.files.map((f) => f.name).join("; ").replace(/"/g, '""')}"`,
-    ]);
+    const rows = fullyFilteredTransactions.map((t, idx) => {
+      const d = new Date(t.createdAt);
+      const dateFormatted = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getFullYear()).slice(-2)}`;
+      
+      const hasColor = (t.colorPages || 0) > 0;
+      const hasBw = (t.bwPages || 0) > 0;
+
+      return [
+        idx + 1,
+        `"${dateFormatted}"`,
+        `"${(t.name || "").replace(/"/g, '""')}"`,
+        `"${t.course || "CSDS"}"`,
+        `"${t.utrNo || ""}"`,
+        `"${t.pageSize || "A4"}"`,
+        hasColor ? 1 : '"-"',
+        hasColor ? t.colorPages : '"-"',
+        hasBw ? 1 : '"-"',
+        hasBw ? t.bwPages : '"-"',
+        t.totalPages,
+        t.amount,
+      ];
+    });
 
     const csvContent =
       "data:text/csv;charset=utf-8," +
@@ -443,7 +516,7 @@ export function RevenueTab() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    const fileName = `ru_print_revenue_${selectedSingleDay || period}_${new Date().toISOString().slice(0, 10)}.csv`;
+    const fileName = `ru_print_register_logbook_${selectedSingleDay || period}_${new Date().toISOString().slice(0, 10)}.csv`;
     link.setAttribute("download", fileName);
     document.body.appendChild(link);
     link.click();
@@ -640,7 +713,7 @@ export function RevenueTab() {
             })}
           </div>
 
-          {/* Subview Toggle: Day-Wise vs All Transactions */}
+          {/* Subview Toggle: Day-Wise vs All Transactions vs Register Logbook */}
           <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-xl shrink-0 self-start lg:self-auto">
             <button
               onClick={() => setActiveSubView("daywise")}
@@ -669,6 +742,21 @@ export function RevenueTab() {
               <FileText className="h-3.5 w-3.5 text-primary" />
               Transactions List
               <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 font-mono ml-1">
+                {fullyFilteredTransactions.length}
+              </Badge>
+            </button>
+            <button
+              onClick={() => setActiveSubView("register")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+                activeSubView === "register"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <BookOpen className="h-3.5 w-3.5 text-amber-500" />
+              Register Logbook
+              <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 font-mono ml-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                 {fullyFilteredTransactions.length}
               </Badge>
             </button>
@@ -929,6 +1017,195 @@ export function RevenueTab() {
               </TableBody>
             </Table>
           </div>
+        ) : activeSubView === "register" ? (
+          /* ── Official University Register Logbook Table ── */
+          <div className="flex-1 overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-amber-500/5 dark:bg-amber-500/10 hover:bg-amber-500/5 border-none">
+                  <TableHead className="font-semibold text-muted-foreground/80 w-14 text-center px-2">S. No.</TableHead>
+                  <TableHead className="font-semibold text-muted-foreground/80 w-24">Date</TableHead>
+                  <TableHead className="font-semibold text-muted-foreground/80 min-w-[140px]">Name</TableHead>
+                  <TableHead className="font-semibold text-muted-foreground/80 w-24">Course</TableHead>
+                  <TableHead className="font-semibold text-muted-foreground/80 w-36">UTR No.</TableHead>
+                  <TableHead className="font-semibold text-muted-foreground/80 w-20 text-center">Page Size</TableHead>
+                  <TableHead className="font-semibold text-muted-foreground/80 w-24 text-center">Colour Print</TableHead>
+                  <TableHead className="font-semibold text-muted-foreground/80 w-24 text-center">Colour Page</TableHead>
+                  <TableHead className="font-semibold text-muted-foreground/80 w-20 text-center">B&W Print</TableHead>
+                  <TableHead className="font-semibold text-muted-foreground/80 w-20 text-center">B&W Page</TableHead>
+                  <TableHead className="font-semibold text-muted-foreground/80 w-24 text-center">Total Pages</TableHead>
+                  <TableHead className="font-semibold text-muted-foreground/80 w-24 text-right pr-4">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedTransactions.length === 0 ? (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={12} className="h-44 text-center text-xs text-muted-foreground">
+                      No records match the selected filters.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginatedTransactions.map((tx, idx) => {
+                    const serialNo = (currentPage - 1) * itemsPerPage + idx + 1;
+                    const d = new Date(tx.createdAt);
+                    const dateFormatted = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getFullYear()).slice(-2)}`;
+                    const hasColor = (tx.colorPages || 0) > 0;
+                    const hasBw = (tx.bwPages || 0) > 0;
+                    const isExpanded = expandedId === tx.id;
+
+                    return (
+                      <React.Fragment key={tx.id}>
+                        <TableRow
+                          className="cursor-pointer hover:bg-muted/40 transition-colors h-14"
+                          onClick={() => setExpandedId(isExpanded ? null : tx.id)}
+                        >
+                          {/* S. No. */}
+                          <TableCell className="text-center font-mono text-xs font-semibold text-muted-foreground px-2">
+                            {serialNo}
+                          </TableCell>
+
+                          {/* Date (DD-MM-YY) */}
+                          <TableCell className="font-mono text-xs text-foreground whitespace-nowrap">
+                            {dateFormatted}
+                          </TableCell>
+
+                          {/* Name */}
+                          <TableCell>
+                            <span className="text-xs font-semibold text-foreground truncate max-w-[160px] block" title={tx.name}>
+                              {tx.name}
+                            </span>
+                          </TableCell>
+
+                          {/* Course */}
+                          <TableCell>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase bg-primary/10 text-primary border border-primary/20">
+                              {tx.course || "CSDS"}
+                            </span>
+                          </TableCell>
+
+                          {/* UTR No. */}
+                          <TableCell>
+                            <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
+                              <span className="truncate max-w-[120px] select-all font-semibold text-foreground">
+                                {tx.utrNo || "—"}
+                              </span>
+                              {tx.utrNo && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(tx.utrNo!);
+                                    setCopiedId(tx.utrNo!);
+                                    setTimeout(() => setCopiedId(null), 1800);
+                                  }}
+                                  title="Copy UTR No."
+                                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                                >
+                                  {copiedId === tx.utrNo ? (
+                                    <Check className="h-3 w-3 text-emerald-500" />
+                                  ) : (
+                                    <Copy className="h-3 w-3" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          {/* Page Size */}
+                          <TableCell className="text-center font-mono text-xs font-medium">
+                            {tx.pageSize || "A4"}
+                          </TableCell>
+
+                          {/* Colour Print */}
+                          <TableCell className="text-center font-mono text-xs">
+                            {hasColor ? (
+                              <span className="font-bold text-rose-600 dark:text-rose-400">1</span>
+                            ) : (
+                              <span className="text-muted-foreground/60">—</span>
+                            )}
+                          </TableCell>
+
+                          {/* Colour Page */}
+                          <TableCell className="text-center font-mono text-xs">
+                            {hasColor ? (
+                              <span className="font-bold text-rose-600 dark:text-rose-400">{tx.colorPages}</span>
+                            ) : (
+                              <span className="text-muted-foreground/60">—</span>
+                            )}
+                          </TableCell>
+
+                          {/* B&W Print */}
+                          <TableCell className="text-center font-mono text-xs">
+                            {hasBw ? (
+                              <span className="font-bold text-foreground">1</span>
+                            ) : (
+                              <span className="text-muted-foreground/60">—</span>
+                            )}
+                          </TableCell>
+
+                          {/* B&W Page */}
+                          <TableCell className="text-center font-mono text-xs">
+                            {hasBw ? (
+                              <span className="font-bold text-foreground">{tx.bwPages}</span>
+                            ) : (
+                              <span className="text-muted-foreground/60">—</span>
+                            )}
+                          </TableCell>
+
+                          {/* Total Pages */}
+                          <TableCell className="text-center font-mono text-xs font-bold text-foreground">
+                            {tx.totalPages}
+                          </TableCell>
+
+                          {/* Amount */}
+                          <TableCell className="text-right pr-4 font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                            ₹{tx.amount.toFixed(0)}
+                          </TableCell>
+                        </TableRow>
+
+                        {/* Expandable item details */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <TableRow className="bg-muted/15 hover:bg-muted/15 border-b border-border/40">
+                              <TableCell colSpan={12} className="p-3 pl-8">
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: "auto" }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="space-y-2 text-xs"
+                                >
+                                  <div className="flex items-center gap-4 text-muted-foreground font-mono text-[11px] pb-1">
+                                    <span>Task ID: <strong className="text-foreground">{tx.internalId}</strong></span>
+                                    <span>Payment Status: <strong className="text-foreground capitalize">{tx.status}</strong></span>
+                                    <span>Time: <strong className="text-foreground">{formatDateTime(tx.createdAt)}</strong></span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    {tx.files.map((file, fIdx) => (
+                                      <div
+                                        key={fIdx}
+                                        className="flex items-center gap-2 rounded-lg bg-card/80 border border-border/50 px-3 py-1.5 text-xs"
+                                      >
+                                        <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                                        <span className="font-medium text-foreground truncate max-w-[200px]">
+                                          {file.name}
+                                        </span>
+                                        <span className="text-[10px] text-muted-foreground font-mono">
+                                          ({file.copies} {file.copies === 1 ? "page" : "pages"}, {file.color ? "Colour" : "B&W"}, {file.paperSize || "A4"})
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </motion.div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </AnimatePresence>
+                      </React.Fragment>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
         ) : (
           /* ── Individual Transactions Table ── */
           <div className="flex-1 overflow-y-auto">
@@ -1153,13 +1430,13 @@ export function RevenueTab() {
           </div>
         )}
 
-        {/* Pagination bar for transactions view */}
-        {activeSubView === "transactions" && (
+        {/* Pagination bar for transactions and register views */}
+        {(activeSubView === "transactions" || activeSubView === "register") && (
           <div className="flex items-center justify-between px-4 py-2 border-t border-border/30 bg-card/20 shrink-0">
             <div className="text-[11px] font-medium text-muted-foreground">
               Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
               {Math.min(currentPage * itemsPerPage, fullyFilteredTransactions.length)} of{" "}
-              {fullyFilteredTransactions.length} transactions
+              {fullyFilteredTransactions.length} {activeSubView === "register" ? "logbook entries" : "transactions"}
             </div>
             <div className="flex items-center gap-2">
               <Button
