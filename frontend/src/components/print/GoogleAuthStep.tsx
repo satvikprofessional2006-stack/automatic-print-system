@@ -41,12 +41,14 @@ export function GoogleAuthStep({ onSuccess }: Props) {
         ? localStorage.getItem(`ru_enrollment_${data.user.email}`) || ""
         : "";
 
+      const userType: "student" | "faculty" = data.user.userType || (/\d/.test(data.user.email.split('@')[0]) ? "student" : "faculty");
       const student: StudentAuth = {
         name: data.user.name,
         email: data.user.email,
         picture: data.user.picture,
         department: data.user.department,
-        enrollmentNo: savedEnrollment,
+        enrollmentNo: userType === "faculty" ? "FACULTY" : savedEnrollment,
+        userType,
       };
 
       // Save student session in localStorage
@@ -86,12 +88,14 @@ export function GoogleAuthStep({ onSuccess }: Props) {
         ? localStorage.getItem(`ru_enrollment_${data.user.email}`) || ""
         : "";
 
+      const userType: "student" | "faculty" = data.user.userType || (/\d/.test(data.user.email.split('@')[0]) ? "student" : "faculty");
       const student: StudentAuth = {
         name: data.user.name,
         email: data.user.email,
         picture: data.user.picture,
         department: data.user.department,
-        enrollmentNo: savedEnrollment,
+        enrollmentNo: userType === "faculty" ? "FACULTY" : savedEnrollment,
+        userType,
       };
 
       if (typeof window !== "undefined") {

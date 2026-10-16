@@ -1,6 +1,6 @@
 // ─── Print Job Types ──────────────────────────────────────────────────────────
 
-export type UserType = "student" | "other";
+export type UserType = "student" | "faculty" | "other";
 export type JobStatus = "pending_payment" | "paid" | "printing" | "completed" | "failed";
 
 export interface PrintFile {
@@ -28,6 +28,7 @@ export interface StudentAuth {
   picture?: string;
   enrollmentNo?: string;
   department?: string;
+  userType?: "student" | "faculty";
 }
 
 export interface PrintJob {

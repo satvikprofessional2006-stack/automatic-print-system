@@ -24,6 +24,7 @@ interface Props {
     name: string;
     email?: string;
     enrollmentNo?: string;
+    userType?: UserType;
     files: PrintFile[];
     totalPages: number;
     amount: number;
@@ -46,13 +47,16 @@ export function DetailsForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isAutoFilled, setIsAutoFilled] = useState<boolean>(false);
 
+  // Faculty detection: email has no numbers in local part (e.g. rahul.s@rishihood.edu.in)
+  const isFaculty = studentAuth?.userType === "faculty" || (studentAuth?.email ? !/\d/.test(studentAuth.email.split('@')[0]) : false);
+
   // Auto-fill and check stored enrollment ID on mount
   useEffect(() => {
     if (studentAuth?.name) {
       onNameChange(studentAuth.name);
     }
 
-    if (studentAuth?.email) {
+    if (!isFaculty && studentAuth?.email) {
       try {
         const stored = localStorage.getItem(`ru_enrollment_${studentAuth.email}`);
         // Only consider it saved if it's the full ERP enrollment (not the short 5-digit email alias)
@@ -67,7 +71,7 @@ export function DetailsForm({
         }
       } catch {}
     }
-  }, [studentAuth]);
+  }, [studentAuth, isFaculty]);
 
   const { bwPages, colorPages, totalPages, bwAmount, colorAmount, totalAmount } = calcFilesAmount(files);
 
@@ -78,10 +82,13 @@ export function DetailsForm({
       validationErrors.name = "Full Name is required.";
     }
     
-    if (!enrollmentNo.trim()) {
-      validationErrors.enrollmentNo = "Enrollment number is required.";
-    } else if (enrollmentNo.trim().length < 8) {
-      validationErrors.enrollmentNo = "Please enter your full 10-digit ERP enrollment number (e.g. 2502140110).";
+    // Enrollment number is only required for students, not faculty
+    if (!isFaculty) {
+      if (!enrollmentNo.trim()) {
+        validationErrors.enrollmentNo = "Enrollment number is required.";
+      } else if (enrollmentNo.trim().length < 8) {
+        validationErrors.enrollmentNo = "Please enter your full 10-digit ERP enrollment number (e.g. 2502140110).";
+      }
     }
     
     if (files.length === 0) {
@@ -99,7 +106,7 @@ export function DetailsForm({
     }
     
     // Save full ERP enrollment number to localStorage linked to student's email
-    if (studentAuth?.email && enrollmentNo.trim()) {
+    if (!isFaculty && studentAuth?.email && enrollmentNo.trim()) {
       try {
         localStorage.setItem(`ru_enrollment_${studentAuth.email}`, enrollmentNo.trim());
       } catch (e) {
@@ -111,7 +118,8 @@ export function DetailsForm({
     onNext({
       name: name.trim(),
       email: studentAuth?.email,
-      enrollmentNo: enrollmentNo.trim(),
+      enrollmentNo: isFaculty ? "FACULTY" : enrollmentNo.trim(),
+      userType: isFaculty ? "faculty" : "student",
       files,
       totalPages: totalPages,
       amount: totalAmount,
@@ -120,7 +128,7 @@ export function DetailsForm({
 
   return (
     <div className="space-y-4">
-      {/* Verified Student Header Banner */}
+      {/* Verified Student / Faculty Header Banner */}
       {studentAuth ? (
         <div className="p-3 sm:p-3.5 rounded-2xl bg-card border border-border/70 shadow-2xs flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -132,7 +140,7 @@ export function DetailsForm({
               />
             ) : (
               <div className="h-10 w-10 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center shrink-0 text-sm">
-                {(studentAuth.name || "S")[0].toUpperCase()}
+                {(studentAuth.name || "U")[0].toUpperCase()}
               </div>
             )}
             <div className="min-w-0">
@@ -140,8 +148,13 @@ export function DetailsForm({
                 <p className="text-sm font-bold text-foreground truncate">
                   {studentAuth.name}
                 </p>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  <CheckCircle2 className="h-2.5 w-2.5" /> Verified Student
+                <span className={cn(
+                  "inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold",
+                  isFaculty 
+                    ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20"
+                    : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                )}>
+                  <CheckCircle2 className="h-2.5 w-2.5" /> {isFaculty ? "Verified Faculty" : "Verified Student"}
                 </span>
               </div>
               <p className="text-[11px] font-mono text-muted-foreground truncate">
@@ -197,45 +210,47 @@ export function DetailsForm({
           {errors.name && <p className="text-xs text-destructive mt-1 px-1">{errors.name}</p>}
         </div>
 
-        {/* Enrollment Number */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold text-foreground/80">
-              Enrollment Number <span className="text-destructive">*</span>
-            </label>
-            {isAutoFilled && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                <Sparkles className="h-3 w-3" /> Auto-filled
-              </span>
+        {/* Enrollment Number — Only required and shown for Students */}
+        {!isFaculty && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-foreground/80">
+                Enrollment Number <span className="text-destructive">*</span>
+              </label>
+              {isAutoFilled && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                  <Sparkles className="h-3 w-3" /> Auto-filled
+                </span>
+              )}
+            </div>
+            <Input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={12}
+              placeholder="e.g. 2502140110"
+              value={enrollmentNo}
+              autoFocus={!enrollmentNo}
+              onChange={(e) => {
+                const digitsOnly = e.target.value.replace(/\D/g, "");
+                onEnrollmentChange(digitsOnly);
+                setIsAutoFilled(false);
+                if (errors.enrollmentNo) setErrors(prev => ({ ...prev, enrollmentNo: "" }));
+              }}
+              className={cn(
+                "bg-background border-border/60 font-mono text-sm tracking-wide",
+                errors.enrollmentNo && "border-destructive focus-visible:ring-destructive"
+              )}
+            />
+            {errors.enrollmentNo ? (
+              <p className="text-xs text-destructive mt-1 px-1">{errors.enrollmentNo}</p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground px-0.5">
+                Enter your enrollment ID
+              </p>
             )}
           </div>
-          <Input
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={12}
-            placeholder="e.g. 2502140110"
-            value={enrollmentNo}
-            autoFocus={!enrollmentNo}
-            onChange={(e) => {
-              const digitsOnly = e.target.value.replace(/\D/g, "");
-              onEnrollmentChange(digitsOnly);
-              setIsAutoFilled(false);
-              if (errors.enrollmentNo) setErrors(prev => ({ ...prev, enrollmentNo: "" }));
-            }}
-            className={cn(
-              "bg-background border-border/60 font-mono text-sm tracking-wide",
-              errors.enrollmentNo && "border-destructive focus-visible:ring-destructive"
-            )}
-          />
-          {errors.enrollmentNo ? (
-            <p className="text-xs text-destructive mt-1 px-1">{errors.enrollmentNo}</p>
-          ) : (
-            <p className="text-[11px] text-muted-foreground px-0.5">
-              Enter your enrollment ID
-            </p>
-          )}
-        </div>
+        )}
 
         {/* File Upload Section */}
         <div>

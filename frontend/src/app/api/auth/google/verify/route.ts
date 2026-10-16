@@ -17,11 +17,13 @@ function extractEmailHints(email: string) {
     if (domainSegments.length >= 4) {
       department = domainSegments[0].toUpperCase();
     }
+    const hasNumbers = /\d/.test(localPart);
+    const userType: "student" | "faculty" = hasNumbers ? "student" : "faculty";
     const dotMatch = localPart.match(/\.(\d+)$/);
     const shortRoll = dotMatch ? dotMatch[1] : '';
-    return { department, shortRoll };
+    return { department, shortRoll, userType };
   } catch {
-    return { department: '', shortRoll: '' };
+    return { department: '', shortRoll: '', userType: 'student' as const };
   }
 }
 
@@ -78,7 +80,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { department, shortRoll } = extractEmailHints(email);
+    const { department, shortRoll, userType } = extractEmailHints(email);
     const isAdmin = adminEmails.includes(email);
 
     // 2. Admin Privileges Check (if requested for Admin Portal)
@@ -99,7 +101,8 @@ export async function POST(req: Request) {
         picture,
         isAdmin,
         department,
-        shortRoll
+        shortRoll,
+        userType,
       },
       // If admin, supply master bearer token for admin API calls
       adminToken: isAdmin ? (process.env.ADMIN_PASSWORD || 'ruprint2026') : null

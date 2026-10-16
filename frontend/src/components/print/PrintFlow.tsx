@@ -100,13 +100,14 @@ export function PrintFlow() {
     name: string;
     email?: string;
     enrollmentNo?: string;
+    userType?: UserType;
     files: PrintFile[];
     totalPages: number;
     amount: number;
   }) => {
     const job: PrintJob = {
       id: Math.random().toString(36).slice(2, 10).toUpperCase(),
-      userType: "student",
+      userType: data.userType || (studentAuth?.userType || "student"),
       name: data.name,
       email: data.email || studentAuth?.email,
       enrollmentNo: data.enrollmentNo,
