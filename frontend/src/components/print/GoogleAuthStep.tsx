@@ -13,9 +13,8 @@ interface Props {
 export function GoogleAuthStep({ onSuccess }: Props) {
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [testEmail, setTestEmail] = useState<string>("satvik.25110@csds.rishihood.edu.in");
-  const [testName, setTestName] = useState<string>("Satvik Kesarwani");
-  const [showDemoForm, setShowDemoForm] = useState<boolean>(false);
+  const [testEmail] = useState<string>("satvik.25110@csds.rishihood.edu.in");
+  const [testName] = useState<string>("Satvik Kesarwani");
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
@@ -236,64 +235,6 @@ export function GoogleAuthStep({ onSuccess }: Props) {
               </svg>
               <span>{isLoading ? "Signing in…" : "Sign in with Google"}</span>
             </Button>
-
-            {/* Test info & Account Switcher */}
-            <div className="w-full pt-3 border-t border-border/50 text-center">
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
-                <span>Active Account:</span>
-                <button
-                  type="button"
-                  onClick={() => setShowDemoForm(!showDemoForm)}
-                  className="text-primary hover:underline font-semibold"
-                >
-                  {showDemoForm ? "Hide" : "Switch Account / Test Domain Lock"}
-                </button>
-              </div>
-              <p className="text-xs font-mono font-medium text-foreground mt-1">
-                {testEmail}
-              </p>
-            </div>
-
-            {showDemoForm && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="w-full p-3.5 rounded-xl bg-muted/40 border border-border/60 space-y-3 text-left"
-              >
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Test Email (try @gmail.com to see it blocked!)
-                  </label>
-                  <input
-                    type="text"
-                    value={testEmail}
-                    onChange={(e) => setTestEmail(e.target.value)}
-                    placeholder="e.g. satvik.25110@csds.rishihood.edu.in"
-                    className="w-full text-xs font-mono px-3 py-2 rounded-lg bg-background border border-border outline-none focus:border-primary"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Student Full Name
-                  </label>
-                  <input
-                    type="text"
-                    value={testName}
-                    onChange={(e) => setTestName(e.target.value)}
-                    placeholder="Satvik Kesarwani"
-                    className="w-full text-xs px-3 py-2 rounded-lg bg-background border border-border outline-none focus:border-primary"
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => handleDemoSignIn(testEmail, testName)}
-                  className="w-full h-8 text-xs font-bold"
-                >
-                  Apply &amp; Sign In
-                </Button>
-              </motion.div>
-            )}
           </div>
         )}
       </div>
