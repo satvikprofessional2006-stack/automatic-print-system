@@ -3,16 +3,12 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { PrintJob, calcFilesAmount, parsePageRange, BW_RATE, COLOR_RATE, BW_A3_RATE, COLOR_A3_RATE } from "@/lib/printStore";
+import { PrintJob, parsePageRange, BW_RATE, COLOR_RATE, BW_A3_RATE, COLOR_A3_RATE } from "@/lib/printStore";
 import {
   CheckCircle2,
   Loader2,
   ArrowLeft,
-  ShieldCheck,
-  CreditCard,
   AlertCircle,
-  Sparkles,
-  FileCheck,
   Edit,
   FileText,
 } from "lucide-react";
@@ -55,8 +51,6 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
   const [payState, setPayState] = useState<PayState>("waiting");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isGatewayReady, setIsGatewayReady] = useState<boolean | null>(null);
-
-  const { bwPages, colorPages, bwA3Pages, colorA3Pages } = calcFilesAmount(job.files);
 
   // Pre-load Razorpay checkout SDK
   useEffect(() => {
@@ -218,28 +212,25 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* ── Section Title ── */}
       <div>
-        <h2 className="text-xl font-bold tracking-tight text-foreground">Secure Payment</h2>
-        <p className="text-xs text-muted-foreground mt-1">
-          Review your print settings and complete payment via UPI, Cards, or NetBanking.
+        <h2 className="text-xl font-bold tracking-tight text-foreground">Payment</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Review your order and proceed to pay.
         </p>
       </div>
 
-      {/* ── Order Summary Card ── */}
-      <div className="rounded-2xl bg-card border border-border/70 p-4 sm:p-5 space-y-3 shadow-xs">
-        <div className="flex items-center justify-between pb-2 border-b border-border/40">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold text-foreground">Order Summary</h3>
-            <span className="text-xs text-muted-foreground font-mono">
-              ({job.files.length} {job.files.length === 1 ? "file" : "files"})
-            </span>
-          </div>
+      {/* ── Clean Unified Order & Total Card ── */}
+      <div className="rounded-2xl bg-card border border-border/60 p-4 sm:p-5 space-y-4 shadow-xs">
+        <div className="flex items-center justify-between pb-3 border-b border-border/40">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Order Summary
+          </span>
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline cursor-pointer"
             title="Edit document settings"
           >
             <Edit className="h-3 w-3" />
@@ -263,18 +254,11 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
               : (isColor ? COLOR_RATE : BW_RATE);
             const printedSides = effectivePages * copies;
             const subtotal = printedSides * rate;
-            const layout = f.settings?.layout || "portrait";
-            const orientation = layout.toLowerCase() === "landscape" ? "Landscape" : "Portrait";
 
-            // Simple, clean bullet description
             const details: string[] = [];
             details.push(isColor ? "Colour" : "B&W");
             details.push(paperSize);
-            details.push(orientation);
             details.push(isDoubleSided ? "Double-sided" : "Single-sided");
-            if (f.settings?.pagesPerSheet && f.settings.pagesPerSheet > 1) {
-              details.push(`${f.settings.pagesPerSheet}-up`);
-            }
             if (copies > 1) {
               details.push(`${copies} copies`);
             }
@@ -283,11 +267,11 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             return (
               <div
                 key={f.name + idx}
-                className="py-2.5 first:pt-1 last:pb-1 flex items-center justify-between gap-3"
+                className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <p className="text-xs font-semibold text-foreground truncate" title={f.name}>
                       {f.name}
                     </p>
@@ -297,7 +281,7 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <span className="text-xs font-mono font-bold text-foreground">
+                  <span className="text-xs font-mono font-semibold text-foreground">
                     ₹{subtotal}
                   </span>
                 </div>
@@ -305,52 +289,18 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             );
           })}
         </div>
-      </div>
 
-      {/* ── Amount Due Card ── */}
-      <div className="rounded-2xl bg-primary/8 border border-primary/25 p-5 flex items-center justify-between shadow-2xs">
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Total Amount Due
-          </p>
-          <p className="text-4xl font-bold font-mono text-primary mt-1">₹{job.amount}</p>
-          <div className="flex flex-wrap items-center gap-1.5 mt-2">
-            <span className="text-[11px] text-muted-foreground mr-1">
-              Job #{job.id} · {job.files.length} file{job.files.length !== 1 ? "s" : ""}
-            </span>
-            {bwPages > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/80 text-foreground/90 font-medium text-[10px] border border-border/60">
-                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 shrink-0" />
-                <span>{bwPages} A4 B&amp;W</span>
-              </span>
-            )}
-            {colorPages > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium text-[10px] border border-rose-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-                <span>{colorPages} A4 Colour</span>
-              </span>
-            )}
-            {bwA3Pages > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium text-[10px] border border-blue-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                <span>{bwA3Pages} A3 B&amp;W</span>
-              </span>
-            )}
-            {colorA3Pages > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium text-[10px] border border-purple-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
-                <span>{colorA3Pages} A3 Colour</span>
-              </span>
-            )}
+        {/* Clean Total Row */}
+        <div className="pt-3 border-t border-border/40 flex items-center justify-between">
+          <div>
+            <span className="text-xs font-medium text-muted-foreground">Total Due</span>
+            <p className="text-[11px] text-muted-foreground/70 font-mono">
+              Job #{job.id}
+            </p>
           </div>
-        </div>
-
-        <div className="hidden sm:flex flex-col items-end gap-1 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1 font-semibold text-foreground">
-            <ShieldCheck className="h-4 w-4 text-emerald-600" />
-            <span>256-Bit Encrypted</span>
-          </div>
-          <span className="text-[10px] text-muted-foreground font-mono">Instant Print Trigger</span>
+          <span className="text-2xl font-bold font-mono text-foreground tracking-tight">
+            ₹{job.amount}
+          </span>
         </div>
       </div>
 
@@ -362,54 +312,33 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="space-y-4"
+            className="space-y-3"
           >
-            {/* Primary Payment Gateway Button */}
+            {/* Primary Payment Button */}
             <Button
               type="button"
               disabled={payState === "creating_order"}
               onClick={handlePayNow}
-              className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               {payState === "creating_order" ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Connecting to Gateway…</span>
+                  <span>Connecting…</span>
                 </>
               ) : (
-                <>
-                  <CreditCard className="h-4 w-4" />
-                  <span>Pay ₹{job.amount} with UPI / Cards</span>
-                </>
+                <span>Pay ₹{job.amount}</span>
               )}
             </Button>
-
-            {/* Gateway Information Badge */}
-            <div className="p-3 rounded-xl bg-muted/50 border border-border/60 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span className="font-medium text-foreground">
-                  GPay • PhonePe • Paytm • Cards • NetBanking
-                </span>
-              </div>
-              <span className="text-[10px] font-mono text-muted-foreground uppercase font-bold tracking-wider">
-                Gateway Powered
-              </span>
-            </div>
-
-            <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
-              Upon successful payment, your files will be sent directly to the printer spooler and
-              printed immediately.
-            </p>
 
             <Button
               type="button"
               variant="ghost"
               onClick={onBack}
               disabled={payState === "creating_order"}
-              className="gap-2 text-sm w-full rounded-xl cursor-pointer"
+              className="text-xs text-muted-foreground hover:text-foreground w-full h-9 rounded-xl cursor-pointer"
             >
-              <ArrowLeft className="h-4 w-4" /> Back to Preview
+              Back to Preview
             </Button>
           </motion.div>
         )}
