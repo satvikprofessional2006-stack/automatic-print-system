@@ -175,7 +175,11 @@ function toLocalDateKey(d: Date): string {
 
 type PeriodFilter = "all" | "today" | "yesterday" | "7days" | "30days" | "this_month" | "custom";
 
-export function RevenueTab() {
+interface RevenueTabProps {
+  initialSubView?: "daywise" | "transactions" | "register";
+}
+
+export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {}) {
   const { user, logout } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
@@ -188,9 +192,15 @@ export function RevenueTab() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeSubView, setActiveSubView] = useState<"daywise" | "transactions" | "register">("daywise");
+  const [activeSubView, setActiveSubView] = useState<"daywise" | "transactions" | "register">(initialSubView);
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const itemsPerPage = 12;
+
+  useEffect(() => {
+    if (initialSubView) {
+      setActiveSubView(initialSubView);
+    }
+  }, [initialSubView]);
 
   const loadData = async () => {
     if (!user?.password) return;

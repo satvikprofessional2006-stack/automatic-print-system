@@ -45,7 +45,7 @@ interface ConnectedPrinterInfo {
 }
 
 interface OverviewTabProps {
-  onNavigate: (tabId: string) => void;
+  onNavigate: (tabId: string, subView?: "daywise" | "transactions" | "register") => void;
 }
 
 export function OverviewTab({ onNavigate }: OverviewTabProps) {
@@ -407,7 +407,10 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
         </Card>
 
         {/* Revenue */}
-        <Card className="border-none bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
+        <Card
+          onClick={() => onNavigate("revenue", "daywise")}
+          className="border-none bg-card/40 backdrop-blur-md rounded-2xl shadow-xs cursor-pointer hover:bg-card/70 transition-colors"
+        >
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
               <IndianRupee className="h-4.5 w-4.5" />
@@ -461,7 +464,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
           </button>
 
           <button
-            onClick={() => onNavigate("revenue")}
+            onClick={() => onNavigate("revenue", "register")}
             className="flex items-center justify-between p-3.5 rounded-xl bg-card/60 hover:bg-card border border-border/30 hover:border-primary/40 transition-all text-left cursor-pointer group shadow-2xs"
           >
             <div className="flex items-center gap-3">

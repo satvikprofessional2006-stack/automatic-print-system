@@ -16,6 +16,14 @@ import { Info } from "lucide-react";
 function AdminDashboardContent() {
   const { isAuthenticated, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("logs");
+  const [revenueSubView, setRevenueSubView] = useState<"daywise" | "transactions" | "register">("daywise");
+
+  const handleNavigate = (tab: string, subView?: "daywise" | "transactions" | "register") => {
+    if (subView) {
+      setRevenueSubView(subView);
+    }
+    setActiveTab(tab);
+  };
 
   if (isLoading) {
     return (
@@ -36,7 +44,15 @@ function AdminDashboardContent() {
     <div className="h-screen w-screen overflow-hidden bg-background flex flex-col font-sans">
       <Header />
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={(tab) => {
+            if (tab === "revenue") {
+              setRevenueSubView("daywise");
+            }
+            setActiveTab(tab);
+          }}
+        />
         <main className="flex-1 overflow-hidden p-3 md:p-6 min-h-0">
           <AnimatePresence mode="wait">
             {activeTab === "logs" && (
@@ -83,7 +99,7 @@ function AdminDashboardContent() {
                 transition={{ type: "spring", stiffness: 420, damping: 30, mass: 0.7 }}
                 className="h-full flex flex-col min-h-0"
               >
-                <RevenueTab />
+                <RevenueTab initialSubView={revenueSubView} />
               </motion.div>
             )}
 
@@ -96,7 +112,7 @@ function AdminDashboardContent() {
                 transition={{ type: "spring", stiffness: 420, damping: 30, mass: 0.7 }}
                 className="h-full overflow-hidden"
               >
-                <OverviewTab onNavigate={(tab) => setActiveTab(tab)} />
+                <OverviewTab onNavigate={handleNavigate} />
               </motion.div>
             )}
           </AnimatePresence>
