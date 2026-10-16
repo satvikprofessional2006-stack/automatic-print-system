@@ -183,12 +183,6 @@ export function GoogleAuthStep({ onSuccess }: Props) {
 
       {/* Main Login Card */}
       <div className="p-6 rounded-2xl bg-card/80 border border-border/70 shadow-sm flex flex-col items-center gap-5">
-        {/* Domain Badge */}
-        <div className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl bg-muted/60 border border-border/50 text-xs font-mono text-muted-foreground">
-          <Lock className="h-3.5 w-3.5 text-primary" />
-          <span>Domain restricted to <strong>@{allowedDomain}</strong></span>
-        </div>
-
         {/* Error message banner */}
         <AnimatePresence>
           {error && (
