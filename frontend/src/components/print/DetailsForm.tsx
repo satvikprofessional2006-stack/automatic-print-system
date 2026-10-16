@@ -210,11 +210,16 @@ export function DetailsForm({
             )}
           </div>
           <Input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={12}
             placeholder="e.g. 2502140110"
             value={enrollmentNo}
             autoFocus={!enrollmentNo}
             onChange={(e) => {
-              onEnrollmentChange(e.target.value);
+              const digitsOnly = e.target.value.replace(/\D/g, "");
+              onEnrollmentChange(digitsOnly);
               setIsAutoFilled(false);
               if (errors.enrollmentNo) setErrors(prev => ({ ...prev, enrollmentNo: "" }));
             }}
