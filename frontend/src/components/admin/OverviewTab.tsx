@@ -166,17 +166,12 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
     <div className="flex flex-col h-full space-y-5 overflow-y-auto pr-1 pb-8 min-h-0">
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shrink-0">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Overview Command Center</h2>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Live Telemetry
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Real-time connected printer hardware supplies, active queues, and print operations.
-          </p>
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Overview Command Center</h2>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live Telemetry
+          </span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -188,7 +183,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
               fetchJobs();
             }}
             disabled={loadingPrinter || loadingJobs}
-            className="h-9 gap-1.5 text-xs rounded-xl bg-card/60 hover:bg-card border-border/70 text-foreground cursor-pointer"
+            className="h-9 gap-1.5 text-xs rounded-xl bg-card/60 hover:bg-card border-border/50 text-foreground cursor-pointer"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", (loadingPrinter || loadingJobs) && "animate-spin")} />
             Sync Hardware
@@ -197,10 +192,10 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
       </div>
 
       {/* ── Section 1: Live Connected Printer & Toner Gauge (Only Connected Printer) ── */}
-      <Card className="shrink-0 border border-border/50 bg-gradient-to-br from-card/80 via-card/50 to-card/30 backdrop-blur-xl rounded-2xl shadow-sm">
-        <CardContent className="p-5 sm:p-6 space-y-5">
+      <Card className="shrink-0 border border-border/40 bg-gradient-to-br from-card/80 via-card/50 to-card/30 backdrop-blur-xl rounded-2xl shadow-xs">
+        <CardContent className="p-5 sm:p-6 space-y-4">
           {/* Top row: Connected Printer Info & Connection Status */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/40">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div
                 className={cn(
@@ -221,14 +216,8 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
                     Current Printer
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
-                  <span>Connection: CUPS Direct / IPP</span>
-                  <span>•</span>
-                  {printer?.isConnected ? (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">Ready for Spooling</span>
-                  ) : (
-                    <span className="text-rose-500 font-medium">Power off or USB disconnected</span>
-                  )}
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  CUPS Direct / IPP Spooler
                 </p>
               </div>
             </div>
@@ -250,21 +239,9 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
           </div>
 
           {/* Toner & Ink Level Gauges */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Droplet className="h-4 w-4 text-primary" />
-                <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  Live Toner / Ink Telemetry
-                </span>
-              </div>
-              <span className="text-[11px] text-muted-foreground font-mono">
-                {printer?.isConnected ? "Live Hardware IPP" : "Last Recorded Reading"}
-              </span>
-            </div>
-
+          <div className="pt-1">
             {printer?.supplies && printer.supplies.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {printer.supplies.map((supply, idx) => {
                   const progressColor = getTonerProgressColor(supply.color, supply.level);
                   const borderColor = getTonerBorderColor(supply.color, supply.isLow);
@@ -293,17 +270,16 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
                       </div>
 
                       {/* Progress meter */}
-                      <div className="h-2.5 w-full bg-muted/60 dark:bg-muted/40 rounded-full overflow-hidden p-0.5 border border-border/30">
+                      <div className="h-2 w-full bg-muted/60 dark:bg-muted/40 rounded-full overflow-hidden p-0.5">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${supply.level}%` }}
                           transition={{ duration: 0.8, ease: "easeOut" }}
-                          className={cn("h-full rounded-full transition-all shadow-sm", progressColor)}
+                          className={cn("h-full rounded-full transition-all shadow-xs", progressColor)}
                         />
                       </div>
 
-                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                        <span className="truncate">{supply.name}</span>
+                      <div className="flex items-center justify-end text-[10px]">
                         {supply.isLow ? (
                           <span className="inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-bold">
                             <AlertTriangle className="h-3 w-3" /> Low Toner Alert
@@ -317,7 +293,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
                 })}
               </div>
             ) : (
-              <div className="p-4 rounded-xl bg-muted/20 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+              <div className="p-3 rounded-xl bg-muted/20 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                 <span>Printer hardware ready • No supply warnings reported</span>
               </div>
@@ -326,10 +302,10 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
         </CardContent>
       </Card>
 
-      {/* ── Section 2: Core Metrics (6 Cards - Matching Old Overview & Adding Live Telemetry) ── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5 shrink-0">
+      {/* ── Section 2: Core Metrics (6 Clean Borderless Cards) ── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 shrink-0">
         {/* Total Jobs */}
-        <Card className="border border-border/40 bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
+        <Card className="border-none bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
               <Printer className="h-4.5 w-4.5" />
@@ -341,15 +317,12 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
               <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
                 {metrics.totalJobs}
               </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                All time batches
-              </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Completed */}
-        <Card className="border border-border/40 bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
+        <Card className="border-none bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
               <CheckCircle2 className="h-4.5 w-4.5" />
@@ -361,15 +334,12 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
               <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
                 {metrics.completed}
               </p>
-              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5 truncate">
-                Successfully printed
-              </p>
             </div>
           </CardContent>
         </Card>
 
         {/* In Queue */}
-        <Card className="border border-border/40 bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
+        <Card className="border-none bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
               <Clock className="h-4.5 w-4.5" />
@@ -381,9 +351,6 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
               <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
                 {metrics.queued}
               </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                Pending / active
-              </p>
             </div>
           </CardContent>
         </Card>
@@ -391,8 +358,8 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
         {/* Failed */}
         <Card
           className={cn(
-            "border bg-card/40 backdrop-blur-md rounded-2xl shadow-xs transition-colors",
-            metrics.failed > 0 ? "border-rose-500/30 bg-rose-500/5" : "border-border/40"
+            "border-none bg-card/40 backdrop-blur-md rounded-2xl shadow-xs transition-colors",
+            metrics.failed > 0 && "bg-rose-500/10"
           )}
         >
           <CardContent className="p-4 flex items-center gap-3">
@@ -418,15 +385,12 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
               >
                 {metrics.failed}
               </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                Failed to print
-              </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Cancelled */}
-        <Card className="border border-border/40 bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
+        <Card className="border-none bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-xl bg-muted text-muted-foreground shrink-0">
               <Ban className="h-4.5 w-4.5" />
@@ -438,15 +402,12 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
               <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
                 {metrics.cancelled}
               </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                Cancelled by admin
-              </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Revenue */}
-        <Card className="border border-border/40 bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
+        <Card className="border-none bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
               <IndianRupee className="h-4.5 w-4.5" />
@@ -458,71 +419,56 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
               <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
                 ₹{metrics.totalRevenue.toLocaleString("en-IN")}
               </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                Paid jobs total
-              </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* ── Section 3: Quick Action Launchpad ── */}
-      <Card className="shrink-0 border border-border/40 bg-card/30 backdrop-blur-md rounded-2xl p-4 shadow-xs">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-amber-500" />
-            <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
-              Quick Action Launchpad
-            </h3>
-          </div>
-          <span className="text-[11px] text-muted-foreground">Direct shortcuts</span>
+      <Card className="shrink-0 border-none bg-card/30 backdrop-blur-md rounded-2xl p-4 shadow-xs">
+        <div className="flex items-center gap-2 mb-3">
+          <Zap className="h-4 w-4 text-amber-500" />
+          <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
+            Quick Actions
+          </h3>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             onClick={() => onNavigate("admin-print")}
-            className="flex items-center justify-between p-3.5 rounded-xl bg-card/70 hover:bg-card border border-border/60 hover:border-primary/40 transition-all text-left cursor-pointer group shadow-2xs"
+            className="flex items-center justify-between p-3.5 rounded-xl bg-card/60 hover:bg-card border border-border/30 hover:border-primary/40 transition-all text-left cursor-pointer group shadow-2xs"
           >
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:scale-105 transition-transform">
                 <Printer className="h-4 w-4" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-foreground">Direct Admin Print</p>
-                <p className="text-[10px] text-muted-foreground">Print official circulars &amp; bypass UPI</p>
-              </div>
+              <p className="text-xs font-bold text-foreground">Direct Admin Print</p>
             </div>
             <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
           </button>
 
           <button
             onClick={() => onNavigate("logs")}
-            className="flex items-center justify-between p-3.5 rounded-xl bg-card/70 hover:bg-card border border-border/60 hover:border-primary/40 transition-all text-left cursor-pointer group shadow-2xs"
+            className="flex items-center justify-between p-3.5 rounded-xl bg-card/60 hover:bg-card border border-border/30 hover:border-primary/40 transition-all text-left cursor-pointer group shadow-2xs"
           >
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform">
                 <ClipboardList className="h-4 w-4" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-foreground">Live Print Queue</p>
-                <p className="text-[10px] text-muted-foreground">Inspect active jobs &amp; reprint</p>
-              </div>
+              <p className="text-xs font-bold text-foreground">Live Print Queue</p>
             </div>
             <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
           </button>
 
           <button
             onClick={() => onNavigate("revenue")}
-            className="flex items-center justify-between p-3.5 rounded-xl bg-card/70 hover:bg-card border border-border/60 hover:border-primary/40 transition-all text-left cursor-pointer group shadow-2xs"
+            className="flex items-center justify-between p-3.5 rounded-xl bg-card/60 hover:bg-card border border-border/30 hover:border-primary/40 transition-all text-left cursor-pointer group shadow-2xs"
           >
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
                 <BookOpen className="h-4 w-4" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-foreground">Register Logbook</p>
-                <p className="text-[10px] text-muted-foreground">University 12-col audit &amp; CSV export</p>
-              </div>
+              <p className="text-xs font-bold text-foreground">Register Logbook</p>
             </div>
             <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
           </button>
@@ -530,7 +476,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
       </Card>
 
       {/* ── Section 4: Live Activity Stream (Recent Jobs) ── */}
-      <Card className="shrink-0 border border-border/40 bg-card/30 backdrop-blur-md rounded-2xl p-4 sm:p-5 shadow-xs">
+      <Card className="shrink-0 border-none bg-card/30 backdrop-blur-md rounded-2xl p-4 sm:p-5 shadow-xs">
         <div className="flex items-center justify-between mb-3.5">
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-emerald-500" />
