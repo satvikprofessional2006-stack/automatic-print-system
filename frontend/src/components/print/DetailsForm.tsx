@@ -210,13 +210,9 @@ export function DetailsForm({
             <label className="text-xs font-semibold text-foreground/80">
               Enrollment Number <span className="text-destructive">*</span>
             </label>
-            {isAutoFilled ? (
+            {isAutoFilled && (
               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                <Sparkles className="h-3 w-3" /> Auto-filled from previous visit
-              </span>
-            ) : (
-              <span className="text-[10px] text-muted-foreground">
-                Saved for future prints
+                <Sparkles className="h-3 w-3" /> Auto-filled
               </span>
             )}
           </div>
@@ -237,8 +233,8 @@ export function DetailsForm({
           {errors.enrollmentNo ? (
             <p className="text-xs text-destructive mt-1 px-1">{errors.enrollmentNo}</p>
           ) : (
-            <p className="text-[10.5px] text-muted-foreground px-0.5">
-              Enter your official 10-digit ERP enrollment number. It will be remembered automatically.
+            <p className="text-[11px] text-muted-foreground px-0.5">
+              Enter your enrollment ID
             </p>
           )}
         </div>
