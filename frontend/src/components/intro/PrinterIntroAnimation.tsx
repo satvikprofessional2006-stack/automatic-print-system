@@ -9,16 +9,32 @@ interface PrinterIntroProps {
 }
 
 interface NeonParticle {
+  // Initial printer relative coords
   x: number;
   y: number;
   z: number;
+  // Outward explosion trajectory
   vx: number;
   vy: number;
   vz: number;
+  angle: number;
+  spinDir: number;
   size: number;
   color: string;
   streakColor: string;
   alpha: number;
+  // Scatter peak position at reversal
+  scatterX: number;
+  scatterY: number;
+  scatterZ: number;
+  hasRecordedScatter: boolean;
+  // Destination target on the first page UI
+  targetX: number;
+  targetY: number;
+  targetColor: string;
+  // Frame-by-frame streak tracking
+  lastX: number;
+  lastY: number;
   active: boolean;
 }
 
@@ -68,8 +84,8 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     updateDimensions();
     window.addEventListener("resize", updateDimensions);
 
-    // Audio synthesizer sfx for sci-fi atmosphere
-    const playSfx = (type: "charge" | "shatter" | "warp") => {
+    // Audio synthesizer sfx using Web Audio API
+    const playSfx = (type: "charge" | "shatter" | "suction" | "lock") => {
       try {
         const AudioCtx =
           window.AudioContext ||
@@ -80,6 +96,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         const now = actx.currentTime;
 
         if (type === "charge") {
+          // Subtle sci-fi energy charge hum
           const osc = actx.createOscillator();
           const gain = actx.createGain();
           osc.type = "sine";
@@ -93,6 +110,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           osc.start(now);
           osc.stop(now + 1.25);
         } else if (type === "shatter") {
+          // Pixel burst sound
           const bufferSize = Math.floor(actx.sampleRate * 0.35);
           const buffer = actx.createBuffer(1, bufferSize, actx.sampleRate);
           const data = buffer.getChannelData(0);
@@ -110,19 +128,44 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           filter.connect(gain);
           gain.connect(actx.destination);
           noise.start(now);
-        } else if (type === "warp") {
+        } else if (type === "suction") {
+          // Magnetic gravitational suction whoosh as particles pull back in
           const osc = actx.createOscillator();
+          const filter = actx.createBiquadFilter();
           const gain = actx.createGain();
           osc.type = "sawtooth";
-          osc.frequency.setValueAtTime(110, now);
-          osc.frequency.exponentialRampToValueAtTime(860, now + 0.85);
-          gain.gain.setValueAtTime(0.02, now);
-          gain.gain.linearRampToValueAtTime(0.07, now + 0.3);
-          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
-          osc.connect(gain);
+          osc.frequency.setValueAtTime(95, now);
+          osc.frequency.exponentialRampToValueAtTime(450, now + 0.68);
+
+          filter.type = "bandpass";
+          filter.frequency.setValueAtTime(240, now);
+          filter.frequency.exponentialRampToValueAtTime(2100, now + 0.68);
+          filter.Q.setValueAtTime(3.8, now);
+
+          gain.gain.setValueAtTime(0.01, now);
+          gain.gain.linearRampToValueAtTime(0.08, now + 0.45);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.68);
+
+          osc.connect(filter);
+          filter.connect(gain);
           gain.connect(actx.destination);
           osc.start(now);
-          osc.stop(now + 0.9);
+          osc.stop(now + 0.68);
+        } else if (type === "lock") {
+          // Shimmering harmonic crystallization chime (C6, E6, G6, C7)
+          const freqs = [1046.5, 1318.5, 1567.98, 2093.0];
+          freqs.forEach((freq, idx) => {
+            const osc = actx.createOscillator();
+            const gain = actx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(freq, now + idx * 0.025);
+            gain.gain.setValueAtTime(0.045 / (idx + 1), now + idx * 0.025);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.025 + 0.6);
+            osc.connect(gain);
+            gain.connect(actx.destination);
+            osc.start(now + idx * 0.025);
+            osc.stop(now + idx * 0.025 + 0.6);
+          });
         }
       } catch {}
     };
@@ -135,7 +178,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     // Build the holographic vector printer particle matrix
     const particles: NeonParticle[] = [];
     const isMobile = window.innerWidth < 768;
-    const particleStep = isMobile ? 5 : 4; // ~600 particles for high detail + locked 60 FPS
+    const particleStep = isMobile ? 5 : 4; // ~550 particles: locked 60fps & razor-sharp definition
 
     const offW = 320;
     const offH = 260;
@@ -239,8 +282,8 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
             const relX = (x - cx) * scaleMultiplier;
             const relY = (y - cy) * scaleMultiplier;
 
-            const angle = Math.atan2(relY, relX) + (Math.random() - 0.5) * 0.4;
-            const speed = Math.random() * 4 + 2.5;
+            const angle = Math.atan2(relY, relX) + (Math.random() - 0.5) * 0.45;
+            const speed = Math.random() * 4 + 3.0;
 
             let streak = NEON_CYAN;
             if (r > 190 && g < 100) streak = NEON_MAGENTA;
@@ -251,13 +294,24 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
               x: relX,
               y: relY,
               z: initialZ,
-              vx: Math.cos(angle) * speed * 2.0,
-              vy: Math.sin(angle) * speed * 2.0,
-              vz: -(Math.random() * 14 + 18),
+              vx: Math.cos(angle) * speed * 2.2,
+              vy: Math.sin(angle) * speed * 2.2,
+              vz: -(Math.random() * 10 + 14),
+              angle,
+              spinDir: Math.random() > 0.5 ? 1 : -1,
               size: particleStep * 0.9,
               color: `rgb(${r}, ${g}, ${b})`,
               streakColor: streak,
               alpha: a / 255,
+              scatterX: 0,
+              scatterY: 0,
+              scatterZ: 0,
+              hasRecordedScatter: false,
+              targetX: 0,
+              targetY: 0,
+              targetColor: NEON_CYAN,
+              lastX: 0,
+              lastY: 0,
               active: true,
             });
           }
@@ -265,20 +319,125 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       }
     }
 
-    // Exact timeline (STRICTLY ONCE!):
-    // 0.0s - 1.25s: Materialization & laser sweeps down ONCE across the printer
-    // 1.25s - 1.5s: Energy ring contracts into center
-    // 1.5s: Explosion starts + Synchronous main page zoom begins
-    // 1.5s - 2.65s: Butter-smooth 3D pixel warp (60 FPS, hardware additive blending, zero lag)
-    // 2.1s - 2.65s: Background fades out seamlessly
-    // 2.65s: Finish
+    // Function to calculate exact destination targets for the First Page UI
+    const assignTargets = (width: number, height: number) => {
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const cardW = Math.min(width * 0.92, 480);
+      const cardH = 340;
+      const cardX = centerX - cardW / 2;
+      const cardY = centerY - cardH / 2 + 25;
+
+      const headerY = cardY - 78;
+      const stepperY = cardY - 32;
+      const btnW = Math.min(cardW - 60, 360);
+      const btnH = 46;
+      const btnX = centerX - btnW / 2;
+      const btnY = cardY + 204;
+
+      const n = particles.length;
+      const perim = 2 * (cardW + cardH);
+
+      for (let i = 0; i < n; i++) {
+        const p = particles[i];
+        // 1. Card perimeter border (40% of particles)
+        if (i < Math.floor(n * 0.40)) {
+          const t = i / (Math.floor(n * 0.40) - 1);
+          const dist = t * perim;
+          let tx = cardX;
+          let ty = cardY;
+          if (dist < cardW) {
+            tx = cardX + dist;
+            ty = cardY;
+          } else if (dist < cardW + cardH) {
+            tx = cardX + cardW;
+            ty = cardY + (dist - cardW);
+          } else if (dist < 2 * cardW + cardH) {
+            tx = cardX + cardW - (dist - (cardW + cardH));
+            ty = cardY + cardH;
+          } else {
+            tx = cardX;
+            ty = cardY + cardH - (dist - (2 * cardW + cardH));
+          }
+          p.targetX = tx;
+          p.targetY = ty;
+          p.targetColor = i % 2 === 0 ? NEON_CYAN : NEON_BLUE;
+        }
+        // 2. Top Header and Logo line (12% of particles)
+        else if (i < Math.floor(n * 0.52)) {
+          const t = (i - Math.floor(n * 0.40)) / (Math.floor(n * 0.52) - Math.floor(n * 0.40));
+          p.targetX = centerX - 140 + t * 280;
+          p.targetY = headerY;
+          p.targetColor = NEON_WHITE;
+        }
+        // 3. Stepper indicator dots (12% of particles)
+        else if (i < Math.floor(n * 0.64)) {
+          const t = (i - Math.floor(n * 0.52)) / (Math.floor(n * 0.64) - Math.floor(n * 0.52));
+          p.targetX = cardX + 24 + t * (cardW - 48);
+          p.targetY = stepperY;
+          p.targetColor = NEON_MAGENTA;
+        }
+        // 4. Center Sign-In Button outline (20% of particles)
+        else if (i < Math.floor(n * 0.84)) {
+          const btnIndex = i - Math.floor(n * 0.64);
+          const btnTotal = Math.floor(n * 0.84) - Math.floor(n * 0.64);
+          const t = btnIndex / (btnTotal - 1);
+          const btnPerim = 2 * (btnW + btnH);
+          const dist = t * btnPerim;
+          let bx = btnX;
+          let by = btnY;
+          if (dist < btnW) {
+            bx = btnX + dist;
+            by = btnY;
+          } else if (dist < btnW + btnH) {
+            bx = btnX + btnW;
+            by = btnY + (dist - btnW);
+          } else if (dist < 2 * btnW + btnH) {
+            bx = btnX + btnW - (dist - (btnW + btnH));
+            by = btnY + btnH;
+          } else {
+            bx = btnX;
+            by = btnY + btnH - (dist - (2 * btnW + btnH));
+          }
+          p.targetX = bx;
+          p.targetY = by;
+          p.targetColor = NEON_GOLD;
+        }
+        // 5. Card interior badge & text data lines (16% of particles)
+        else {
+          const intIndex = i - Math.floor(n * 0.84);
+          const intTotal = n - Math.floor(n * 0.84);
+          const row = intIndex % 4;
+          const colT = Math.floor(intIndex / 4) / Math.max(1, Math.floor(intTotal / 4));
+          p.targetX = cardX + 40 + colT * (cardW - 80);
+          p.targetY = cardY + 54 + row * 34;
+          p.targetColor = row === 0 ? NEON_MAGENTA : row === 1 ? NEON_WHITE : NEON_CYAN;
+        }
+      }
+    };
+
+    assignTargets(window.innerWidth, window.innerHeight);
+
+    // Exact Choreography Timeline:
+    // 0.0s - 1.25s: Printer materializes & laser sweeps down ONCE across the printer
+    // 1.25s - 1.5s: Energy charge ring contracts into center
+    // 1.5s: Explosion burst outward! Sound: 'shatter'
+    // 1.5s - 2.05s: Particles explode outward towards the screen edges
+    // 2.05s: Reverse gravitational suction begins! Sound: 'suction'
+    // 2.05s - 2.75s: Pixels stream and curve back in from the periphery towards their targets
+    // 2.75s: Particles lock into place forming the first page! Sound: 'lock' chime
+    // 2.75s - 3.15s: Assembled canvas card dissolves into live interactive page underneath
+    // 3.15s: Complete!
     const T_CHARGE = 1.25;
     const T_EXPLODE = 1.5;
-    const T_FADE_START = 2.1;
-    const T_FINISH = 2.65;
+    const T_SUCTION = 2.05;
+    const T_ASSEMBLE = 2.75;
+    const T_FADE_START = 2.85;
+    const T_FINISH = 3.15;
 
     let shatterPlayed = false;
-    let warpPlayed = false;
+    let suctionPlayed = false;
+    let lockPlayed = false;
 
     const render = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
@@ -314,7 +473,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, width, height);
 
-        // Cyberpunk Neon Perspective Floor Grid (exact original style)
+        // Cyberpunk Neon Perspective Floor Grid
         ctx.strokeStyle = "rgba(0, 245, 255, 0.09)";
         ctx.lineWidth = 1;
         const horizon = centerY + 140;
@@ -336,7 +495,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       const fov = 340;
 
       // ── PHASE 1: PRINTER MATERIALIZATION & SCAN (0.0s - 1.5s) ──
-      // Exact same look & feel, strictly playing ONCE without repetition!
+      // First part exactly identical, playing strictly ONCE!
       if (elapsed < T_EXPLODE) {
         const appearProgress = Math.min(elapsed / 0.65, 1);
         const floatY = Math.sin(elapsed * 4) * 5;
@@ -368,6 +527,9 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           const px = centerX + p.x * scale;
           const py = centerY + (p.y + floatY) * scale;
           const pSize = Math.max(p.size * scale, 1.4);
+
+          p.lastX = px;
+          p.lastY = py;
 
           ctx.fillStyle = p.color;
           ctx.globalAlpha = p.alpha * appearProgress;
@@ -411,7 +573,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           ctx.restore();
         }
 
-        // ── Ultra-crisp vector typography under the printer (crystal-clear legibility) ──
+        // ── Ultra-crisp vector typography under the printer (crystal-clear readability) ──
         ctx.save();
         ctx.globalAlpha = appearProgress;
         ctx.textAlign = "center";
@@ -441,29 +603,16 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
         ctx.restore();
       }
-      // ── PHASE 2: BREAKS INTO PIXELS & FLIES TOWARDS US (1.5s - 2.65s) ──
-      // Butter-smooth 60 FPS using hardware Additive Blending (zero lag!)
-      else if (elapsed >= T_EXPLODE && elapsed < T_FINISH) {
+      // ── PHASE 2A: BURST OUTWARD INTO PIXELS (1.5s - 2.05s) ──
+      else if (elapsed >= T_EXPLODE && elapsed < T_SUCTION) {
         if (!shatterPlayed) {
           shatterPlayed = true;
           playSfx("shatter");
         }
-        if (elapsed >= T_EXPLODE + 0.15 && !warpPlayed) {
-          warpPlayed = true;
-          playSfx("warp");
-        }
-
-        // Trigger main page zoom in synchronously as explosion starts
-        if (!hasTriggeredZoom.current) {
-          hasTriggeredZoom.current = true;
-          if (onZoomStartRef.current) {
-            onZoomStartRef.current();
-          }
-        }
 
         const explodeTime = elapsed - T_EXPLODE;
 
-        // Disintegrate / fade typography smoothly forward on explosion
+        // Typography dissolves forward
         if (explodeTime < 0.35) {
           const textFade = Math.max(0, 1 - explodeTime / 0.35);
           const textY = centerY + 82 + explodeTime * 35;
@@ -471,89 +620,160 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           ctx.globalAlpha = textFade;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-
           ctx.font = "800 22px 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-          try {
-            ctx.letterSpacing = "2.5px";
-          } catch {}
           ctx.shadowColor = "rgba(0, 245, 255, 0.85)";
           ctx.shadowBlur = 12 * textFade;
           ctx.fillStyle = NEON_WHITE;
           ctx.fillText("RU PRINT PORTAL", centerX, textY);
-
           ctx.font = "700 11px 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-          try {
-            ctx.letterSpacing = "3px";
-          } catch {}
           ctx.shadowColor = "rgba(255, 0, 85, 0.9)";
           ctx.shadowBlur = 10 * textFade;
           ctx.fillStyle = NEON_MAGENTA;
           ctx.fillText("RISHIHOOD UNIVERSITY", centerX, textY + 22);
-
           ctx.restore();
         }
 
-        // Hardware Additive Blending for neon glow with ZERO rasterizer lag
+        // Hardware Additive Blending (zero lag!)
         ctx.save();
         ctx.globalCompositeOperation = "lighter";
 
-        const fadeFactor =
-          elapsed > T_FADE_START
-            ? Math.max(0, 1 - (elapsed - T_FADE_START) / (T_FINISH - T_FADE_START))
-            : 1;
-
         for (let i = 0; i < particles.length; i++) {
           const p = particles[i];
-          if (!p.active) continue;
-
-          // Smooth exponential forward acceleration towards camera
-          const accel = 1 + explodeTime * 3.4;
-          p.z += p.vz * accel;
-          p.x += p.vx * accel * 0.75;
-          p.y += p.vy * accel * 0.75;
-
-          if (p.z <= -fov + 10) {
-            p.active = false;
-            continue;
-          }
-
-          // 3D Perspective Projection
-          const depth = Math.max(fov + p.z, 6);
+          const accel = 1 + explodeTime * 2.8;
+          const curZ = p.z + p.vz * accel * 1.5;
+          const depth = Math.max(fov + curZ, 8);
           const scale = fov / depth;
-          const px = centerX + p.x * scale;
-          const py = centerY + p.y * scale;
 
-          const pSize = Math.max(p.size * scale, 2);
+          const px = centerX + (p.x + p.vx * accel * 22) * scale;
+          const py = centerY + (p.y + p.vy * accel * 22) * scale;
+          const pSize = Math.max(p.size * scale, 2.2);
 
-          // Fast motion streak trail towards viewer
-          const prevDepth = Math.max(fov + (p.z - p.vz * 1.6), 8);
-          const prevScale = fov / prevDepth;
-          const prevPx = centerX + p.x * prevScale;
-          const prevPy = centerY + p.y * prevScale;
-
-          const depthOpacity = Math.min(1, depth / 130);
-          ctx.globalAlpha = p.alpha * depthOpacity * fadeFactor;
-
-          if (scale > 1.2) {
+          // Motion streak trail
+          if (scale > 1.15 && p.lastX !== 0) {
             ctx.strokeStyle = p.streakColor;
-            ctx.lineWidth = Math.min(pSize * 0.8, 10);
+            ctx.lineWidth = Math.min(pSize * 0.8, 8);
             ctx.lineCap = "round";
             ctx.beginPath();
-            ctx.moveTo(prevPx, prevPy);
+            ctx.moveTo(p.lastX, p.lastY);
             ctx.lineTo(px, py);
             ctx.stroke();
           }
 
-          // Central bright neon pixel
           ctx.fillStyle = p.color;
           ctx.fillRect(px - pSize / 2, py - pSize / 2, pSize, pSize);
 
-          // White hot-core for particles close to screen
-          if (scale > 2.2) {
-            ctx.fillStyle = NEON_WHITE;
-            ctx.fillRect(px - pSize / 4, py - pSize / 4, pSize / 2, pSize / 2);
+          p.lastX = px;
+          p.lastY = py;
+          p.scatterX = px;
+          p.scatterY = py;
+          p.scatterZ = curZ;
+        }
+
+        ctx.restore();
+      }
+      // ── PHASE 2B: REVERSE SUCTION & REASSEMBLY OF FIRST PAGE (2.05s - 2.75s) ──
+      // The pixels fly back inward from the edges and build the first page!
+      else if (elapsed >= T_SUCTION && elapsed < T_ASSEMBLE) {
+        if (!suctionPlayed) {
+          suctionPlayed = true;
+          playSfx("suction");
+        }
+
+        // Lock in scatter peak coordinates upon reversal
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          if (!p.hasRecordedScatter) {
+            p.hasRecordedScatter = true;
+            if (p.scatterX === 0) p.scatterX = p.lastX;
+            if (p.scatterY === 0) p.scatterY = p.lastY;
           }
         }
+
+        const suctionTime = elapsed - T_SUCTION;
+        const reProgress = Math.min(suctionTime / (T_ASSEMBLE - T_SUCTION), 1.0);
+
+        // Smooth cubic Hermite deceleration into exact targets
+        const ease = reProgress * reProgress * (3 - 2 * reProgress);
+
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+
+          // Dynamic magnetic swirl that converges smoothly to 0 at arrival
+          const swirl = (1 - ease) * Math.sin(reProgress * Math.PI) * 45 * p.spinDir;
+          const curX = p.scatterX + (p.targetX - p.scatterX) * ease - swirl * Math.sin(p.angle);
+          const curY = p.scatterY + (p.targetY - p.scatterY) * ease + swirl * Math.cos(p.angle);
+
+          const pSize = 3.5 * (1 - ease * 0.4);
+
+          // Reverse neon comet trail streaming inward
+          if (p.lastX !== 0) {
+            ctx.strokeStyle = p.targetColor;
+            ctx.lineWidth = Math.min(pSize * 0.9, 6);
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(p.lastX, p.lastY);
+            ctx.lineTo(curX, curY);
+            ctx.stroke();
+          }
+
+          // Sparkling central pixel
+          ctx.fillStyle = p.targetColor;
+          ctx.fillRect(curX - pSize / 2, curY - pSize / 2, pSize, pSize);
+
+          // White-hot core for convergence energy
+          ctx.fillStyle = NEON_WHITE;
+          ctx.fillRect(curX - pSize / 4, curY - pSize / 4, pSize / 2, pSize / 2);
+
+          p.lastX = curX;
+          p.lastY = curY;
+        }
+
+        ctx.restore();
+      }
+      // ── PHASE 2C: ASSEMBLED CARD LOCK & DISSOLVE INTO LIVE PAGE (2.75s - 3.15s) ──
+      else if (elapsed >= T_ASSEMBLE && elapsed < T_FINISH) {
+        if (!lockPlayed) {
+          lockPlayed = true;
+          playSfx("lock");
+          // Trigger live DOM page to seamlessly reveal directly under assembled particles
+          if (!hasTriggeredZoom.current) {
+            hasTriggeredZoom.current = true;
+            if (onZoomStartRef.current) {
+              onZoomStartRef.current();
+            }
+          }
+        }
+
+        const dissolveProgress = Math.min((elapsed - T_ASSEMBLE) / (T_FINISH - T_ASSEMBLE), 1.0);
+        const cardAlpha = Math.max(0, 1 - dissolveProgress);
+
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = cardAlpha;
+
+        // Render locked particles at exact target locations
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          ctx.fillStyle = p.targetColor;
+          ctx.fillRect(p.targetX - 1.5, p.targetY - 1.5, 3, 3);
+        }
+
+        // Radiant neon lock perimeter trace around the newly built card
+        const cardW = Math.min(width * 0.92, 480);
+        const cardH = 340;
+        const cardX = centerX - cardW / 2;
+        const cardY = centerY - cardH / 2 + 25;
+
+        ctx.strokeStyle = NEON_CYAN;
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = NEON_CYAN;
+        ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.roundRect(cardX, cardY, cardW, cardH, 16);
+        ctx.stroke();
 
         ctx.restore();
       }

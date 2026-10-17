@@ -48,15 +48,15 @@ export default function Page() {
       */}
       <motion.div
         className="w-full min-h-screen"
-        initial={showIntro ? { scale: 0.72, opacity: 0, filter: "blur(8px)" } : false}
+        initial={showIntro ? { scale: 0.96, opacity: 0 } : false}
         animate={
           isZoomingIn
-            ? { scale: 1, opacity: 1, filter: "blur(0px)" }
-            : { scale: 0.72, opacity: 0, filter: "blur(8px)" }
+            ? { scale: 1, opacity: 1 }
+            : { scale: 0.96, opacity: 0 }
         }
         transition={{
-          duration: 1.2,
-          ease: [0.16, 1, 0.3, 1], // Ultra smooth cubic-bezier momentum curve
+          duration: 0.4,
+          ease: [0.16, 1, 0.3, 1],
         }}
       >
         <PrintFlow />
