@@ -95,9 +95,10 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
         return res.json();
       });
 
-      await Promise.all(uploadPromises);
+      const uploadResults = await Promise.all(uploadPromises);
+      const serverJobId = uploadResults[0]?.id || job.id;
 
-      const updatedJob = { ...job, status: "paid" as const };
+      const updatedJob = { ...job, id: serverJobId, status: "paid" as const };
       onPaid(updatedJob);
       setPayState("success");
     } catch (err: any) {
