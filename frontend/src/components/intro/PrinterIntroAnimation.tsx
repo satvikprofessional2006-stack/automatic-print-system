@@ -3,6 +3,33 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Safe cross-platform roundRect polyfill for iOS Safari, older WebViews, and in-app scanners
+if (typeof CanvasRenderingContext2D !== "undefined" && !CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    radii?: number | number[]
+  ) {
+    let r = 0;
+    if (typeof radii === "number") {
+      r = radii;
+    } else if (Array.isArray(radii) && radii.length > 0) {
+      r = radii[0];
+    }
+    r = Math.min(Math.max(0, r), Math.abs(w) / 2, Math.abs(h) / 2);
+    this.beginPath();
+    this.moveTo(x + r, y);
+    this.arcTo(x + w, y, x + w, y + h, r);
+    this.arcTo(x + w, y + h, x, y + h, r);
+    this.arcTo(x, y + h, x, y, r);
+    this.arcTo(x, y, x + w, y, r);
+    this.closePath();
+    return this;
+  };
+}
+
 interface PrinterIntroProps {
   onZoomStart?: () => void;
   onComplete: () => void;
@@ -1005,7 +1032,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         if (!hasTriggeredFinish.current) {
           hasTriggeredFinish.current = true;
           try {
-            localStorage.setItem("ru_portal_intro_shown", "true");
+            sessionStorage.setItem("ru_portal_intro_shown", "true");
           } catch {}
           setIsDone(true);
           if (onCompleteRef.current) {
@@ -1027,6 +1054,18 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     };
   }, [ensureAudioIsActive, playAudioScore, getAudioCtx]);
 
+  const handleSkip = useCallback(() => {
+    if (!hasTriggeredFinish.current) {
+      hasTriggeredFinish.current = true;
+      try {
+        sessionStorage.setItem("ru_portal_intro_shown", "true");
+      } catch {}
+      setIsDone(true);
+      if (onZoomStartRef.current) onZoomStartRef.current();
+      if (onCompleteRef.current) onCompleteRef.current();
+    }
+  }, []);
+
   if (isDone) return null;
 
   return (
@@ -1038,6 +1077,16 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         className="fixed inset-0 z-[9999] pointer-events-none select-none overflow-hidden"
       >
         <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
+        
+        {/* Mobile-friendly skip action */}
+        <button
+          onClick={handleSkip}
+          type="button"
+          aria-label="Skip Intro Animation"
+          className="pointer-events-auto absolute top-5 right-5 z-[10000] px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase text-white/80 hover:text-white bg-black/40 hover:bg-black/60 active:bg-black/80 backdrop-blur-md border border-white/20 transition-all shadow-lg active:scale-95"
+        >
+          Skip &rarr;
+        </button>
       </motion.div>
     </AnimatePresence>
   );

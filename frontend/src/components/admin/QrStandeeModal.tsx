@@ -84,7 +84,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
       const url = window.location.origin.includes("localhost")
         ? "https://automatic-print-system.vercel.app"
         : window.location.origin;
-      setPortalUrl(url);
+      setPortalUrl(`${url}?intro=true`);
     }
   }, []);
 

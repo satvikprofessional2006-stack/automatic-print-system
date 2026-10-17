@@ -12,12 +12,17 @@ export default function Page() {
   useEffect(() => {
     // Check if intro has already been shown to this user
     // "No repetition" rule: once shown, it stores in localStorage and never repeats
-    // URL param `?intro=true` can be used to preview or test it anytime
+    // Clean up old persistent localStorage key so existing mobile devices aren't permanently locked out of intro
+    try {
+      localStorage.removeItem("ru_portal_intro_shown");
+    } catch {}
+
     const urlParams = new URLSearchParams(window.location.search);
     const forceIntro = urlParams.get("intro") === "true";
-    const hasSeenIntro = localStorage.getItem("ru_portal_intro_shown");
+    const forceSkip = urlParams.get("intro") === "false";
+    const hasSeenIntro = typeof window !== "undefined" ? sessionStorage.getItem("ru_portal_intro_shown") : null;
 
-    if (forceIntro || !hasSeenIntro) {
+    if (!forceSkip && (forceIntro || !hasSeenIntro)) {
       setShowIntro(true);
       setIsZoomingIn(false);
     } else {
