@@ -44,9 +44,29 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
   const [isSpooling, setIsSpooling] = useState(false);
   const [spoolMessage, setSpoolMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
   const [isExporting, setIsExporting] = useState<"png" | "pdf" | null>(null);
+  const [connectedPrinterName, setConnectedPrinterName] = useState<string>("");
   const printAreaRef = useRef<HTMLDivElement>(null);
 
   const isPureQr = selectedStyle === "pure_qr" || selectedStyle === "pure_qr_bw";
+
+  // Detect connected printer dynamically
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchPrinterInfo = async () => {
+      try {
+        const res = await fetch("/api/admin/printer-status");
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.connectedPrinter?.name) {
+            setConnectedPrinterName(data.connectedPrinter.name);
+          }
+        }
+      } catch {
+        // Fallback gracefully
+      }
+    };
+    fetchPrinterInfo();
+  }, [isOpen]);
 
   // Set real domain on client
   useEffect(() => {
@@ -135,13 +155,14 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
     generateQrWithLogo();
   }, [portalUrl, selectedStyle, colorMode]);
 
-  // 1. Direct Print via Local Print Daemon (Canon MF280 direct spool, NO dialogs)
+  // 1. Direct Print via Local Print Daemon (direct spool, NO dialogs)
   const handleDirectPrintDaemon = async () => {
     if (!printAreaRef.current) return;
     setIsSpooling(true);
+    const targetPrinter = connectedPrinterName || "Printer";
     setSpoolMessage({
       type: "info",
-      text: `Rendering card for Canon printer...`,
+      text: `Rendering card for ${targetPrinter}...`,
     });
 
     try {
@@ -176,7 +197,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
 
       setSpoolMessage({
         type: "success",
-        text: `Direct print sent! Canon MF280 will print in ~3s.`,
+        text: `Direct print sent! ${targetPrinter} will print in ~3s.`,
       });
 
       setTimeout(() => setSpoolMessage(null), 5000);
@@ -489,7 +510,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
 
                   {/* Action Buttons */}
                   <div className="flex flex-col gap-2 pt-1">
-                    {/* Primary Direct Print to Canon MF280 */}
+                    {/* Primary Direct Print */}
                     <Button
                       onClick={handleDirectPrintDaemon}
                       disabled={isSpooling}
@@ -498,12 +519,17 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                       {isSpooling ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          <span>Spooling to Canon MF280...</span>
+                          <span>Spooling to Printer...</span>
                         </>
                       ) : (
                         <>
                           <Zap className="h-4 w-4 fill-current" />
-                          <span>Direct Print (Canon MF280)</span>
+                          <span>Direct Print</span>
+                          {connectedPrinterName && (
+                            <span className="text-[11px] font-normal opacity-85 truncate max-w-[140px]">
+                              ({connectedPrinterName})
+                            </span>
+                          )}
                         </>
                       )}
                     </Button>
