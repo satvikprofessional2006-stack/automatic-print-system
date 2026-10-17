@@ -19,6 +19,8 @@ import {
   FileDown,
   CheckCircle2,
   AlertCircle,
+  Palette,
+  CircleDot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -27,12 +29,14 @@ interface QrStandeeModalProps {
   onClose: () => void;
 }
 
-type StandeeStyle = "crimson" | "cyberpunk" | "minimal" | "student" | "industrial";
+type StandeeStyle = "crimson" | "cyberpunk" | "minimal" | "student" | "industrial" | "pure_qr";
 type StandeeFormat = "poster" | "standee";
+type PrintColorMode = "color" | "bw";
 
 export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
   const [selectedStyle, setSelectedStyle] = useState<StandeeStyle>("crimson");
   const [selectedFormat, setSelectedFormat] = useState<StandeeFormat>("poster");
+  const [colorMode, setColorMode] = useState<PrintColorMode>("color");
   const [portalUrl, setPortalUrl] = useState("https://automatic-print-system.vercel.app");
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [isSpooling, setIsSpooling] = useState(false);
@@ -61,17 +65,24 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
         canvas.width = qrSize;
         canvas.height = qrSize;
 
-        // Custom dark/light colors depending on style
-        const darkColor =
-          selectedStyle === "cyberpunk"
-            ? "#00F5FF"
-            : selectedStyle === "crimson"
-            ? "#7A0019"
-            : selectedStyle === "industrial"
-            ? "#000000"
-            : "#0F172A";
+        // Custom dark/light colors depending on style & color mode
+        let darkColor = "#000000";
+        let lightColor = "#FFFFFF";
 
-        const lightColor = selectedStyle === "cyberpunk" ? "#0A1128" : "#FFFFFF";
+        if (colorMode === "color") {
+          if (selectedStyle === "cyberpunk") {
+            darkColor = "#00F5FF";
+            lightColor = "#0A1128";
+          } else if (selectedStyle === "crimson") {
+            darkColor = "#7A0019";
+          } else if (selectedStyle === "student") {
+            darkColor = "#FF6B35";
+          } else if (selectedStyle === "minimal") {
+            darkColor = "#0F172A";
+          } else {
+            darkColor = "#000000";
+          }
+        }
 
         await QRCode.toCanvas(canvas, portalUrl, {
           errorCorrectionLevel: "H", // 30% error recovery allows logo in center
@@ -130,13 +141,16 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
     };
 
     generateQrWithLogo();
-  }, [portalUrl, selectedStyle]);
+  }, [portalUrl, selectedStyle, colorMode]);
 
   // 1. Direct Print via Local Print Daemon (Canon MF280 direct spool, NO dialogs)
   const handleDirectPrintDaemon = async () => {
     if (!printAreaRef.current) return;
     setIsSpooling(true);
-    setSpoolMessage({ type: "info", text: "Rendering high-res card for Canon printer..." });
+    setSpoolMessage({
+      type: "info",
+      text: `Rendering ${colorMode === "bw" ? "B&W" : "Colour"} card for Canon printer...`,
+    });
 
     try {
       const blob = await toBlob(printAreaRef.current, {
@@ -149,9 +163,9 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
       setSpoolMessage({ type: "info", text: "Sending directly to printer queue..." });
 
       const formData = new FormData();
-      formData.append("file", blob, `ru-standee-${selectedStyle}-${selectedFormat}.png`);
+      formData.append("file", blob, `ru-qr-${selectedStyle}-${selectedFormat}-${colorMode}.png`);
       formData.append("copies", "1");
-      formData.append("color", "true");
+      formData.append("color", colorMode === "color" ? "true" : "false");
       formData.append("layout", "portrait");
       formData.append("paperSize", "A4");
       formData.append("userName", "Direct Standee Print (Admin)");
@@ -168,7 +182,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
 
       setSpoolMessage({
         type: "success",
-        text: "Direct print sent! Canon MF280 will print in ~3 seconds.",
+        text: `Direct print sent! Canon MF280 will print in ${colorMode === "bw" ? "Black & White" : "Colour"} in ~3s.`,
       });
 
       setTimeout(() => setSpoolMessage(null), 5000);
@@ -196,7 +210,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
         cacheBust: true,
       });
       const link = document.createElement("a");
-      link.download = `rishihood-print-${selectedStyle}-${selectedFormat}.png`;
+      link.download = `rishihood-qr-${selectedStyle}-${selectedFormat}-${colorMode}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
@@ -223,20 +237,31 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
       const pngImage = await pdfDoc.embedPng(pngImageBytes);
 
       if (selectedFormat === "poster") {
-        // Full page A4 with 20pt bleed margin
-        const margin = 20;
-        const targetWidth = 595.28 - margin * 2;
-        const targetHeight = (pngImage.height / pngImage.width) * targetWidth;
-        const y = (841.89 - targetHeight) / 2;
-        page.drawImage(pngImage, {
-          x: margin,
-          y: y > margin ? y : margin,
-          width: targetWidth,
-          height: targetHeight > 841.89 - margin * 2 ? 841.89 - margin * 2 : targetHeight,
-        });
+        if (selectedStyle === "pure_qr") {
+          // Pure QR centered large on A4
+          const qrDim = 460;
+          page.drawImage(pngImage, {
+            x: (595.28 - qrDim) / 2,
+            y: (841.89 - qrDim) / 2,
+            width: qrDim,
+            height: qrDim,
+          });
+        } else {
+          // Full page A4 with 20pt bleed margin
+          const margin = 20;
+          const targetWidth = 595.28 - margin * 2;
+          const targetHeight = (pngImage.height / pngImage.width) * targetWidth;
+          const y = (841.89 - targetHeight) / 2;
+          page.drawImage(pngImage, {
+            x: margin,
+            y: y > margin ? y : margin,
+            width: targetWidth,
+            height: targetHeight > 841.89 - margin * 2 ? 841.89 - margin * 2 : targetHeight,
+          });
+        }
       } else {
-        // Standee 4x6 format centered on A4
-        const width = 380;
+        // Standee format centered on A4
+        const width = selectedStyle === "pure_qr" ? 340 : 380;
         const height = (pngImage.height / pngImage.width) * width;
         page.drawImage(pngImage, {
           x: (595.28 - width) / 2,
@@ -251,7 +276,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `rishihood-print-${selectedStyle}-${selectedFormat}.pdf`;
+      link.download = `rishihood-qr-${selectedStyle}-${selectedFormat}-${colorMode}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -299,7 +324,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                       </span>
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                      Print full-page posters or desk standees with official Rishihood logo directly to your printer.
+                      Print full-page posters, desk standees, or pure plain QR codes with official Rishihood logo.
                     </p>
                   </div>
                 </div>
@@ -333,8 +358,8 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
               {/* Modal Body */}
               <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
                 {/* Left Controls Column */}
-                <div className="md:col-span-5 flex flex-col gap-5">
-                  {/* Format Switcher */}
+                <div className="md:col-span-5 flex flex-col gap-4">
+                  {/* 1. Format Switcher */}
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">
                       1. Print Format & Sizing
@@ -342,20 +367,20 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => setSelectedFormat("poster")}
-                        className={`flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-semibold transition-all ${
+                        className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-semibold transition-all ${
                           selectedFormat === "poster"
                             ? "bg-primary/10 border-primary text-primary shadow-xs ring-1 ring-primary/40"
                             : "border-border hover:bg-muted/50 text-muted-foreground"
                         }`}
                       >
                         <FileText className="h-4 w-4 mb-1" />
-                        <span>Full Page A4 Poster</span>
+                        <span>Full Page A4</span>
                         <span className="text-[10px] opacity-75 font-normal">100% Sheet (Wall/Door)</span>
                       </button>
 
                       <button
                         onClick={() => setSelectedFormat("standee")}
-                        className={`flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-semibold transition-all ${
+                        className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-semibold transition-all ${
                           selectedFormat === "standee"
                             ? "bg-primary/10 border-primary text-primary shadow-xs ring-1 ring-primary/40"
                             : "border-border hover:bg-muted/50 text-muted-foreground"
@@ -363,18 +388,56 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                       >
                         <Layers className="h-4 w-4 mb-1" />
                         <span>Desk Standee</span>
-                        <span className="text-[10px] opacity-75 font-normal">4×6 Acrylic Tent Size</span>
+                        <span className="text-[10px] opacity-75 font-normal">4×6 Acrylic Size</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Style Selector */}
+                  {/* 2. Color Mode Switcher (Colour vs B&W) */}
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">
-                      2. Choose Visual Style
+                      2. Output Color Mode
                     </label>
-                    <div className="flex flex-col gap-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setColorMode("color")}
+                        className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                          colorMode === "color"
+                            ? "bg-primary/10 border-primary text-primary shadow-xs ring-1 ring-primary/40"
+                            : "border-border hover:bg-muted/50 text-muted-foreground"
+                        }`}
+                      >
+                        <Palette className="h-4 w-4 text-amber-500" />
+                        <span>Full Colour</span>
+                      </button>
+
+                      <button
+                        onClick={() => setColorMode("bw")}
+                        className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                          colorMode === "bw"
+                            ? "bg-primary/10 border-primary text-primary shadow-xs ring-1 ring-primary/40"
+                            : "border-border hover:bg-muted/50 text-muted-foreground"
+                        }`}
+                      >
+                        <CircleDot className="h-4 w-4 text-zinc-600 dark:text-zinc-300" />
+                        <span>Black & White</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3. Style Selector */}
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">
+                      3. Choose Template Style
+                    </label>
+                    <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
                       {[
+                        {
+                          id: "pure_qr" as StandeeStyle,
+                          name: "Plain QR Code Only",
+                          desc: "No framing, text, or borders — only QR & center logo",
+                          badge: "bg-black dark:bg-white",
+                        },
                         {
                           id: "crimson" as StandeeStyle,
                           name: "University Crimson & Gold",
@@ -409,17 +472,17 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                         <button
                           key={style.id}
                           onClick={() => setSelectedStyle(style.id)}
-                          className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all ${
+                          className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
                             selectedStyle === style.id
                               ? "bg-primary/10 border-primary text-primary shadow-xs ring-1 ring-primary/30"
                               : "border-border hover:bg-muted/50 text-foreground"
                           }`}
                         >
-                          <div className="flex items-center gap-3">
-                            <span className={`h-4 w-4 rounded-full shrink-0 shadow-xs ${style.badge}`} />
+                          <div className="flex items-center gap-2.5">
+                            <span className={`h-3.5 w-3.5 rounded-full shrink-0 shadow-xs ${style.badge}`} />
                             <div>
                               <p className="text-xs font-bold leading-tight">{style.name}</p>
-                              <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
                                 {style.desc}
                               </p>
                             </div>
@@ -431,12 +494,12 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex flex-col gap-2.5 pt-2">
+                  <div className="flex flex-col gap-2 pt-1">
                     {/* Primary Direct Print to Canon MF280 */}
                     <Button
                       onClick={handleDirectPrintDaemon}
                       disabled={isSpooling}
-                      className="w-full gap-2 font-bold shadow-md bg-primary hover:bg-primary/90 text-primary-foreground h-11"
+                      className="w-full gap-2 font-bold shadow-md bg-primary hover:bg-primary/90 text-primary-foreground h-10"
                     >
                       {isSpooling ? (
                         <>
@@ -500,23 +563,33 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                 <div className="md:col-span-7 flex flex-col items-center justify-center bg-slate-950/20 dark:bg-black/40 rounded-2xl p-4 border border-border/50 overflow-hidden">
                   <div className="flex items-center justify-between w-full mb-3 px-1">
                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      Live Preview ({selectedFormat === "poster" ? "Full Page A4 Poster" : "Desk Acrylic Standee"})
+                      Live Preview ({selectedFormat === "poster" ? "Full Page A4" : "Desk Standee"})
                     </p>
-                    <span className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-medium">
-                      {selectedFormat === "poster" ? "100% Page Fill" : "4\" × 6\" Cut Size"}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-medium">
+                        {colorMode === "bw" ? "B&W Mode" : "Colour Mode"}
+                      </span>
+                      <span className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-medium">
+                        {selectedFormat === "poster" ? "100% Page Fill" : "4\" × 6\" Cut Size"}
+                      </span>
+                    </div>
                   </div>
 
                   {/* The Printed Card Container */}
                   <div
                     ref={printAreaRef}
                     id="printable-qr-standee"
+                    style={{
+                      filter: colorMode === "bw" ? "grayscale(100%)" : "none",
+                    }}
                     className={`transition-all duration-300 shadow-2xl overflow-hidden flex flex-col justify-between ${
                       selectedFormat === "poster"
                         ? "format-poster w-[340px] h-[480px] rounded-xl"
                         : "format-standee w-[290px] h-[420px] rounded-2xl"
                     } ${
-                      selectedStyle === "crimson"
+                      selectedStyle === "pure_qr"
+                        ? "style-pure_qr bg-white text-black border-0 shadow-sm items-center justify-center p-4"
+                        : selectedStyle === "crimson"
                         ? "bg-[#FCFAF8] text-[#1E1E24] border-4 border-[#7A0019]"
                         : selectedStyle === "cyberpunk"
                         ? "bg-[#090D1A] text-[#E2E8F0] border-2 border-[#00F5FF] shadow-[0_0_30px_rgba(0,245,255,0.25)]"
@@ -527,130 +600,153 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                         : "bg-[#FAFAFA] text-black border-4 border-black"
                     }`}
                   >
-                    {/* ── CARD HEADER ── */}
-                    <div
-                      className={`p-4 text-center border-b ${
-                        selectedStyle === "crimson"
-                          ? "bg-[#7A0019] text-white border-[#5A0012]"
-                          : selectedStyle === "cyberpunk"
-                          ? "bg-[#0A1128] text-[#00F5FF] border-[#00F5FF]/30"
-                          : selectedStyle === "minimal"
-                          ? "bg-white text-slate-900 border-slate-200"
-                          : selectedStyle === "student"
-                          ? "bg-[#FF6B35] text-white border-[#E0531E]"
-                          : "bg-[#FFDE59] text-black border-black"
-                      }`}
-                    >
-                      <div className="flex items-center justify-center gap-2 mb-1">
-                        <img
-                          src="/Rishihood_University_idxo_lfgcw_2.png"
-                          alt="RU"
-                          className="h-6 w-6 object-contain"
-                        />
-                        <p className="poster-header-brand text-[12px] font-black uppercase tracking-wider">
-                          Rishihood University
-                        </p>
-                      </div>
-                      <h4 className="poster-header-title text-sm font-extrabold uppercase tracking-tight">
-                        {selectedStyle === "cyberpunk"
-                          ? "⚡ CLOUD PRINT TERMINAL"
-                          : selectedStyle === "student"
-                          ? "🚀 SCAN & PRINT IN 30 SECONDS"
-                          : selectedStyle === "industrial"
-                          ? "⚠️ DIRECT PRINT POINT"
-                          : "Official Direct Print Station"}
-                      </h4>
-                    </div>
-
-                    {/* ── CARD CENTER: QR CODE WITH LOGO ── */}
-                    <div className="flex-1 flex flex-col items-center justify-center p-3 text-center">
-                      <div
-                        className={`relative p-2.5 rounded-2xl shadow-lg ${
-                          selectedStyle === "cyberpunk"
-                            ? "bg-[#0A1128] border-2 border-[#00F5FF]/60"
-                            : "bg-white border-2 border-slate-200"
-                        }`}
-                      >
+                    {/* If Plain QR style is selected: NO headers, NO footers, NO text — pure QR only! */}
+                    {selectedStyle === "pure_qr" ? (
+                      <div className="flex-1 flex flex-col items-center justify-center p-2 text-center w-full h-full">
                         {qrDataUrl ? (
                           <img
                             src={qrDataUrl}
                             alt="RU Portal QR"
-                            className="qr-code-img w-44 h-44 object-contain rounded-xl"
+                            className="qr-code-img pure-qr-img object-contain"
+                            style={{
+                              width: selectedFormat === "poster" ? "300px" : "240px",
+                              height: selectedFormat === "poster" ? "300px" : "240px",
+                            }}
                           />
                         ) : (
-                          <div className="w-44 h-44 flex items-center justify-center">
-                            <span className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                          <div className="w-56 h-56 flex items-center justify-center">
+                            <span className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                           </div>
                         )}
-
-                        {/* Corner Crosshair Accents for Cyberpunk */}
-                        {selectedStyle === "cyberpunk" && (
-                          <>
-                            <span className="absolute top-1 left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-[#00F5FF]" />
-                            <span className="absolute top-1 right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-[#00F5FF]" />
-                            <span className="absolute bottom-1 left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-[#00F5FF]" />
-                            <span className="absolute bottom-1 right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-[#00F5FF]" />
-                          </>
-                        )}
                       </div>
-
-                      {/* Scan Subtext */}
-                      <p
-                        className={`poster-scan-title mt-2 text-[11px] font-bold tracking-tight uppercase ${
-                          selectedStyle === "cyberpunk"
-                            ? "text-[#00F5FF]"
-                            : selectedStyle === "crimson"
-                            ? "text-[#7A0019]"
-                            : "text-slate-800"
-                        }`}
-                      >
-                        Point Camera to Scan & Print
-                      </p>
-                      <p className="poster-url-text text-[9.5px] opacity-75 font-mono">
-                        automatic-print-system.vercel.app
-                      </p>
-                    </div>
-
-                    {/* ── CARD FOOTER: 3 SIMPLE STEPS ── */}
-                    <div
-                      className={`poster-footer p-3 border-t text-[10px] ${
-                        selectedStyle === "cyberpunk"
-                          ? "bg-[#080E1E] border-[#00F5FF]/20"
-                          : selectedStyle === "crimson"
-                          ? "bg-[#F5EBE6] border-[#7A0019]/20"
-                          : "bg-slate-50 border-slate-200"
-                      }`}
-                    >
-                      <div className="grid grid-cols-3 gap-1.5 text-center">
-                        <div className="flex flex-col items-center">
-                          <div className="step-num h-5 w-5 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-[9px] mb-0.5">
-                            1
+                    ) : (
+                      <>
+                        {/* ── CARD HEADER ── */}
+                        <div
+                          className={`p-4 text-center border-b ${
+                            selectedStyle === "crimson"
+                              ? "bg-[#7A0019] text-white border-[#5A0012]"
+                              : selectedStyle === "cyberpunk"
+                              ? "bg-[#0A1128] text-[#00F5FF] border-[#00F5FF]/30"
+                              : selectedStyle === "minimal"
+                              ? "bg-white text-slate-900 border-slate-200"
+                              : selectedStyle === "student"
+                              ? "bg-[#FF6B35] text-white border-[#E0531E]"
+                              : "bg-[#FFDE59] text-black border-black"
+                          }`}
+                        >
+                          <div className="flex items-center justify-center gap-2 mb-1">
+                            <img
+                              src="/Rishihood_University_idxo_lfgcw_2.png"
+                              alt="RU"
+                              className="h-6 w-6 object-contain"
+                            />
+                            <p className="poster-header-brand text-[12px] font-black uppercase tracking-wider">
+                              Rishihood University
+                            </p>
                           </div>
-                          <span className="step-title font-bold leading-tight">Scan QR</span>
-                          <span className="step-sub text-[8px] opacity-75">Phone Camera</span>
+                          <h4 className="poster-header-title text-sm font-extrabold uppercase tracking-tight">
+                            {selectedStyle === "cyberpunk"
+                              ? "⚡ CLOUD PRINT TERMINAL"
+                              : selectedStyle === "student"
+                              ? "🚀 SCAN & PRINT IN 30 SECONDS"
+                              : selectedStyle === "industrial"
+                              ? "⚠️ DIRECT PRINT POINT"
+                              : "Official Direct Print Station"}
+                          </h4>
                         </div>
 
-                        <div className="flex flex-col items-center">
-                          <div className="step-num h-5 w-5 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-[9px] mb-0.5">
-                            2
+                        {/* ── CARD CENTER: QR CODE WITH LOGO ── */}
+                        <div className="flex-1 flex flex-col items-center justify-center p-3 text-center">
+                          <div
+                            className={`relative p-2.5 rounded-2xl shadow-lg ${
+                              selectedStyle === "cyberpunk"
+                                ? "bg-[#0A1128] border-2 border-[#00F5FF]/60"
+                                : "bg-white border-2 border-slate-200"
+                            }`}
+                          >
+                            {qrDataUrl ? (
+                              <img
+                                src={qrDataUrl}
+                                alt="RU Portal QR"
+                                className="qr-code-img w-44 h-44 object-contain rounded-xl"
+                              />
+                            ) : (
+                              <div className="w-44 h-44 flex items-center justify-center">
+                                <span className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                              </div>
+                            )}
+
+                            {/* Corner Crosshair Accents for Cyberpunk */}
+                            {selectedStyle === "cyberpunk" && (
+                              <>
+                                <span className="absolute top-1 left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-[#00F5FF]" />
+                                <span className="absolute top-1 right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-[#00F5FF]" />
+                                <span className="absolute bottom-1 left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-[#00F5FF]" />
+                                <span className="absolute bottom-1 right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-[#00F5FF]" />
+                              </>
+                            )}
                           </div>
-                          <span className="step-title font-bold leading-tight">Upload Doc</span>
-                          <span className="step-sub text-[8px] opacity-75">PDF / Word</span>
+
+                          {/* Scan Subtext */}
+                          <p
+                            className={`poster-scan-title mt-2 text-[11px] font-bold tracking-tight uppercase ${
+                              selectedStyle === "cyberpunk"
+                                ? "text-[#00F5FF]"
+                                : selectedStyle === "crimson"
+                                ? "text-[#7A0019]"
+                                : "text-slate-800"
+                            }`}
+                          >
+                            Point Camera to Scan & Print
+                          </p>
+                          <p className="poster-url-text text-[9.5px] opacity-75 font-mono">
+                            automatic-print-system.vercel.app
+                          </p>
                         </div>
 
-                        <div className="flex flex-col items-center">
-                          <div className="step-num h-5 w-5 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-[9px] mb-0.5">
-                            3
-                          </div>
-                          <span className="step-title font-bold leading-tight">Collect</span>
-                          <span className="step-sub text-[8px] opacity-75">Instant Print</span>
-                        </div>
-                      </div>
+                        {/* ── CARD FOOTER: 3 SIMPLE STEPS ── */}
+                        <div
+                          className={`poster-footer p-3 border-t text-[10px] ${
+                            selectedStyle === "cyberpunk"
+                              ? "bg-[#080E1E] border-[#00F5FF]/20"
+                              : selectedStyle === "crimson"
+                              ? "bg-[#F5EBE6] border-[#7A0019]/20"
+                              : "bg-slate-50 border-slate-200"
+                          }`}
+                        >
+                          <div className="grid grid-cols-3 gap-1.5 text-center">
+                            <div className="flex flex-col items-center">
+                              <div className="step-num h-5 w-5 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-[9px] mb-0.5">
+                                1
+                              </div>
+                              <span className="step-title font-bold leading-tight">Scan QR</span>
+                              <span className="step-sub text-[8px] opacity-75">Phone Camera</span>
+                            </div>
 
-                      <div className="poster-brand-footer mt-2 text-center text-[8px] opacity-65 font-medium border-t border-black/10 dark:border-white/10 pt-1">
-                        Powered by Rishihood University Direct Print System
-                      </div>
-                    </div>
+                            <div className="flex flex-col items-center">
+                              <div className="step-num h-5 w-5 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-[9px] mb-0.5">
+                                2
+                              </div>
+                              <span className="step-title font-bold leading-tight">Upload Doc</span>
+                              <span className="step-sub text-[8px] opacity-75">PDF / Word</span>
+                            </div>
+
+                            <div className="flex flex-col items-center">
+                              <div className="step-num h-5 w-5 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-[9px] mb-0.5">
+                                3
+                              </div>
+                              <span className="step-title font-bold leading-tight">Collect</span>
+                              <span className="step-sub text-[8px] opacity-75">Instant Print</span>
+                            </div>
+                          </div>
+
+                          <div className="poster-brand-footer mt-2 text-center text-[8px] opacity-65 font-medium border-t border-black/10 dark:border-white/10 pt-1">
+                            Powered by Rishihood University Direct Print System
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -701,6 +797,27 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
             print-color-adjust: exact !important;
           }
 
+          /* PLAIN QR CODE TEMPLATE (NO FRAME, NO TEXT) */
+          #printable-qr-standee.style-pure_qr {
+            border: none !important;
+            background: #ffffff !important;
+            padding: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-shadow: none !important;
+          }
+
+          #printable-qr-standee.format-poster.style-pure_qr .pure-qr-img {
+            width: 480px !important;
+            height: 480px !important;
+          }
+
+          #printable-qr-standee.format-standee.style-pure_qr .pure-qr-img {
+            width: 320px !important;
+            height: 320px !important;
+          }
+
           #printable-qr-standee.format-poster .poster-header-brand {
             font-size: 16px !important;
           }
@@ -710,7 +827,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
             margin-top: 6px !important;
           }
 
-          #printable-qr-standee.format-poster .qr-code-img {
+          #printable-qr-standee.format-poster .qr-code-img:not(.pure-qr-img) {
             width: 320px !important;
             height: 320px !important;
           }
@@ -751,7 +868,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
           }
 
           /* COMPACT DESK STANDEE LAYOUT (4"x6" Centered on A4 with cut border) */
-          #printable-qr-standee.format-standee {
+          #printable-qr-standee.format-standee:not(.style-pure_qr) {
             position: fixed !important;
             top: 50% !important;
             left: 50% !important;
@@ -765,6 +882,17 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
             page-break-inside: avoid !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+          }
+
+          #printable-qr-standee.format-standee.style-pure_qr {
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            width: 4.2in !important;
+            height: 6.2in !important;
+            margin: 0 !important;
+            box-sizing: border-box !important;
           }
         }
       `}</style>
