@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 import { createClient } from '@supabase/supabase-js';
+import { computeTaskDisplayId } from '@/lib/orderNumber';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -31,7 +32,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       position = (count || 0) + 1; // +1 because position is 1-indexed
     }
     
-    return NextResponse.json({ ...job, position });
+    const taskDisplayId = await computeTaskDisplayId(supabase, id);
+
+    return NextResponse.json({ ...job, taskDisplayId, position });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

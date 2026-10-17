@@ -37,6 +37,9 @@ export function PrintSuccess({ job, onReset }: Props) {
   const [copied, setCopied] = useState(false);
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [taskDisplayId, setTaskDisplayId] = useState<string | null>(job.taskDisplayId || null);
+
+  const effectiveTaskId = taskDisplayId || job.taskDisplayId || (job.id && job.id.length > 8 ? `RU-${job.id.slice(0, 4).toUpperCase()}` : `#${job.id}`);
 
   useEffect(() => {
     // Stage 0: Payment confirmed
@@ -70,6 +73,9 @@ export function PrintSuccess({ job, onReset }: Props) {
         const res = await fetch(`/api/jobs/${job.id}`);
         if (res.ok) {
           const data = await res.json();
+          if (data.taskDisplayId) {
+            setTaskDisplayId(data.taskDisplayId);
+          }
           if (data.position) {
             setQueuePosition(data.position);
           }
@@ -97,8 +103,9 @@ export function PrintSuccess({ job, onReset }: Props) {
   }, [job.id]);
 
   const handleCopyId = () => {
-    if (!job.id) return;
-    navigator.clipboard.writeText(job.id);
+    const textToCopy = effectiveTaskId || job.id;
+    if (!textToCopy) return;
+    navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -223,8 +230,8 @@ export function PrintSuccess({ job, onReset }: Props) {
               <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
                 Task / Job ID
               </p>
-              <p className="font-mono text-base font-extrabold text-foreground tracking-wide select-all">
-                #{job.id}
+              <p className="font-mono text-lg font-extrabold text-foreground tracking-wide select-all">
+                {effectiveTaskId}
               </p>
             </div>
             <Button

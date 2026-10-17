@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
+import { computeTaskDisplayId } from '@/lib/orderNumber';
 
 // Initialize Supabase client using Service Role Key to bypass RLS for uploads
 export async function POST(req: Request) {
@@ -175,7 +176,10 @@ export async function POST(req: Request) {
       console.warn("Supabase keys not found. Skipping file upload.");
     }
     
-    return NextResponse.json({ id: printJob.id });
+    // Compute friendly sequential Task ID matching the Admin Dashboard (e.g. RU-0098)
+    const taskDisplayId = await computeTaskDisplayId(supabase, printJob.id);
+
+    return NextResponse.json({ id: printJob.id, taskDisplayId });
   } catch (error: any) {
     console.error('Upload error:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });

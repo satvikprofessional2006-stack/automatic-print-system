@@ -61,7 +61,7 @@ export default function StatusPage() {
               Payment Verified!
             </div>
             <p style={{ marginTop: '12px' }}>
-              Show your <strong>Task ID ({job.orderId || job.id})</strong> to the operator at the print counter to release and collect your prints.
+              Show your <strong>Task ID ({job.taskDisplayId || job.orderId || job.id})</strong> to the operator at the print counter to release and collect your prints.
             </p>
           </>
         )}
@@ -127,7 +127,7 @@ export default function StatusPage() {
         )}
 
         <div style={{ marginTop: '30px', textAlign: 'left', fontSize: '14px', color: '#666' }}>
-          <p><strong>Order / Task ID:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{job.orderId || job.id}</span></p>
+          <p><strong>Order / Task ID:</strong> <span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{job.taskDisplayId || job.orderId || job.id}</span></p>
           <p><strong>File:</strong> {job.filename}</p>
           <p><strong>Copies:</strong> {job.copies}</p>
         </div>

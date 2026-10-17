@@ -33,6 +33,7 @@ export interface StudentAuth {
 
 export interface PrintJob {
   id: string;           
+  taskDisplayId?: string;
   userType: UserType;
   name: string;
   email?: string;

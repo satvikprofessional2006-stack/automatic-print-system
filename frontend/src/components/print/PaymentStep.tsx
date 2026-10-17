@@ -97,8 +97,9 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
 
       const uploadResults = await Promise.all(uploadPromises);
       const serverJobId = uploadResults[0]?.id || job.id;
+      const taskDisplayId = uploadResults[0]?.taskDisplayId;
 
-      const updatedJob = { ...job, id: serverJobId, status: "paid" as const };
+      const updatedJob = { ...job, id: serverJobId, taskDisplayId, status: "paid" as const };
       onPaid(updatedJob);
       setPayState("success");
     } catch (err: any) {

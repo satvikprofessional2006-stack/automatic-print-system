@@ -113,7 +113,10 @@ export function PrintJobsTable() {
         }
       }
 
-      const normalized = processedJobs.map(group => {
+      const totalGroups = processedJobs.length;
+      const normalized = processedJobs.map((group, groupIdx) => {
+        const serial = totalGroups - groupIdx;
+        const taskDisplayId = `RU-${String(serial).padStart(4, "0")}`;
         const first = group[0];
         const isAdmin = (first.userName || '').toLowerCase().includes('admin');
         const totalCopies = group.reduce((sum: number, j: any) => sum + (j.copies || 1), 0);
@@ -133,6 +136,7 @@ export function PrintJobsTable() {
 
         return {
           id: first.id,
+          taskDisplayId,
           name: first.userName || "Anonymous",
           enrollmentNo: null,
           userType: "student",
@@ -271,6 +275,7 @@ export function PrintJobsTable() {
     const term = search.toLowerCase();
     const matchSearch =
       !term ||
+      (j.taskDisplayId || '').toLowerCase().includes(term) ||
       (j.name || '').toLowerCase().includes(term) ||
       (j.id || '').toLowerCase().includes(term) ||
       (j.enrollmentNo || '').toLowerCase().includes(term) ||
@@ -408,8 +413,7 @@ export function PrintJobsTable() {
             ) : (
               paginatedJobs.map((job, index) => {
                 const isExpanded = expandedId === job.id;
-                const serial = filtered.length - ((currentPage - 1) * itemsPerPage + index);
-                const taskDisplayId = `RU-${String(serial).padStart(4, "0")}`;
+                const taskDisplayId = job.taskDisplayId || `RU-${String(filtered.length - ((currentPage - 1) * itemsPerPage + index)).padStart(4, "0")}`;
                 const isAdminJob = (job.name || '').toLowerCase().includes('admin');
                 const nUpFile = job.files.find((f: any) => f.pagesPerSheet > 1);
                 return (
