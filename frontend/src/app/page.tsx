@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { PrintFlow } from "@/components/print/PrintFlow";
 import { PrinterIntroAnimation } from "@/components/intro/PrinterIntroAnimation";
@@ -26,6 +26,14 @@ export default function Page() {
     }
   }, []);
 
+  const handleZoomStart = useCallback(() => {
+    setIsZoomingIn(true);
+  }, []);
+
+  const handleComplete = useCallback(() => {
+    setShowIntro(false);
+  }, []);
+
   // During SSR / first hydration tick, render PrintFlow directly
   if (showIntro === null) {
     return <PrintFlow />;
@@ -35,19 +43,19 @@ export default function Page() {
     <div className="relative w-full min-h-screen overflow-x-hidden bg-background">
       {/* 
         Main Page Container:
-        As the pixels fly towards the user, this container smoothly zooms from small (scale 0.68)
+        As the pixels fly towards the user, this container smoothly zooms from small (scale 0.72)
         to full screen (scale 1.0), perfectly matching the forward momentum of the pixels with zero gap!
       */}
       <motion.div
         className="w-full min-h-screen"
-        initial={showIntro ? { scale: 0.68, opacity: 0, filter: "blur(10px)" } : false}
+        initial={showIntro ? { scale: 0.72, opacity: 0, filter: "blur(8px)" } : false}
         animate={
           isZoomingIn
             ? { scale: 1, opacity: 1, filter: "blur(0px)" }
-            : { scale: 0.68, opacity: 0, filter: "blur(10px)" }
+            : { scale: 0.72, opacity: 0, filter: "blur(8px)" }
         }
         transition={{
-          duration: 1.3,
+          duration: 1.2,
           ease: [0.16, 1, 0.3, 1], // Ultra smooth cubic-bezier momentum curve
         }}
       >
@@ -57,13 +65,8 @@ export default function Page() {
       {/* Intro Canvas Overlay */}
       {showIntro && (
         <PrinterIntroAnimation
-          onZoomStart={() => {
-            // Triggered right as pixels burst and accelerate towards the user!
-            setIsZoomingIn(true);
-          }}
-          onComplete={() => {
-            setShowIntro(false);
-          }}
+          onZoomStart={handleZoomStart}
+          onComplete={handleComplete}
         />
       )}
     </div>
