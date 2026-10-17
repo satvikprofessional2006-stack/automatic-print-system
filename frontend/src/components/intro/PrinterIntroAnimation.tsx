@@ -9,40 +9,33 @@ interface PrinterIntroProps {
 }
 
 interface NeonParticle {
-  // Initial printer relative coords
-  x: number;
-  y: number;
+  // Initial printer relative position
+  origX: number;
+  origY: number;
   z: number;
-  // Outward explosion trajectory
-  vx: number;
-  vy: number;
-  vz: number;
   angle: number;
   spinDir: number;
   size: number;
   color: string;
   streakColor: string;
   alpha: number;
-  // Scatter peak position at reversal
+  // Off-screen scatter destination (completely beyond screen boundaries)
   scatterX: number;
   scatterY: number;
-  scatterZ: number;
-  hasRecordedScatter: boolean;
-  // Destination target on the first page UI
+  // First page UI target destination
   targetX: number;
   targetY: number;
   targetColor: string;
-  // Frame-by-frame streak tracking
+  // Frame tracking for streak trails
   lastX: number;
   lastY: number;
-  active: boolean;
 }
 
 export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDone, setIsDone] = useState(false);
 
-  // Keep callback references stable to prevent any re-render from restarting the animation
+  // Stable callback references to prevent unmount / restarts
   const onZoomStartRef = useRef(onZoomStart);
   const onCompleteRef = useRef(onComplete);
   const hasTriggeredZoom = useRef(false);
@@ -63,10 +56,10 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     let startTime: number | null = null;
     let audioPlayed = false;
 
-    // Rich vibrant Neon Color Palette
+    // Vibrant Neon Palette
     const NEON_CYAN = "#00F5FF";
     const NEON_BLUE = "#38BDF8";
-    const NEON_MAGENTA = "#FF0055"; // Rishihood primary red in neon
+    const NEON_MAGENTA = "#FF0055"; // Rishihood red in neon
     const NEON_GOLD = "#FFB800";
     const NEON_WHITE = "#FFFFFF";
 
@@ -101,16 +94,16 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           const gain = actx.createGain();
           osc.type = "sine";
           osc.frequency.setValueAtTime(160, now);
-          osc.frequency.exponentialRampToValueAtTime(520, now + 1.25);
+          osc.frequency.exponentialRampToValueAtTime(520, now + 1.2);
           gain.gain.setValueAtTime(0.01, now);
-          gain.gain.linearRampToValueAtTime(0.06, now + 0.6);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
+          gain.gain.linearRampToValueAtTime(0.06, now + 0.5);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
           osc.connect(gain);
           gain.connect(actx.destination);
           osc.start(now);
-          osc.stop(now + 1.25);
+          osc.stop(now + 1.2);
         } else if (type === "shatter") {
-          // Pixel burst sound
+          // Powerful pixel burst explosion launching offscreen
           const bufferSize = Math.floor(actx.sampleRate * 0.35);
           const buffer = actx.createBuffer(1, bufferSize, actx.sampleRate);
           const data = buffer.getChannelData(0);
@@ -120,39 +113,39 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           const filter = actx.createBiquadFilter();
           filter.type = "bandpass";
           filter.frequency.setValueAtTime(2400, now);
-          filter.Q.setValueAtTime(4, now);
+          filter.Q.setValueAtTime(3.8, now);
           const gain = actx.createGain();
-          gain.gain.setValueAtTime(0.09, now);
+          gain.gain.setValueAtTime(0.1, now);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
           noise.connect(filter);
           filter.connect(gain);
           gain.connect(actx.destination);
           noise.start(now);
         } else if (type === "suction") {
-          // Magnetic gravitational suction whoosh as particles pull back in
+          // Deep cosmic reverse gravitational suction whoosh
           const osc = actx.createOscillator();
           const filter = actx.createBiquadFilter();
           const gain = actx.createGain();
           osc.type = "sawtooth";
-          osc.frequency.setValueAtTime(95, now);
-          osc.frequency.exponentialRampToValueAtTime(450, now + 0.68);
+          osc.frequency.setValueAtTime(80, now);
+          osc.frequency.exponentialRampToValueAtTime(420, now + 0.65);
 
           filter.type = "bandpass";
-          filter.frequency.setValueAtTime(240, now);
-          filter.frequency.exponentialRampToValueAtTime(2100, now + 0.68);
-          filter.Q.setValueAtTime(3.8, now);
+          filter.frequency.setValueAtTime(220, now);
+          filter.frequency.exponentialRampToValueAtTime(2200, now + 0.65);
+          filter.Q.setValueAtTime(3.5, now);
 
           gain.gain.setValueAtTime(0.01, now);
-          gain.gain.linearRampToValueAtTime(0.08, now + 0.45);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.68);
+          gain.gain.linearRampToValueAtTime(0.09, now + 0.45);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
 
           osc.connect(filter);
           filter.connect(gain);
           gain.connect(actx.destination);
           osc.start(now);
-          osc.stop(now + 0.68);
+          osc.stop(now + 0.65);
         } else if (type === "lock") {
-          // Shimmering harmonic crystallization chime (C6, E6, G6, C7)
+          // Shimmering harmonic crystallization chime chord (C6, E6, G6, C7)
           const freqs = [1046.5, 1318.5, 1567.98, 2093.0];
           freqs.forEach((freq, idx) => {
             const osc = actx.createOscillator();
@@ -178,7 +171,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     // Build the holographic vector printer particle matrix
     const particles: NeonParticle[] = [];
     const isMobile = window.innerWidth < 768;
-    const particleStep = isMobile ? 5 : 4; // ~550 particles: locked 60fps & razor-sharp definition
+    const particleStep = isMobile ? 5 : 4; // ~520 particles for locked 60 FPS
 
     const offW = 320;
     const offH = 260;
@@ -282,8 +275,8 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
             const relX = (x - cx) * scaleMultiplier;
             const relY = (y - cy) * scaleMultiplier;
 
+            // Angle directed outward from center with natural spread
             const angle = Math.atan2(relY, relX) + (Math.random() - 0.5) * 0.45;
-            const speed = Math.random() * 4 + 3.0;
 
             let streak = NEON_CYAN;
             if (r > 190 && g < 100) streak = NEON_MAGENTA;
@@ -291,12 +284,9 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
             else if (r > 200 && g > 200 && b > 200) streak = NEON_WHITE;
 
             particles.push({
-              x: relX,
-              y: relY,
+              origX: relX,
+              origY: relY,
               z: initialZ,
-              vx: Math.cos(angle) * speed * 2.2,
-              vy: Math.sin(angle) * speed * 2.2,
-              vz: -(Math.random() * 10 + 14),
               angle,
               spinDir: Math.random() > 0.5 ? 1 : -1,
               size: particleStep * 0.9,
@@ -305,22 +295,19 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
               alpha: a / 255,
               scatterX: 0,
               scatterY: 0,
-              scatterZ: 0,
-              hasRecordedScatter: false,
               targetX: 0,
               targetY: 0,
               targetColor: NEON_CYAN,
               lastX: 0,
               lastY: 0,
-              active: true,
             });
           }
         }
       }
     }
 
-    // Function to calculate exact destination targets for the First Page UI
-    const assignTargets = (width: number, height: number) => {
+    // Function to calculate exact destination targets for the First Page UI & offscreen scatter points
+    const assignTargetsAndScatter = (width: number, height: number) => {
       const centerX = width / 2;
       const centerY = height / 2;
       const cardW = Math.min(width * 0.92, 480);
@@ -338,10 +325,20 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       const n = particles.length;
       const perim = 2 * (cardW + cardH);
 
+      // Distance guaranteed to be COMPLETELY OUTSIDE the viewport in any direction
+      const baseOutDist = Math.hypot(width, height) * 0.65;
+
       for (let i = 0; i < n; i++) {
         const p = particles[i];
-        // 1. Card perimeter border (40% of particles)
+
+        // 1. Off-screen scatter destination: 100% OUT of screen
+        const outDist = baseOutDist + (i % 60) * 12 + Math.random() * 80;
+        p.scatterX = centerX + Math.cos(p.angle) * outDist;
+        p.scatterY = centerY + Math.sin(p.angle) * outDist;
+
+        // 2. Direct first page UI target layout
         if (i < Math.floor(n * 0.40)) {
+          // Card perimeter border
           const t = i / (Math.floor(n * 0.40) - 1);
           const dist = t * perim;
           let tx = cardX;
@@ -362,23 +359,20 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           p.targetX = tx;
           p.targetY = ty;
           p.targetColor = i % 2 === 0 ? NEON_CYAN : NEON_BLUE;
-        }
-        // 2. Top Header and Logo line (12% of particles)
-        else if (i < Math.floor(n * 0.52)) {
+        } else if (i < Math.floor(n * 0.52)) {
+          // Top header & logo
           const t = (i - Math.floor(n * 0.40)) / (Math.floor(n * 0.52) - Math.floor(n * 0.40));
           p.targetX = centerX - 140 + t * 280;
           p.targetY = headerY;
           p.targetColor = NEON_WHITE;
-        }
-        // 3. Stepper indicator dots (12% of particles)
-        else if (i < Math.floor(n * 0.64)) {
+        } else if (i < Math.floor(n * 0.64)) {
+          // Stepper dots
           const t = (i - Math.floor(n * 0.52)) / (Math.floor(n * 0.64) - Math.floor(n * 0.52));
           p.targetX = cardX + 24 + t * (cardW - 48);
           p.targetY = stepperY;
           p.targetColor = NEON_MAGENTA;
-        }
-        // 4. Center Sign-In Button outline (20% of particles)
-        else if (i < Math.floor(n * 0.84)) {
+        } else if (i < Math.floor(n * 0.84)) {
+          // Center Sign-In button
           const btnIndex = i - Math.floor(n * 0.64);
           const btnTotal = Math.floor(n * 0.84) - Math.floor(n * 0.64);
           const t = btnIndex / (btnTotal - 1);
@@ -402,9 +396,8 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           p.targetX = bx;
           p.targetY = by;
           p.targetColor = NEON_GOLD;
-        }
-        // 5. Card interior badge & text data lines (16% of particles)
-        else {
+        } else {
+          // Interior content scanlines & badge
           const intIndex = i - Math.floor(n * 0.84);
           const intTotal = n - Math.floor(n * 0.84);
           const row = intIndex % 4;
@@ -416,24 +409,23 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       }
     };
 
-    assignTargets(window.innerWidth, window.innerHeight);
+    assignTargetsAndScatter(window.innerWidth, window.innerHeight);
 
-    // Exact Choreography Timeline:
-    // 0.0s - 1.25s: Printer materializes & laser sweeps down ONCE across the printer
-    // 1.25s - 1.5s: Energy charge ring contracts into center
-    // 1.5s: Explosion burst outward! Sound: 'shatter'
-    // 1.5s - 2.05s: Particles explode outward towards the screen edges
-    // 2.05s: Reverse gravitational suction begins! Sound: 'suction'
-    // 2.05s - 2.75s: Pixels stream and curve back in from the periphery towards their targets
-    // 2.75s: Particles lock into place forming the first page! Sound: 'lock' chime
-    // 2.75s - 3.15s: Assembled canvas card dissolves into live interactive page underneath
-    // 3.15s: Complete!
+    // Timeline Pacing:
+    // 0.0s - 1.25s: Printer materializes and laser sweeps down strictly ONCE
+    // 1.25s - 1.45s: Energy charge ring contracts into center
+    // 1.45s: Explosion burst starts! Sound: 'shatter'
+    // 1.45s - 1.95s: Pixels accelerate completely OUT OF THE SCREEN (100% offscreen)
+    // 1.95s: Cosmic reverse suction begins! Sound: 'suction'
+    // 1.95s - 2.65s: Pixels rush back inward from offscreen to directly build first page
+    // 2.65s: Pixels lock into place forming first page! Sound: 'lock' chime + live page reveals
+    // 2.65s - 2.95s: Clean fade-out into live interactive page
+    // 2.95s: Finish!
     const T_CHARGE = 1.25;
-    const T_EXPLODE = 1.5;
-    const T_SUCTION = 2.05;
-    const T_ASSEMBLE = 2.75;
-    const T_FADE_START = 2.85;
-    const T_FINISH = 3.15;
+    const T_EXPLODE = 1.45;
+    const T_SUCTION = 1.95;
+    const T_ASSEMBLE = 2.65;
+    const T_FINISH = 2.95;
 
     let shatterPlayed = false;
     let suctionPlayed = false;
@@ -462,9 +454,10 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       bgGrad.addColorStop(0.4, "#03081A");
       bgGrad.addColorStop(1, "#01030B");
 
+      // Seamless background fade as first page is created
       let bgAlpha = 1;
-      if (elapsed > T_FADE_START) {
-        bgAlpha = Math.max(0, 1 - (elapsed - T_FADE_START) / (T_FINISH - T_FADE_START));
+      if (elapsed > 2.2) {
+        bgAlpha = Math.max(0, 1 - (elapsed - 2.2) / (T_FINISH - 2.2));
       }
 
       if (bgAlpha > 0) {
@@ -494,8 +487,8 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
       const fov = 340;
 
-      // ── PHASE 1: PRINTER MATERIALIZATION & SCAN (0.0s - 1.5s) ──
-      // First part exactly identical, playing strictly ONCE!
+      // ── PHASE 1: PRINTER MATERIALIZATION & SCAN (0.0s - 1.45s) ──
+      // Exactly identical, playing strictly ONCE!
       if (elapsed < T_EXPLODE) {
         const appearProgress = Math.min(elapsed / 0.65, 1);
         const floatY = Math.sin(elapsed * 4) * 5;
@@ -524,8 +517,8 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         for (let i = 0; i < particles.length; i++) {
           const p = particles[i];
           const scale = fov / (fov + p.z);
-          const px = centerX + p.x * scale;
-          const py = centerY + (p.y + floatY) * scale;
+          const px = centerX + p.origX * scale;
+          const py = centerY + (p.origY + floatY) * scale;
           const pSize = Math.max(p.size * scale, 1.4);
 
           p.lastX = px;
@@ -559,7 +552,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           ctx.restore();
         }
 
-        // Energy charge-up ring before exploding (1.25s - 1.5s)
+        // Energy charge-up ring before exploding (1.25s - 1.45s)
         if (elapsed > T_CHARGE) {
           const chargeProgress = Math.min((elapsed - T_CHARGE) / (T_EXPLODE - T_CHARGE), 1.0);
           ctx.save();
@@ -603,7 +596,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
         ctx.restore();
       }
-      // ── PHASE 2A: BURST OUTWARD INTO PIXELS (1.5s - 2.05s) ──
+      // ── PHASE 2A: PIXELS GO COMPLETELY OUT OF SCREEN (1.45s - 1.95s) ──
       else if (elapsed >= T_EXPLODE && elapsed < T_SUCTION) {
         if (!shatterPlayed) {
           shatterPlayed = true;
@@ -611,10 +604,14 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         }
 
         const explodeTime = elapsed - T_EXPLODE;
+        const explodeProgress = Math.min(explodeTime / (T_SUCTION - T_EXPLODE), 1.0);
 
-        // Typography dissolves forward
-        if (explodeTime < 0.35) {
-          const textFade = Math.max(0, 1 - explodeTime / 0.35);
+        // Quadratic acceleration launching all particles completely past the screen edges
+        const launchEase = explodeProgress * explodeProgress;
+
+        // Typography dissolves forward quickly
+        if (explodeTime < 0.25) {
+          const textFade = Math.max(0, 1 - explodeTime / 0.25);
           const textY = centerY + 82 + explodeTime * 35;
           ctx.save();
           ctx.globalAlpha = textFade;
@@ -633,67 +630,59 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           ctx.restore();
         }
 
-        // Hardware Additive Blending (zero lag!)
         ctx.save();
         ctx.globalCompositeOperation = "lighter";
 
         for (let i = 0; i < particles.length; i++) {
           const p = particles[i];
-          const accel = 1 + explodeTime * 2.8;
-          const curZ = p.z + p.vz * accel * 1.5;
-          const depth = Math.max(fov + curZ, 8);
-          const scale = fov / depth;
+          const startX = centerX + p.origX * 0.5;
+          const startY = centerY + p.origY * 0.5;
 
-          const px = centerX + (p.x + p.vx * accel * 22) * scale;
-          const py = centerY + (p.y + p.vy * accel * 22) * scale;
-          const pSize = Math.max(p.size * scale, 2.2);
+          // Interpolate directly from printer position out to off-screen scatter destination
+          const curX = startX + (p.scatterX - startX) * launchEase;
+          const curY = startY + (p.scatterY - startY) * launchEase;
 
-          // Motion streak trail
-          if (scale > 1.15 && p.lastX !== 0) {
+          const pSize = 3.5 * (1 + launchEase * 1.5);
+
+          if (p.lastX !== 0) {
             ctx.strokeStyle = p.streakColor;
-            ctx.lineWidth = Math.min(pSize * 0.8, 8);
+            ctx.lineWidth = Math.min(pSize * 0.9, 10);
             ctx.lineCap = "round";
             ctx.beginPath();
             ctx.moveTo(p.lastX, p.lastY);
-            ctx.lineTo(px, py);
+            ctx.lineTo(curX, curY);
             ctx.stroke();
           }
 
           ctx.fillStyle = p.color;
-          ctx.fillRect(px - pSize / 2, py - pSize / 2, pSize, pSize);
+          ctx.fillRect(curX - pSize / 2, curY - pSize / 2, pSize, pSize);
 
-          p.lastX = px;
-          p.lastY = py;
-          p.scatterX = px;
-          p.scatterY = py;
-          p.scatterZ = curZ;
+          p.lastX = curX;
+          p.lastY = curY;
         }
 
         ctx.restore();
       }
-      // ── PHASE 2B: REVERSE SUCTION & REASSEMBLY OF FIRST PAGE (2.05s - 2.75s) ──
-      // The pixels fly back inward from the edges and build the first page!
+      // ── PHASE 2B: PIXELS RUSH BACK IN FROM OFF-SCREEN & DIRECTLY CREATE FIRST PAGE (1.95s - 2.65s) ──
       else if (elapsed >= T_SUCTION && elapsed < T_ASSEMBLE) {
         if (!suctionPlayed) {
           suctionPlayed = true;
           playSfx("suction");
         }
 
-        // Lock in scatter peak coordinates upon reversal
-        for (let i = 0; i < particles.length; i++) {
-          const p = particles[i];
-          if (!p.hasRecordedScatter) {
-            p.hasRecordedScatter = true;
-            if (p.scatterX === 0) p.scatterX = p.lastX;
-            if (p.scatterY === 0) p.scatterY = p.lastY;
-          }
-        }
-
         const suctionTime = elapsed - T_SUCTION;
         const reProgress = Math.min(suctionTime / (T_ASSEMBLE - T_SUCTION), 1.0);
 
-        // Smooth cubic Hermite deceleration into exact targets
-        const ease = reProgress * reProgress * (3 - 2 * reProgress);
+        // Smooth cubic ease-out: rushes in fast from off-screen, then gently settles into first page targets
+        const ease = 1 - Math.pow(1 - reProgress, 3);
+
+        // Proactively begin revealing the live page underneath as particles near their destinations
+        if (reProgress > 0.75 && !hasTriggeredZoom.current) {
+          hasTriggeredZoom.current = true;
+          if (onZoomStartRef.current) {
+            onZoomStartRef.current();
+          }
+        }
 
         ctx.save();
         ctx.globalCompositeOperation = "lighter";
@@ -701,17 +690,17 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         for (let i = 0; i < particles.length; i++) {
           const p = particles[i];
 
-          // Dynamic magnetic swirl that converges smoothly to 0 at arrival
-          const swirl = (1 - ease) * Math.sin(reProgress * Math.PI) * 45 * p.spinDir;
-          const curX = p.scatterX + (p.targetX - p.scatterX) * ease - swirl * Math.sin(p.angle);
-          const curY = p.scatterY + (p.targetY - p.scatterY) * ease + swirl * Math.cos(p.angle);
+          // Dynamic magnetic curvature flying inward from beyond viewport edges
+          const arc = Math.sin(reProgress * Math.PI) * 40 * p.spinDir;
+          const curX = p.scatterX + (p.targetX - p.scatterX) * ease + arc * Math.cos(p.angle + Math.PI / 2);
+          const curY = p.scatterY + (p.targetY - p.scatterY) * ease + arc * Math.sin(p.angle + Math.PI / 2);
 
-          const pSize = 3.5 * (1 - ease * 0.4);
+          const pSize = 3.5 * (1 - ease * 0.35);
 
-          // Reverse neon comet trail streaming inward
+          // Inward glowing comet trail
           if (p.lastX !== 0) {
             ctx.strokeStyle = p.targetColor;
-            ctx.lineWidth = Math.min(pSize * 0.9, 6);
+            ctx.lineWidth = Math.min(pSize * 0.9, 7);
             ctx.lineCap = "round";
             ctx.beginPath();
             ctx.moveTo(p.lastX, p.lastY);
@@ -723,7 +712,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           ctx.fillStyle = p.targetColor;
           ctx.fillRect(curX - pSize / 2, curY - pSize / 2, pSize, pSize);
 
-          // White-hot core for convergence energy
+          // White-hot core
           ctx.fillStyle = NEON_WHITE;
           ctx.fillRect(curX - pSize / 4, curY - pSize / 4, pSize / 2, pSize / 2);
 
@@ -733,12 +722,11 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
         ctx.restore();
       }
-      // ── PHASE 2C: ASSEMBLED CARD LOCK & DISSOLVE INTO LIVE PAGE (2.75s - 3.15s) ──
+      // ── PHASE 2C: FIRST PAGE CREATION LOCK (2.65s - 2.95s) ──
       else if (elapsed >= T_ASSEMBLE && elapsed < T_FINISH) {
         if (!lockPlayed) {
           lockPlayed = true;
           playSfx("lock");
-          // Trigger live DOM page to seamlessly reveal directly under assembled particles
           if (!hasTriggeredZoom.current) {
             hasTriggeredZoom.current = true;
             if (onZoomStartRef.current) {
@@ -754,7 +742,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         ctx.globalCompositeOperation = "lighter";
         ctx.globalAlpha = cardAlpha;
 
-        // Render locked particles at exact target locations
+        // Render locked particles directly forming the first page elements
         for (let i = 0; i < particles.length; i++) {
           const p = particles[i];
           ctx.fillStyle = p.targetColor;
