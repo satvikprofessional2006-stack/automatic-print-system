@@ -31,12 +31,12 @@ interface QrStandeeModalProps {
   onClose: () => void;
 }
 
-type StandeeStyle = "executive" | "editorial" | "notice" | "tech_lab" | "pure_qr";
+type StandeeStyle = "pure_qr_bw" | "pure_qr" | "executive" | "editorial" | "notice" | "tech_lab";
 type StandeeFormat = "poster" | "standee";
 type PrintColorMode = "color" | "bw";
 
 export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
-  const [selectedStyle, setSelectedStyle] = useState<StandeeStyle>("executive");
+  const [selectedStyle, setSelectedStyle] = useState<StandeeStyle>("pure_qr_bw");
   const [selectedFormat, setSelectedFormat] = useState<StandeeFormat>("poster");
   const [colorMode, setColorMode] = useState<PrintColorMode>("color");
   const [portalUrl, setPortalUrl] = useState("https://automatic-print-system.vercel.app");
@@ -45,6 +45,8 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
   const [spoolMessage, setSpoolMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
   const [isExporting, setIsExporting] = useState<"png" | "pdf" | null>(null);
   const printAreaRef = useRef<HTMLDivElement>(null);
+
+  const isPureQr = selectedStyle === "pure_qr" || selectedStyle === "pure_qr_bw";
 
   // Set real domain on client
   useEffect(() => {
@@ -56,7 +58,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
     }
   }, []);
 
-  // Generate High-DPI QR Code with Centered Rishihood Logo (Unified Brand Palette)
+  // Generate High-DPI QR Code with Centered Rishihood Logo
   useEffect(() => {
     if (!portalUrl) return;
 
@@ -67,10 +69,11 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
         canvas.width = qrSize;
         canvas.height = qrSize;
 
-        // Unified Institutional Color Palette:
-        // Color Mode: Rishihood Crimson (#7A0019) on Pure White (#FFFFFF)
-        // B&W Mode: Pure Black (#000000) on Pure White (#FFFFFF)
-        const darkColor = colorMode === "color" ? "#7A0019" : "#000000";
+        // QR Matrix Pattern Color:
+        // If pure_qr_bw or B&W mode -> Pure Black (#000000)
+        // If color mode and other templates -> Rishihood Crimson (#7A0019)
+        const isPatternBlack = selectedStyle === "pure_qr_bw" || colorMode === "bw";
+        const darkColor = isPatternBlack ? "#000000" : "#7A0019";
         const lightColor = "#FFFFFF";
 
         await QRCode.toCanvas(canvas, portalUrl, {
@@ -85,7 +88,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
 
         const ctx = canvas.getContext("2d");
         if (ctx) {
-          // Load and draw Rishihood Logo in dead center
+          // Load and draw Rishihood Logo in dead center in its FULL VIBRANT COLOURS
           const logo = new Image();
           logo.src = "/Rishihood_University_idxo_lfgcw_2.png";
           logo.crossOrigin = "anonymous";
@@ -111,14 +114,14 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
             ctx.fill();
             ctx.restore();
 
-            // Circular badge border matching unified crimson / black theme
-            ctx.strokeStyle = darkColor;
-            ctx.lineWidth = 5;
+            // Circular badge border matching theme
+            ctx.strokeStyle = selectedStyle === "pure_qr_bw" ? "#7A0019" : darkColor;
+            ctx.lineWidth = 4;
             ctx.beginPath();
             ctx.arc(center, center, badgeRadius, 0, Math.PI * 2);
             ctx.stroke();
 
-            // Draw Rishihood logo centered
+            // Draw full-colour Rishihood logo centered
             ctx.drawImage(logo, x + 6, y + 6, logoSize - 12, logoSize - 12);
           }
         }
@@ -138,7 +141,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
     setIsSpooling(true);
     setSpoolMessage({
       type: "info",
-      text: `Rendering ${colorMode === "bw" ? "B&W" : "Colour"} card for Canon printer...`,
+      text: `Rendering card for Canon printer...`,
     });
 
     try {
@@ -151,10 +154,12 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
 
       setSpoolMessage({ type: "info", text: "Sending directly to printer queue..." });
 
+      const isColorPrint = selectedStyle === "pure_qr_bw" || colorMode === "color";
+
       const formData = new FormData();
-      formData.append("file", blob, `ru-qr-${selectedStyle}-${selectedFormat}-${colorMode}.png`);
+      formData.append("file", blob, `ru-qr-${selectedStyle}-${selectedFormat}.png`);
       formData.append("copies", "1");
-      formData.append("color", colorMode === "color" ? "true" : "false");
+      formData.append("color", isColorPrint ? "true" : "false");
       formData.append("layout", "portrait");
       formData.append("paperSize", "A4");
       formData.append("userName", "Direct Standee Print (Admin)");
@@ -171,7 +176,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
 
       setSpoolMessage({
         type: "success",
-        text: `Direct print sent! Canon MF280 will print in ${colorMode === "bw" ? "Black & White" : "Colour"} in ~3s.`,
+        text: `Direct print sent! Canon MF280 will print in ~3s.`,
       });
 
       setTimeout(() => setSpoolMessage(null), 5000);
@@ -199,7 +204,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
         cacheBust: true,
       });
       const link = document.createElement("a");
-      link.download = `rishihood-qr-${selectedStyle}-${selectedFormat}-${colorMode}.png`;
+      link.download = `rishihood-qr-${selectedStyle}-${selectedFormat}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
@@ -226,7 +231,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
       const pngImage = await pdfDoc.embedPng(pngImageBytes);
 
       if (selectedFormat === "poster") {
-        if (selectedStyle === "pure_qr") {
+        if (isPureQr) {
           // Pure QR centered large on A4
           const qrDim = 460;
           page.drawImage(pngImage, {
@@ -250,7 +255,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
         }
       } else {
         // Standee format centered on A4
-        const width = selectedStyle === "pure_qr" ? 340 : 380;
+        const width = isPureQr ? 340 : 380;
         const height = (pngImage.height / pngImage.width) * width;
         page.drawImage(pngImage, {
           x: (595.28 - width) / 2,
@@ -265,7 +270,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `rishihood-qr-${selectedStyle}-${selectedFormat}-${colorMode}.pdf`;
+      link.download = `rishihood-qr-${selectedStyle}-${selectedFormat}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -422,6 +427,18 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                     <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
                       {[
                         {
+                          id: "pure_qr_bw" as StandeeStyle,
+                          name: "Black QR + Colour Logo",
+                          desc: "Pure black QR code with vibrant full-colour RU logo in center",
+                          badge: "bg-black border border-amber-400",
+                        },
+                        {
+                          id: "pure_qr" as StandeeStyle,
+                          name: "Crimson QR + Colour Logo",
+                          desc: "Crimson QR code with vibrant full-colour RU logo in center",
+                          badge: "bg-[#7A0019]",
+                        },
+                        {
                           id: "executive" as StandeeStyle,
                           name: "University Executive",
                           desc: "Crimson banner, gold trim & clear 1-2-3 action steps",
@@ -444,12 +461,6 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                           name: "Innovation & Tech Lab",
                           desc: "Obsidian dark canvas with crimson & gold accents",
                           badge: "bg-[#18080E]",
-                        },
-                        {
-                          id: "pure_qr" as StandeeStyle,
-                          name: "Plain QR Code Only",
-                          desc: "Zero framing or text — pure QR with centered RU logo",
-                          badge: "bg-black dark:bg-white",
                         },
                       ].map((style) => (
                         <button
@@ -550,7 +561,11 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                     </p>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-medium">
-                        {colorMode === "bw" ? "B&W Mode" : "RU Crimson & Gold"}
+                        {selectedStyle === "pure_qr_bw"
+                          ? "Black QR + Colour Logo"
+                          : colorMode === "bw"
+                          ? "B&W Mode"
+                          : "RU Crimson & Gold"}
                       </span>
                       <span className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-medium">
                         {selectedFormat === "poster" ? "100% Page Fill" : "4\" × 6\" Cut Size"}
@@ -563,14 +578,14 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                     ref={printAreaRef}
                     id="printable-qr-standee"
                     style={{
-                      filter: colorMode === "bw" ? "grayscale(100%)" : "none",
+                      filter: colorMode === "bw" && selectedStyle !== "pure_qr_bw" ? "grayscale(100%)" : "none",
                     }}
                     className={`transition-all duration-300 shadow-2xl overflow-hidden flex flex-col justify-between ${
                       selectedFormat === "poster"
                         ? "format-poster w-[340px] h-[480px] rounded-xl"
                         : "format-standee w-[290px] h-[420px] rounded-2xl"
                     } ${
-                      selectedStyle === "pure_qr"
+                      isPureQr
                         ? "style-pure_qr bg-white text-black border-0 shadow-sm items-center justify-center p-4"
                         : selectedStyle === "executive"
                         ? "bg-[#FFFDF9] text-[#1E1E24] border-[3px] border-[#7A0019]"
@@ -582,9 +597,9 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                     }`}
                   >
                     {/* ═══════════════════════════════════════════════════════
-                        TEMPLATE 5: PLAIN QR CODE ONLY (Zero Frame, Zero Text)
+                        PLAIN QR CODE TEMPLATES (Zero Frame, Zero Text)
                        ═══════════════════════════════════════════════════════ */}
-                    {selectedStyle === "pure_qr" ? (
+                    {isPureQr ? (
                       <div className="flex-1 flex flex-col items-center justify-center p-2 text-center w-full h-full">
                         {qrDataUrl ? (
                           <img
@@ -899,7 +914,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
             print-color-adjust: exact !important;
           }
 
-          /* PLAIN QR CODE TEMPLATE (NO FRAME, NO TEXT) */
+          /* PLAIN QR CODE TEMPLATES (NO FRAME, NO TEXT) */
           #printable-qr-standee.style-pure_qr {
             border: none !important;
             background: #ffffff !important;
