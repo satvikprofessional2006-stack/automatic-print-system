@@ -47,11 +47,10 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     let startTime: number | null = null;
     let audioPlayed = false;
 
-    // Rich Vibrant Neon Palette
+    // Rich vibrant Neon Color Palette
     const NEON_CYAN = "#00F5FF";
     const NEON_BLUE = "#38BDF8";
     const NEON_MAGENTA = "#FF0055"; // Rishihood primary red in neon
-    const NEON_PINK = "#FF2A6D";
     const NEON_GOLD = "#FFB800";
     const NEON_WHITE = "#FFFFFF";
 
@@ -69,10 +68,8 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     updateDimensions();
     window.addEventListener("resize", updateDimensions);
 
-    // Subtle synthesizer Web Audio sound effects
-    const playAudio = () => {
-      if (audioPlayed) return;
-      audioPlayed = true;
+    // Audio synthesizer sfx for sci-fi atmosphere
+    const playSfx = (type: "charge" | "shatter" | "warp") => {
       try {
         const AudioCtx =
           window.AudioContext ||
@@ -80,57 +77,68 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         if (!AudioCtx) return;
         const actx = new AudioCtx();
         if (actx.state === "suspended") actx.resume();
-
         const now = actx.currentTime;
-        // Warm sci-fi charge hum
-        const osc = actx.createOscillator();
-        const gain = actx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(160, now);
-        osc.frequency.exponentialRampToValueAtTime(480, now + 1.2);
-        gain.gain.setValueAtTime(0.01, now);
-        gain.gain.linearRampToValueAtTime(0.05, now + 0.5);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
-        osc.connect(gain);
-        gain.connect(actx.destination);
-        osc.start(now);
-        osc.stop(now + 1.2);
 
-        // Pixel shatter burst at 1.4s
-        setTimeout(() => {
-          try {
-            const shNow = actx.currentTime;
-            const bufferSize = Math.floor(actx.sampleRate * 0.35);
-            const buffer = actx.createBuffer(1, bufferSize, actx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-            const noise = actx.createBufferSource();
-            noise.buffer = buffer;
-            const filter = actx.createBiquadFilter();
-            filter.type = "bandpass";
-            filter.frequency.setValueAtTime(2200, shNow);
-            filter.Q.setValueAtTime(3.5, shNow);
-            const nGain = actx.createGain();
-            nGain.gain.setValueAtTime(0.08, shNow);
-            nGain.gain.exponentialRampToValueAtTime(0.001, shNow + 0.35);
-            noise.connect(filter);
-            filter.connect(nGain);
-            nGain.connect(actx.destination);
-            noise.start(shNow);
-          } catch {}
-        }, 1350);
+        if (type === "charge") {
+          const osc = actx.createOscillator();
+          const gain = actx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(160, now);
+          osc.frequency.exponentialRampToValueAtTime(520, now + 1.25);
+          gain.gain.setValueAtTime(0.01, now);
+          gain.gain.linearRampToValueAtTime(0.06, now + 0.6);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
+          osc.connect(gain);
+          gain.connect(actx.destination);
+          osc.start(now);
+          osc.stop(now + 1.25);
+        } else if (type === "shatter") {
+          const bufferSize = Math.floor(actx.sampleRate * 0.35);
+          const buffer = actx.createBuffer(1, bufferSize, actx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+          const noise = actx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = actx.createBiquadFilter();
+          filter.type = "bandpass";
+          filter.frequency.setValueAtTime(2400, now);
+          filter.Q.setValueAtTime(4, now);
+          const gain = actx.createGain();
+          gain.gain.setValueAtTime(0.09, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(actx.destination);
+          noise.start(now);
+        } else if (type === "warp") {
+          const osc = actx.createOscillator();
+          const gain = actx.createGain();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(110, now);
+          osc.frequency.exponentialRampToValueAtTime(860, now + 0.85);
+          gain.gain.setValueAtTime(0.02, now);
+          gain.gain.linearRampToValueAtTime(0.07, now + 0.3);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+          osc.connect(gain);
+          gain.connect(actx.destination);
+          osc.start(now);
+          osc.stop(now + 0.9);
+        }
       } catch {}
     };
 
-    playAudio();
+    if (!audioPlayed) {
+      audioPlayed = true;
+      setTimeout(() => playSfx("charge"), 100);
+    }
 
-    // Generate high-efficiency, stunning neon particle matrix
+    // Build the holographic vector printer particle matrix
     const particles: NeonParticle[] = [];
     const isMobile = window.innerWidth < 768;
-    const particleStep = isMobile ? 6 : 5; // Optimal density: ~550 particles for locked 60fps!
+    const particleStep = isMobile ? 5 : 4; // ~600 particles for high detail + locked 60 FPS
 
-    const offW = 300;
-    const offH = 240;
+    const offW = 320;
+    const offH = 260;
     const offCanvas = document.createElement("canvas");
     offCanvas.width = offW;
     offCanvas.height = offH;
@@ -144,83 +152,83 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       // Top paper feeder
       offCtx.fillStyle = NEON_CYAN;
       offCtx.beginPath();
-      offCtx.roundRect(cx - 50, cy - 80, 100, 45, [6, 6, 0, 0]);
+      offCtx.roundRect(cx - 55, cy - 85, 110, 48, [8, 8, 0, 0]);
       offCtx.fill();
 
       // Paper neon data traces
       offCtx.fillStyle = NEON_WHITE;
-      offCtx.fillRect(cx - 36, cy - 68, 72, 3);
+      offCtx.fillRect(cx - 40, cy - 72, 80, 3.5);
       offCtx.fillStyle = NEON_MAGENTA;
-      offCtx.fillRect(cx - 36, cy - 58, 55, 3);
+      offCtx.fillRect(cx - 40, cy - 62, 60, 3);
       offCtx.fillStyle = NEON_CYAN;
-      offCtx.fillRect(cx - 36, cy - 48, 64, 3);
+      offCtx.fillRect(cx - 40, cy - 52, 70, 3);
 
-      // Printer Chassis
-      offCtx.fillStyle = "#0B1533";
+      // Printer Chassis - sleek dark titanium with glowing neon contours
+      offCtx.fillStyle = "#0A1128";
       offCtx.beginPath();
-      offCtx.roundRect(cx - 90, cy - 36, 180, 80, 12);
+      offCtx.roundRect(cx - 95, cy - 40, 190, 84, 14);
       offCtx.fill();
 
       // Glowing Neon border
       offCtx.strokeStyle = NEON_CYAN;
-      offCtx.lineWidth = 3;
+      offCtx.lineWidth = 3.5;
       offCtx.beginPath();
-      offCtx.roundRect(cx - 90, cy - 36, 180, 80, 12);
+      offCtx.roundRect(cx - 95, cy - 40, 190, 84, 14);
       offCtx.stroke();
 
-      // Front Slot
-      offCtx.fillStyle = "#020714";
-      offCtx.fillRect(cx - 75, cy + 4, 150, 12);
+      // Front Laser Scanner Slot
+      offCtx.fillStyle = "#000814";
+      offCtx.fillRect(cx - 80, cy + 2, 160, 14);
 
       // Neon LED Screen
       offCtx.fillStyle = NEON_BLUE;
       offCtx.beginPath();
-      offCtx.roundRect(cx - 75, cy - 24, 60, 18, 4);
+      offCtx.roundRect(cx - 80, cy - 28, 64, 20, 4);
       offCtx.fill();
       offCtx.fillStyle = NEON_WHITE;
-      offCtx.fillRect(cx - 68, cy - 18, 30, 3);
-      offCtx.fillRect(cx - 68, cy - 12, 20, 2);
+      offCtx.fillRect(cx - 72, cy - 21, 35, 3.5);
+      offCtx.fillRect(cx - 72, cy - 14, 22, 2.5);
 
       // Status indicator lights
       offCtx.fillStyle = NEON_MAGENTA;
       offCtx.beginPath();
-      offCtx.arc(cx + 45, cy - 15, 4.5, 0, Math.PI * 2);
+      offCtx.arc(cx + 45, cy - 18, 5, 0, Math.PI * 2);
       offCtx.fill();
 
-      offCtx.fillStyle = "#10B981";
+      offCtx.fillStyle = "#10B981"; // Emerald
       offCtx.beginPath();
-      offCtx.arc(cx + 62, cy - 15, 4.5, 0, Math.PI * 2);
+      offCtx.arc(cx + 65, cy - 18, 5, 0, Math.PI * 2);
       offCtx.fill();
 
       // Output paper tray
       offCtx.fillStyle = NEON_WHITE;
       offCtx.beginPath();
-      offCtx.roundRect(cx - 60, cy + 10, 120, 48, [0, 0, 6, 6]);
+      offCtx.roundRect(cx - 65, cy + 8, 130, 52, [0, 0, 8, 8]);
       offCtx.fill();
 
       // Printed vibrant holographic lines
       offCtx.fillStyle = NEON_MAGENTA;
-      offCtx.fillRect(cx - 48, cy + 22, 96, 3.5);
+      offCtx.fillRect(cx - 50, cy + 22, 100, 4);
       offCtx.fillStyle = NEON_CYAN;
-      offCtx.fillRect(cx - 48, cy + 32, 70, 3);
+      offCtx.fillRect(cx - 50, cy + 32, 75, 3.5);
       offCtx.fillStyle = NEON_GOLD;
-      offCtx.fillRect(cx - 48, cy + 42, 80, 3);
+      offCtx.fillRect(cx - 50, cy + 42, 85, 3.5);
 
       // Rishihood University Gold Seal
       offCtx.fillStyle = NEON_GOLD;
       offCtx.beginPath();
-      offCtx.arc(cx + 40, cy + 32, 7, 0, Math.PI * 2);
+      offCtx.arc(cx + 42, cy + 32, 8, 0, Math.PI * 2);
       offCtx.fill();
 
       // Typography
       offCtx.fillStyle = NEON_WHITE;
-      offCtx.font = "bold 17px -apple-system, sans-serif";
+      offCtx.font = "bold 18px 'Poppins', -apple-system, sans-serif";
       offCtx.textAlign = "center";
-      offCtx.fillText("RU PRINT PORTAL", cx, cy + 92);
+      offCtx.fillText("RU PRINT PORTAL", cx, cy + 96);
 
       offCtx.fillStyle = NEON_MAGENTA;
-      offCtx.font = "700 11px -apple-system, sans-serif";
-      offCtx.fillText("RISHIHOOD UNIVERSITY", cx, cy + 110);
+      offCtx.font = "700 12px 'Poppins', -apple-system, sans-serif";
+      offCtx.fillText("RISHIHOOD UNIVERSITY", cx, cy + 115);
 
       const imgData = offCtx.getImageData(0, 0, offW, offH);
       const data = imgData.data;
@@ -233,7 +241,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           const index = (y * offW + x) * 4;
           const a = data[index + 3];
 
-          if (a > 30) {
+          if (a > 25) {
             const r = data[index];
             const g = data[index + 1];
             const b = data[index + 2];
@@ -255,7 +263,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
               z: initialZ,
               vx: Math.cos(angle) * speed * 2.0,
               vy: Math.sin(angle) * speed * 2.0,
-              // Smooth forward velocity towards screen
               vz: -(Math.random() * 14 + 18),
               size: particleStep * 0.9,
               color: `rgb(${r}, ${g}, ${b})`,
@@ -268,15 +275,20 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       }
     }
 
-    // Single deterministic timeline:
-    // 0.0s - 1.4s: Materialize & scan (runs ONCE!)
-    // 1.4s: Disintegration starts & triggers main page zoom
-    // 1.4s - 2.5s: Pixels accelerate forward towards camera (buttery 60fps, zero lag!)
-    // 2.0s - 2.5s: Background fades out seamlessly
-    // 2.6s: Complete!
-    const T_EXPLODE = 1.4;
-    const T_FADE_START = 2.0;
-    const T_FINISH = 2.6;
+    // Exact timeline (STRICTLY ONCE!):
+    // 0.0s - 1.25s: Materialization & laser sweeps down ONCE across the printer
+    // 1.25s - 1.5s: Energy ring contracts into center
+    // 1.5s: Explosion starts + Synchronous main page zoom begins
+    // 1.5s - 2.65s: Butter-smooth 3D pixel warp (60 FPS, hardware additive blending, zero lag)
+    // 2.1s - 2.65s: Background fades out seamlessly
+    // 2.65s: Finish
+    const T_CHARGE = 1.25;
+    const T_EXPLODE = 1.5;
+    const T_FADE_START = 2.1;
+    const T_FINISH = 2.65;
+
+    let shatterPlayed = false;
+    let warpPlayed = false;
 
     const render = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
@@ -288,14 +300,14 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
       ctx.clearRect(0, 0, width, height);
 
-      // Deep space background with neon radial glow
+      // Deep space neon radial glow
       const bgGrad = ctx.createRadialGradient(
         centerX,
         centerY,
         40,
         centerX,
         centerY,
-        Math.max(width, height) * 0.8
+        Math.max(width, height) * 0.85
       );
       bgGrad.addColorStop(0, "#08132B");
       bgGrad.addColorStop(0.4, "#03081A");
@@ -312,14 +324,20 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, width, height);
 
-        // Perspective grid lines
-        ctx.strokeStyle = "rgba(0, 245, 255, 0.08)";
+        // Cyberpunk Neon Perspective Floor Grid (exact original style)
+        ctx.strokeStyle = "rgba(0, 245, 255, 0.09)";
         ctx.lineWidth = 1;
-        const horizon = centerY + 130;
-        for (let i = -12; i <= 12; i++) {
+        const horizon = centerY + 140;
+        for (let i = -14; i <= 14; i++) {
           ctx.beginPath();
           ctx.moveTo(centerX + i * 40, horizon);
-          ctx.lineTo(centerX + i * 220, height);
+          ctx.lineTo(centerX + i * 240, height);
+          ctx.stroke();
+        }
+        for (let gy = horizon; gy < height; gy += 24) {
+          ctx.beginPath();
+          ctx.moveTo(0, gy);
+          ctx.lineTo(width, gy);
           ctx.stroke();
         }
         ctx.restore();
@@ -327,28 +345,29 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
       const fov = 340;
 
-      // ── PHASE 1: PRINTER MATERIALIZES & SCANS (0.0s - 1.4s) ──
+      // ── PHASE 1: PRINTER MATERIALIZATION & SCAN (0.0s - 1.5s) ──
+      // Exact same look & feel, strictly playing ONCE without repetition!
       if (elapsed < T_EXPLODE) {
-        const appearProgress = Math.min(elapsed / 0.55, 1);
-        const floatY = Math.sin(elapsed * 4) * 4;
+        const appearProgress = Math.min(elapsed / 0.65, 1);
+        const floatY = Math.sin(elapsed * 4) * 5;
 
-        // Ambient neon aura
+        // Glowing Neon Ambient Halo behind printer
         const auraGrad = ctx.createRadialGradient(
           centerX,
           centerY + floatY,
           20,
           centerX,
           centerY + floatY,
-          200
+          240
         );
-        auraGrad.addColorStop(0, `rgba(0, 245, 255, ${0.4 * appearProgress})`);
-        auraGrad.addColorStop(0.5, `rgba(255, 0, 85, ${0.2 * appearProgress})`);
+        auraGrad.addColorStop(0, `rgba(0, 245, 255, ${0.45 * appearProgress})`);
+        auraGrad.addColorStop(0.4, `rgba(255, 0, 85, ${0.25 * appearProgress})`);
         auraGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
 
         ctx.save();
         ctx.fillStyle = auraGrad;
         ctx.beginPath();
-        ctx.arc(centerX, centerY + floatY, 220, 0, Math.PI * 2);
+        ctx.arc(centerX, centerY + floatY, 260, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
@@ -365,28 +384,56 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           ctx.fillRect(px - pSize / 2, py - pSize / 2, pSize, pSize);
         }
 
-        // Single smooth vertical laser scan beam (sweeps down strictly ONCE from top to bottom)
-        if (elapsed > 0.25 && elapsed < T_EXPLODE) {
-          const scanProgress = Math.min((elapsed - 0.25) / (T_EXPLODE - 0.35), 1.0);
-          const beamY = centerY - 130 + scanProgress * 260;
+        // Horizontal Neon Laser Scanner Beam:
+        // Sweeps strictly ONCE from top to bottom (from 0.25s to 1.25s) with NO modulo wrapping!
+        if (elapsed > 0.25 && elapsed <= T_CHARGE) {
+          const scanProgress = Math.min(Math.max((elapsed - 0.25) / (T_CHARGE - 0.25), 0), 1.0);
+          const beamY = centerY - 140 + scanProgress * 280;
 
-          const beamGrad = ctx.createLinearGradient(centerX - 180, beamY, centerX + 180, beamY);
+          const beamGrad = ctx.createLinearGradient(centerX - 200, beamY, centerX + 200, beamY);
           beamGrad.addColorStop(0, "rgba(0, 245, 255, 0)");
           beamGrad.addColorStop(0.5, "rgba(0, 245, 255, 0.95)");
           beamGrad.addColorStop(1, "rgba(0, 245, 255, 0)");
 
           ctx.save();
+          ctx.shadowColor = NEON_CYAN;
+          ctx.shadowBlur = 18;
           ctx.fillStyle = beamGrad;
-          ctx.fillRect(centerX - 180, beamY - 2, 360, 4);
+          ctx.fillRect(centerX - 200, beamY - 2.5, 400, 5);
+
+          // Intense white core
           ctx.fillStyle = NEON_WHITE;
-          ctx.fillRect(centerX - 80, beamY - 1, 160, 2);
+          ctx.fillRect(centerX - 100, beamY - 1, 200, 2);
+          ctx.restore();
+        }
+
+        // Energy charge-up ring before exploding (1.25s - 1.5s)
+        if (elapsed > T_CHARGE) {
+          const chargeProgress = Math.min((elapsed - T_CHARGE) / (T_EXPLODE - T_CHARGE), 1.0);
+          ctx.save();
+          ctx.strokeStyle = NEON_MAGENTA;
+          ctx.lineWidth = 3;
+          ctx.shadowColor = NEON_MAGENTA;
+          ctx.shadowBlur = 25;
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, 150 * (1 - chargeProgress), 0, Math.PI * 2);
+          ctx.stroke();
           ctx.restore();
         }
       }
-      // ── PHASE 2: BREAKS INTO PIXELS & FLIES TOWARDS US (1.4s - 2.6s) ──
-      // Ultra-optimized with hardware Additive Blending: NO lagging!
+      // ── PHASE 2: BREAKS INTO PIXELS & FLIES TOWARDS US (1.5s - 2.65s) ──
+      // Butter-smooth 60 FPS using hardware Additive Blending (zero lag!)
       else if (elapsed >= T_EXPLODE && elapsed < T_FINISH) {
-        // Trigger main page zoom in once
+        if (!shatterPlayed) {
+          shatterPlayed = true;
+          playSfx("shatter");
+        }
+        if (elapsed >= T_EXPLODE + 0.15 && !warpPlayed) {
+          warpPlayed = true;
+          playSfx("warp");
+        }
+
+        // Trigger main page zoom in synchronously as explosion starts
         if (!hasTriggeredZoom.current) {
           hasTriggeredZoom.current = true;
           if (onZoomStartRef.current) {
@@ -396,17 +443,20 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
         const explodeTime = elapsed - T_EXPLODE;
 
-        // Enable high-performance native Additive Blending (Instant neon glow with zero lag!)
+        // Hardware Additive Blending for neon glow with ZERO rasterizer lag
         ctx.save();
         ctx.globalCompositeOperation = "lighter";
 
-        const fadeFactor = elapsed > T_FADE_START ? Math.max(0, 1 - (elapsed - T_FADE_START) / (T_FINISH - T_FADE_START)) : 1;
+        const fadeFactor =
+          elapsed > T_FADE_START
+            ? Math.max(0, 1 - (elapsed - T_FADE_START) / (T_FINISH - T_FADE_START))
+            : 1;
 
         for (let i = 0; i < particles.length; i++) {
           const p = particles[i];
           if (!p.active) continue;
 
-          // Smooth exponential forward acceleration
+          // Smooth exponential forward acceleration towards camera
           const accel = 1 + explodeTime * 3.4;
           p.z += p.vz * accel;
           p.x += p.vx * accel * 0.75;
@@ -425,7 +475,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
           const pSize = Math.max(p.size * scale, 2);
 
-          // Fast streak calculation
+          // Fast motion streak trail towards viewer
           const prevDepth = Math.max(fov + (p.z - p.vz * 1.6), 8);
           const prevScale = fov / prevDepth;
           const prevPx = centerX + p.x * prevScale;
@@ -434,7 +484,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           const depthOpacity = Math.min(1, depth / 130);
           ctx.globalAlpha = p.alpha * depthOpacity * fadeFactor;
 
-          // Motion streak trail (neon laser line towards viewer)
           if (scale > 1.2) {
             ctx.strokeStyle = p.streakColor;
             ctx.lineWidth = Math.min(pSize * 0.8, 10);
@@ -449,7 +498,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           ctx.fillStyle = p.color;
           ctx.fillRect(px - pSize / 2, py - pSize / 2, pSize, pSize);
 
-          // Brilliant white hot-core for pixels zooming close
+          // White hot-core for particles close to screen
           if (scale > 2.2) {
             ctx.fillStyle = NEON_WHITE;
             ctx.fillRect(px - pSize / 4, py - pSize / 4, pSize / 2, pSize / 2);
