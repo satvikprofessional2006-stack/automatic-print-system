@@ -220,16 +220,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       offCtx.arc(cx + 42, cy + 32, 8, 0, Math.PI * 2);
       offCtx.fill();
 
-      // Typography
-      offCtx.fillStyle = NEON_WHITE;
-      offCtx.font = "bold 18px 'Poppins', -apple-system, sans-serif";
-      offCtx.textAlign = "center";
-      offCtx.fillText("RU PRINT PORTAL", cx, cy + 96);
-
-      offCtx.fillStyle = NEON_MAGENTA;
-      offCtx.font = "700 12px 'Poppins', -apple-system, sans-serif";
-      offCtx.fillText("RISHIHOOD UNIVERSITY", cx, cy + 115);
-
       const imgData = offCtx.getImageData(0, 0, offW, offH);
       const data = imgData.data;
 
@@ -420,6 +410,36 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           ctx.stroke();
           ctx.restore();
         }
+
+        // ── Ultra-crisp vector typography under the printer (crystal-clear legibility) ──
+        ctx.save();
+        ctx.globalAlpha = appearProgress;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        const textY = centerY + (floatY + 82);
+
+        // "RU PRINT PORTAL" - Sharp, glowing white heading
+        ctx.font = "800 22px 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        try {
+          ctx.letterSpacing = "2.5px";
+        } catch {}
+        ctx.shadowColor = "rgba(0, 245, 255, 0.85)";
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = NEON_WHITE;
+        ctx.fillText("RU PRINT PORTAL", centerX, textY);
+
+        // "RISHIHOOD UNIVERSITY" - Elegant neon subtitle
+        ctx.font = "700 11px 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        try {
+          ctx.letterSpacing = "3px";
+        } catch {}
+        ctx.shadowColor = "rgba(255, 0, 85, 0.9)";
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = NEON_MAGENTA;
+        ctx.fillText("RISHIHOOD UNIVERSITY", centerX, textY + 22);
+
+        ctx.restore();
       }
       // ── PHASE 2: BREAKS INTO PIXELS & FLIES TOWARDS US (1.5s - 2.65s) ──
       // Butter-smooth 60 FPS using hardware Additive Blending (zero lag!)
@@ -442,6 +462,36 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         }
 
         const explodeTime = elapsed - T_EXPLODE;
+
+        // Disintegrate / fade typography smoothly forward on explosion
+        if (explodeTime < 0.35) {
+          const textFade = Math.max(0, 1 - explodeTime / 0.35);
+          const textY = centerY + 82 + explodeTime * 35;
+          ctx.save();
+          ctx.globalAlpha = textFade;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+
+          ctx.font = "800 22px 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+          try {
+            ctx.letterSpacing = "2.5px";
+          } catch {}
+          ctx.shadowColor = "rgba(0, 245, 255, 0.85)";
+          ctx.shadowBlur = 12 * textFade;
+          ctx.fillStyle = NEON_WHITE;
+          ctx.fillText("RU PRINT PORTAL", centerX, textY);
+
+          ctx.font = "700 11px 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+          try {
+            ctx.letterSpacing = "3px";
+          } catch {}
+          ctx.shadowColor = "rgba(255, 0, 85, 0.9)";
+          ctx.shadowBlur = 10 * textFade;
+          ctx.fillStyle = NEON_MAGENTA;
+          ctx.fillText("RISHIHOOD UNIVERSITY", centerX, textY + 22);
+
+          ctx.restore();
+        }
 
         // Hardware Additive Blending for neon glow with ZERO rasterizer lag
         ctx.save();
