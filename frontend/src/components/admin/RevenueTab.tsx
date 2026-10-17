@@ -95,14 +95,7 @@ function getUtrNumber(job: any): string {
   if (job.utrNo || job.utr_no) return String(job.utrNo || job.utr_no);
   if (job.upiRef || job.upi_ref) return String(job.upiRef || job.upi_ref);
   if (job.payment_id || job.paymentId) return String(job.payment_id || job.paymentId);
-  const hex = (job.id || '').replace(/[^0-9a-f]/gi, '');
-  let numStr = '';
-  for (let i = 0; i < hex.length; i++) {
-    numStr += hex.charCodeAt(i) % 10;
-    if (numStr.length >= 12) break;
-  }
-  while (numStr.length < 12) numStr += '0';
-  return '6285' + numStr.slice(4, 12);
+  return "—";
 }
 
 export interface DayWiseSummary {

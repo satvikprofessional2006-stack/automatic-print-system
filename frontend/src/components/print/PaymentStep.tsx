@@ -63,7 +63,7 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
   }, []);
 
   // Upload files to backend and register print job
-  const uploadAndFinalize = async (paymentId?: string) => {
+  const uploadAndFinalize = async (paymentId?: string, utrNo?: string) => {
     setPayState("verifying");
     try {
       const uploadPromises = job.files.map(async (pf) => {
@@ -78,6 +78,9 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
         formData.append("userName", job.name);
         if (paymentId) {
           formData.append("paymentId", paymentId);
+        }
+        if (utrNo) {
+          formData.append("utrNo", utrNo);
         }
 
         const res = await fetch("/api/upload", {
@@ -186,8 +189,11 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
               throw new Error(verifyData?.error || "Payment verification failed");
             }
 
-            // Once verified, send print files to server
-            await uploadAndFinalize(response.razorpay_payment_id);
+            // Once verified, send print files to server with verified Payment ID and bank UTR
+            await uploadAndFinalize(
+              response.razorpay_payment_id,
+              verifyData?.utrNo || response.razorpay_payment_id
+            );
           } catch (verifyErr: any) {
             console.error("Verification error:", verifyErr);
             setErrorMessage(verifyErr?.message || "Payment verification failed");

@@ -19,7 +19,9 @@ export async function POST(req: Request) {
     const pageRange = (formData.get('pageRange') as string) || 'all';
     const pagesPerSheetStr = formData.get('pagesPerSheet') as string;
     const pagesPerSheet = parseInt(pagesPerSheetStr || '1', 10);
-    const userName = formData.get('userName') as string || null;
+    const userName = (formData.get('userName') as string) || null;
+    const paymentId = (formData.get('paymentId') as string) || null;
+    const utrNo = (formData.get('utrNo') as string) || null;
     
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -47,7 +49,7 @@ export async function POST(req: Request) {
     const isAdminUpload = (userName || '').toLowerCase().includes('admin');
     const initialStatus = isAdminUpload ? 'queued' : 'paid';
 
-    // Create DB entry payload
+    // Create DB entry payload with payment identification
     const jobPayload: any = {
       id: jobId,
       filename: originalFilename,
@@ -60,6 +62,8 @@ export async function POST(req: Request) {
       paper_size: paperSize,
       pages_per_sheet: pagesPerSheet > 1 ? pagesPerSheet : 1,
       page_range: pageRange,
+      payment_id: paymentId,
+      utr_no: utrNo,
       updatedAt: new Date().toISOString()
     };
 
@@ -144,6 +148,28 @@ export async function POST(req: Request) {
       if (uploadError) {
         console.error('Supabase upload error:', uploadError);
         throw new Error('Failed to upload file to cloud storage');
+      }
+
+      // Persist real payment & UTR metadata to cloud storage so it is resilient across schema changes
+      if (paymentId || utrNo) {
+        try {
+          const metaPayload = JSON.stringify({
+            jobId: printJob.id,
+            paymentId,
+            utrNo,
+            userName,
+            uploadedAt: new Date().toISOString(),
+          });
+          await supabase
+            .storage
+            .from('print-jobs')
+            .upload(`${printJob.id}.meta.json`, Buffer.from(metaPayload), {
+              contentType: 'application/json',
+              upsert: true,
+            });
+        } catch (metaErr) {
+          console.warn('Could not save metadata JSON to storage:', metaErr);
+        }
       }
     } else {
       console.warn("Supabase keys not found. Skipping file upload.");

@@ -46,11 +46,34 @@ export async function POST(req: Request) {
       );
     }
 
+    // Fetch real bank UTR / RRN from Razorpay payment details
+    let utrNo: string = paymentId;
+    try {
+      const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID;
+      if (keyId && keySecret) {
+        const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+        const rzpRes = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}`, {
+          headers: { Authorization: `Basic ${auth}` },
+        });
+        if (rzpRes.ok) {
+          const pData = await rzpRes.json();
+          utrNo =
+            pData?.acquirer_data?.rrn ||
+            pData?.acquirer_data?.upi_transaction_id ||
+            pData?.id ||
+            paymentId;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not fetch Razorpay acquirer UTR data:', e);
+    }
+
     return NextResponse.json({
       success: true,
       verified: true,
       paymentId,
       orderId,
+      utrNo,
     });
   } catch (error: any) {
     console.error('Error verifying payment:', error);
