@@ -106,6 +106,12 @@ export default function StatusPage() {
             <div className="status-icon" style={{color: 'var(--error)'}}>🛑</div>
             <h2>Job Cancelled</h2>
             <p>This print job was cancelled by an administrator.</p>
+            <div className="queue-position" style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', marginTop: '12px' }}>
+              ✓ Full Refund Initiated
+            </div>
+            <p style={{ fontSize: '13px', color: '#555', marginTop: '8px', lineHeight: '1.5' }}>
+              A 100% refund has been initiated to your original payment method via Razorpay. It typically reflects in your UPI / bank account within 2–4 hours (instant for UPI).
+            </p>
           </>
         )}
 

@@ -49,9 +49,26 @@ export function PrintFlow() {
   const [draftEnrollment, setDraftEnrollment] = useState("");
   const [draftFiles, setDraftFiles] = useState<PrintFile[]>([]);
 
-  // Restore authenticated student session on initial page load
+  // Restore authenticated student session & active print job on initial page load
   useEffect(() => {
     try {
+      // 1. Check if there is an active recent print job (within last 12 hours)
+      const savedJobStr = localStorage.getItem("ru_active_job");
+      let restoredJob: PrintJob | null = null;
+      if (savedJobStr) {
+        try {
+          const parsed = JSON.parse(savedJobStr);
+          const createdAt = new Date(parsed.createdAt || "").getTime();
+          // Keep active job for up to 12 hours so student can close site, walk to library, and see step 6
+          if (!isNaN(createdAt) && Date.now() - createdAt < 12 * 60 * 60 * 1000) {
+            restoredJob = parsed;
+          } else {
+            localStorage.removeItem("ru_active_job");
+          }
+        } catch {}
+      }
+
+      // 2. Restore authenticated student session
       const savedSession = localStorage.getItem("ru_student_session");
       if (savedSession) {
         const student: StudentAuth = JSON.parse(savedSession);
@@ -60,8 +77,21 @@ export function PrintFlow() {
           setDraftName(student.name || "");
           const savedEnrollment = localStorage.getItem(`ru_enrollment_${student.email}`) || "";
           setDraftEnrollment(savedEnrollment.trim().length >= 8 ? savedEnrollment.trim() : "");
+          
+          if (restoredJob) {
+            setActiveJob(restoredJob);
+            setStep("success");
+            return;
+          }
+
           setStep("details");
+          return;
         }
+      }
+
+      if (restoredJob) {
+        setActiveJob(restoredJob);
+        setStep("success");
       }
     } catch (e) {
       console.error("Session restore error:", e);
@@ -144,10 +174,16 @@ export function PrintFlow() {
 
   const handlePaid = (job: PrintJob) => {
     setActiveJob(job);
+    try {
+      localStorage.setItem("ru_active_job", JSON.stringify(job));
+    } catch {}
     go("success", 1);
   };
 
   const handleReset = () => {
+    try {
+      localStorage.removeItem("ru_active_job");
+    } catch {}
     setActiveJob(null);
     setDraftFiles([]);
     // Returning users start directly at details since they remain signed in
