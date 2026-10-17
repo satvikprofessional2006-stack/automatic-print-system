@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Volume2 } from "lucide-react";
 
 interface PrinterIntroProps {
   onZoomStart?: () => void;
@@ -34,10 +35,14 @@ interface NeonParticle {
 export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDone, setIsDone] = useState(false);
+  const [isWaitingForTap, setIsWaitingForTap] = useState(false);
 
-  // Single shared AudioContext & Master Gain Node (Sound is ALWAYS ON)
+  // Single shared AudioContext & Master Gain Node
   const audioCtxRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
+  const hasAudioStartedRef = useRef(false);
+  const hasAnimationStartedRef = useRef(false);
+  const currentElapsedRef = useRef(0);
 
   // Stable callback references to prevent unmount / restarts
   const onZoomStartRef = useRef(onZoomStart);
@@ -50,8 +55,9 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     onCompleteRef.current = onComplete;
   }, [onZoomStart, onComplete]);
 
-  // Audio Context Initializer - Sound ALWAYS ON with Auto-Resume
-  const ensureAudio = useCallback(() => {
+  // Audio Context Initializer (safe for SSR & user-gestures)
+  const getAudioCtx = useCallback(() => {
+    if (typeof window === "undefined") return null;
     try {
       if (!audioCtxRef.current) {
         const AudioCtx =
@@ -60,21 +66,325 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         if (!AudioCtx) return null;
         const actx = new AudioCtx();
         const masterGain = actx.createGain();
-        masterGain.gain.setValueAtTime(0.4, actx.currentTime); // Rich, audible cinematic level
+        masterGain.gain.setValueAtTime(0.50, actx.currentTime); // Cinematic master volume
         masterGain.connect(actx.destination);
 
         audioCtxRef.current = actx;
         masterGainRef.current = masterGain;
       }
-
-      if (audioCtxRef.current.state === "suspended") {
-        audioCtxRef.current.resume().catch(() => {});
-      }
-      return audioCtxRef.current;
-    } catch {
-      return null;
-    }
+    } catch {}
+    return audioCtxRef.current;
   }, []);
+
+  // ── MASTER CONTINUOUS AUDIO ENGINE (From 0.00s to 3.20s) ──
+  // Guarantees audio starts from the very first frame (0.00s) and plays continuously to the end without gaps
+  const playAudioScore = useCallback((startOffset: number = 0) => {
+    try {
+      const actx = getAudioCtx();
+      const masterGain = masterGainRef.current;
+      if (!actx || !masterGain) return;
+
+      if (actx.state === "suspended") {
+        actx.resume().catch(() => {});
+      }
+
+      if (hasAudioStartedRef.current) return;
+      hasAudioStartedRef.current = true;
+
+      const now = actx.currentTime;
+      // Precision relative scheduler: clamps past events, aligns future events exactly
+      const sched = (targetT: number) => now + Math.max(0, targetT - startOffset);
+
+      // ── LAYER 1: INSTANT POWER-ON CYBER BOOT CHORD & PUNCH (0.00s - 0.85s) ──
+      if (startOffset < 0.6) {
+        // 1A. Tactile Sub-bass Punch (instant low-end impact right as particles ignite)
+        const bootSub = actx.createOscillator();
+        const bootGain = actx.createGain();
+        bootSub.type = "sine";
+        bootSub.frequency.setValueAtTime(180, sched(0));
+        bootSub.frequency.exponentialRampToValueAtTime(80, sched(0.22));
+        bootGain.gain.setValueAtTime(0.35, sched(0));
+        bootGain.gain.exponentialRampToValueAtTime(0.001, sched(0.25));
+        bootSub.connect(bootGain);
+        bootGain.connect(masterGain);
+        bootSub.start(sched(0));
+        bootSub.stop(sched(0.25));
+
+        // 1B. Multi-oscillator Cyber Hologram Chord (A minor 9th: 220Hz, 330Hz, 440Hz, 660Hz)
+        const chordFreqs = [220, 330, 440, 660];
+        chordFreqs.forEach((freq, idx) => {
+          const osc = actx.createOscillator();
+          const filter = actx.createBiquadFilter();
+          const gain = actx.createGain();
+          osc.type = idx % 2 === 0 ? "sawtooth" : "triangle";
+          osc.frequency.setValueAtTime(freq, sched(0));
+          filter.type = "lowpass";
+          filter.frequency.setValueAtTime(450, sched(0));
+          filter.frequency.exponentialRampToValueAtTime(2400, sched(0.55));
+          filter.Q.setValueAtTime(3.0, sched(0));
+          gain.gain.setValueAtTime(0.22 / chordFreqs.length, sched(0));
+          gain.gain.linearRampToValueAtTime(0.34 / chordFreqs.length, sched(0.22));
+          gain.gain.exponentialRampToValueAtTime(0.001, sched(0.85));
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(masterGain);
+          osc.start(sched(0));
+          osc.stop(sched(0.85));
+        });
+      }
+
+      // ── LAYER 2: CONTINUOUS CYBER AMBIENT DRONE & TEXTURE (0.00s - 1.45s) ──
+      if (startOffset < 1.45) {
+        const droneOsc1 = actx.createOscillator();
+        const droneOsc2 = actx.createOscillator();
+        const droneFilter = actx.createBiquadFilter();
+        const droneGain = actx.createGain();
+
+        droneOsc1.type = "sawtooth";
+        droneOsc2.type = "triangle";
+        droneOsc1.frequency.setValueAtTime(110, sched(0)); // A2
+        droneOsc2.frequency.setValueAtTime(110.8, sched(0)); // Lush chorus detune
+
+        droneFilter.type = "lowpass";
+        droneFilter.frequency.setValueAtTime(700, sched(0));
+        droneFilter.frequency.linearRampToValueAtTime(1400, sched(1.2));
+        droneFilter.frequency.exponentialRampToValueAtTime(2400, sched(1.45));
+
+        droneGain.gain.setValueAtTime(0.22, sched(0));
+        droneGain.gain.setValueAtTime(0.25, sched(1.0));
+        droneGain.gain.linearRampToValueAtTime(0.42, sched(1.45)); // Swells towards explosion
+        droneGain.gain.exponentialRampToValueAtTime(0.001, sched(1.50));
+
+        droneOsc1.connect(droneFilter);
+        droneOsc2.connect(droneFilter);
+        droneFilter.connect(droneGain);
+        droneGain.connect(masterGain);
+        droneOsc1.start(sched(0));
+        droneOsc2.start(sched(0));
+        droneOsc1.stop(sched(1.50));
+        droneOsc2.stop(sched(1.50));
+      }
+
+      // ── LAYER 3: LASER SCANNER PULSE (0.25s - 1.25s) ──
+      if (startOffset < 1.25) {
+        const scanOsc = actx.createOscillator();
+        const scanFilter = actx.createBiquadFilter();
+        const scanGain = actx.createGain();
+
+        scanOsc.type = "sawtooth";
+        scanOsc.frequency.setValueAtTime(780, sched(0.25));
+        scanOsc.frequency.exponentialRampToValueAtTime(280, sched(1.25));
+
+        scanFilter.type = "bandpass";
+        scanFilter.frequency.setValueAtTime(1800, sched(0.25));
+        scanFilter.frequency.exponentialRampToValueAtTime(650, sched(1.25));
+        scanFilter.Q.setValueAtTime(5.5, sched(0.25));
+
+        scanGain.gain.setValueAtTime(0.001, sched(0));
+        scanGain.gain.setValueAtTime(0.26, sched(0.25));
+        scanGain.gain.linearRampToValueAtTime(0.28, sched(0.75));
+        scanGain.gain.exponentialRampToValueAtTime(0.001, sched(1.25));
+
+        scanOsc.connect(scanFilter);
+        scanFilter.connect(scanGain);
+        scanGain.connect(masterGain);
+        scanOsc.start(sched(0.25));
+        scanOsc.stop(sched(1.25));
+      }
+
+      // ── LAYER 4: ENERGY CHARGE-UP RISER (1.15s - 1.45s) ──
+      if (startOffset < 1.45) {
+        const riserOsc1 = actx.createOscillator();
+        const riserOsc2 = actx.createOscillator();
+        const riserGain = actx.createGain();
+
+        riserOsc1.type = "sawtooth";
+        riserOsc2.type = "sine";
+        riserOsc1.frequency.setValueAtTime(260, sched(1.15));
+        riserOsc1.frequency.exponentialRampToValueAtTime(1380, sched(1.45));
+        riserOsc2.frequency.setValueAtTime(520, sched(1.15));
+        riserOsc2.frequency.exponentialRampToValueAtTime(2760, sched(1.45));
+
+        riserGain.gain.setValueAtTime(0.001, sched(0));
+        riserGain.gain.setValueAtTime(0.12, sched(1.15));
+        riserGain.gain.linearRampToValueAtTime(0.40, sched(1.43));
+        riserGain.gain.exponentialRampToValueAtTime(0.001, sched(1.46));
+
+        riserOsc1.connect(riserGain);
+        riserOsc2.connect(riserGain);
+        riserGain.connect(masterGain);
+        riserOsc1.start(sched(1.15));
+        riserOsc2.start(sched(1.15));
+        riserOsc1.stop(sched(1.46));
+        riserOsc2.stop(sched(1.46));
+      }
+
+      // ── LAYER 5: SHATTER EXPLOSION & DISINTEGRATION BLAST (1.45s - 1.95s) ──
+      if (startOffset < 1.95) {
+        // 5A. Heavy Sub-bass Shockwave
+        const subBoom = actx.createOscillator();
+        const subGain = actx.createGain();
+        subBoom.type = "sine";
+        subBoom.frequency.setValueAtTime(180, sched(1.45));
+        subBoom.frequency.exponentialRampToValueAtTime(36, sched(1.95));
+        subGain.gain.setValueAtTime(0.001, sched(0));
+        subGain.gain.setValueAtTime(0.55, sched(1.45));
+        subGain.gain.exponentialRampToValueAtTime(0.001, sched(1.95));
+        subBoom.connect(subGain);
+        subGain.connect(masterGain);
+        subBoom.start(sched(1.45));
+        subBoom.stop(sched(1.95));
+
+        // 5B. Mid Punch Clack
+        const punchOsc = actx.createOscillator();
+        const punchGain = actx.createGain();
+        punchOsc.type = "triangle";
+        punchOsc.frequency.setValueAtTime(480, sched(1.45));
+        punchOsc.frequency.exponentialRampToValueAtTime(120, sched(1.55));
+        punchGain.gain.setValueAtTime(0.35, sched(1.45));
+        punchGain.gain.exponentialRampToValueAtTime(0.001, sched(1.55));
+        punchOsc.connect(punchGain);
+        punchGain.connect(masterGain);
+        punchOsc.start(sched(1.45));
+        punchOsc.stop(sched(1.55));
+
+        // 5C. Digital Particle Glass Shatter Noise Burst
+        const bufferSize = Math.floor(actx.sampleRate * 0.50);
+        const buffer = actx.createBuffer(1, bufferSize, actx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noiseSource = actx.createBufferSource();
+        noiseSource.buffer = buffer;
+        const nFilter = actx.createBiquadFilter();
+        nFilter.type = "bandpass";
+        nFilter.frequency.setValueAtTime(3600, sched(1.45));
+        nFilter.frequency.exponentialRampToValueAtTime(1200, sched(1.95));
+        nFilter.Q.setValueAtTime(3.8, sched(1.45));
+        const nGain = actx.createGain();
+        nGain.gain.setValueAtTime(0.001, sched(0));
+        nGain.gain.setValueAtTime(0.42, sched(1.45));
+        nGain.gain.exponentialRampToValueAtTime(0.001, sched(1.95));
+        noiseSource.connect(nFilter);
+        nFilter.connect(nGain);
+        nGain.connect(masterGain);
+        noiseSource.start(sched(1.45));
+      }
+
+      // ── LAYER 6: COSMIC REVERSE GRAVITATIONAL SUCTION WHOOSH (1.95s - 2.65s) ──
+      if (startOffset < 2.65) {
+        // 6A. Reverse Vacuum Whoosh
+        const suctionNoise = actx.createBufferSource();
+        const sBufSize = Math.floor(actx.sampleRate * 0.75);
+        const sBuf = actx.createBuffer(1, sBufSize, actx.sampleRate);
+        const sData = sBuf.getChannelData(0);
+        for (let i = 0; i < sBufSize; i++) sData[i] = Math.random() * 2 - 1;
+        suctionNoise.buffer = sBuf;
+        const sNoiseFilter = actx.createBiquadFilter();
+        sNoiseFilter.type = "bandpass";
+        sNoiseFilter.frequency.setValueAtTime(260, sched(1.95));
+        sNoiseFilter.frequency.exponentialRampToValueAtTime(3200, sched(2.65));
+        sNoiseFilter.Q.setValueAtTime(4.2, sched(1.95));
+        const sNoiseGain = actx.createGain();
+        sNoiseGain.gain.setValueAtTime(0.001, sched(0));
+        sNoiseGain.gain.setValueAtTime(0.08, sched(1.95));
+        sNoiseGain.gain.linearRampToValueAtTime(0.38, sched(2.55));
+        sNoiseGain.gain.exponentialRampToValueAtTime(0.001, sched(2.65));
+        suctionNoise.connect(sNoiseFilter);
+        sNoiseFilter.connect(sNoiseGain);
+        sNoiseGain.connect(masterGain);
+        suctionNoise.start(sched(1.95));
+
+        // 6B. Tractor Beam Harmonic Riser
+        const suctionOsc1 = actx.createOscillator();
+        const suctionOsc2 = actx.createOscillator();
+        const suctionGain = actx.createGain();
+        suctionOsc1.type = "sawtooth";
+        suctionOsc2.type = "sine";
+        suctionOsc1.frequency.setValueAtTime(85, sched(1.95));
+        suctionOsc1.frequency.exponentialRampToValueAtTime(580, sched(2.65));
+        suctionOsc2.frequency.setValueAtTime(170, sched(1.95));
+        suctionOsc2.frequency.exponentialRampToValueAtTime(1160, sched(2.65));
+
+        suctionGain.gain.setValueAtTime(0.001, sched(0));
+        suctionGain.gain.setValueAtTime(0.10, sched(1.95));
+        suctionGain.gain.linearRampToValueAtTime(0.40, sched(2.55));
+        suctionGain.gain.exponentialRampToValueAtTime(0.001, sched(2.65));
+
+        suctionOsc1.connect(suctionGain);
+        suctionOsc2.connect(suctionGain);
+        suctionGain.connect(masterGain);
+        suctionOsc1.start(sched(1.95));
+        suctionOsc2.start(sched(1.95));
+        suctionOsc1.stop(sched(2.65));
+        suctionOsc2.stop(sched(2.65));
+      }
+
+      // ── LAYER 7: FIRST PAGE CRYSTALLIZATION CHIME CHORD (2.65s - 3.20s) ──
+      if (startOffset < 3.10) {
+        // 7A. Tactile Lock Snap Impact
+        const lockOsc = actx.createOscillator();
+        const lockGain = actx.createGain();
+        lockOsc.type = "triangle";
+        lockOsc.frequency.setValueAtTime(1300, sched(2.65));
+        lockOsc.frequency.exponentialRampToValueAtTime(320, sched(2.72));
+        lockGain.gain.setValueAtTime(0.28, sched(2.65));
+        lockGain.gain.exponentialRampToValueAtTime(0.001, sched(2.72));
+        lockOsc.connect(lockGain);
+        lockGain.connect(masterGain);
+        lockOsc.start(sched(2.65));
+        lockOsc.stop(sched(2.72));
+
+        // 7B. Celestial 6-note Crystallization Chime Chord
+        const chimes = [523.25, 659.25, 783.99, 987.77, 1046.50, 1318.51];
+        chimes.forEach((freq, idx) => {
+          const osc = actx.createOscillator();
+          const gain = actx.createGain();
+          osc.type = "sine";
+          const noteTime = sched(2.65 + idx * 0.024);
+          osc.frequency.setValueAtTime(freq, noteTime);
+          gain.gain.setValueAtTime(0.001, sched(0));
+          gain.gain.setValueAtTime(0.26, noteTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 0.85);
+          osc.connect(gain);
+          gain.connect(masterGain);
+          osc.start(noteTime);
+          osc.stop(noteTime + 0.85);
+        });
+
+        // 7C. Warm Sub-bass Foundation
+        const subChord = actx.createOscillator();
+        const subChordGain = actx.createGain();
+        subChord.type = "sine";
+        subChord.frequency.setValueAtTime(130.81, sched(2.65)); // C3
+        subChordGain.gain.setValueAtTime(0.001, sched(0));
+        subChordGain.gain.setValueAtTime(0.22, sched(2.65));
+        subChordGain.gain.exponentialRampToValueAtTime(0.001, sched(3.20));
+        subChord.connect(subChordGain);
+        subChordGain.connect(masterGain);
+        subChord.start(sched(2.65));
+        subChord.stop(sched(3.20));
+      }
+    } catch {}
+  }, [getAudioCtx]);
+
+  // Direct user gesture unlock handler (guarantees Chrome/Safari un-suspends AudioContext)
+  const handleUserInteraction = useCallback(() => {
+    const actx = getAudioCtx();
+    if (actx && actx.state === "suspended") {
+      actx.resume().then(() => {
+        setIsWaitingForTap(false);
+      }).catch(() => {});
+    } else {
+      setIsWaitingForTap(false);
+    }
+
+    if (!hasAnimationStartedRef.current) {
+      hasAnimationStartedRef.current = true;
+      playAudioScore(0);
+    } else if (!hasAudioStartedRef.current) {
+      playAudioScore(currentElapsedRef.current);
+    }
+  }, [getAudioCtx, playAudioScore]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -106,161 +416,47 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     updateDimensions();
     window.addEventListener("resize", updateDimensions);
 
-    // Auto-unlock audio on ANY ambient user interaction (pointer, touch, key, scroll)
-    const unlockUserAudio = () => {
-      ensureAudio();
-    };
+    // Register multi-event gestures so ANY touch, click, or key press instantly starts audio
     const unlockEvents = [
       "pointerdown",
       "mousedown",
       "touchstart",
       "keydown",
-      "mousemove",
-      "wheel",
-      "focus",
+      "click",
     ];
-    unlockEvents.forEach((ev) => window.addEventListener(ev, unlockUserAudio, { passive: true }));
+    unlockEvents.forEach((ev) => window.addEventListener(ev, handleUserInteraction, { passive: true }));
 
-    // Start audio context immediately
-    ensureAudio();
+    // Check Audio Context state on mount
+    const actx = getAudioCtx();
+    if (actx) {
+      if (actx.state === "running") {
+        hasAnimationStartedRef.current = true;
+        playAudioScore(0);
+        setIsWaitingForTap(false);
+      } else {
+        // Attempt automatic resume if permissions allow
+        actx.resume().then(() => {
+          if (actx.state === "running") {
+            hasAnimationStartedRef.current = true;
+            playAudioScore(0);
+            setIsWaitingForTap(false);
+          } else {
+            setIsWaitingForTap(true);
+          }
+        }).catch(() => {
+          setIsWaitingForTap(true);
+        });
+      }
+    }
 
-    // High-definition Sound Effects Synthesizer (ALWAYS ON)
-    const playSfx = (type: "charge" | "scan" | "shatter" | "suction" | "lock") => {
-      try {
-        const actx = ensureAudio();
-        const masterGain = masterGainRef.current;
-        if (!actx || !masterGain) return;
-        const now = actx.currentTime;
-
-        if (type === "charge") {
-          // Dual-oscillator sci-fi harmonic charge hum
-          const osc1 = actx.createOscillator();
-          const osc2 = actx.createOscillator();
-          const gain = actx.createGain();
-
-          osc1.type = "sine";
-          osc1.frequency.setValueAtTime(140, now);
-          osc1.frequency.exponentialRampToValueAtTime(540, now + 1.25);
-
-          osc2.type = "triangle";
-          osc2.frequency.setValueAtTime(280, now);
-          osc2.frequency.exponentialRampToValueAtTime(1080, now + 1.25);
-
-          gain.gain.setValueAtTime(0.02, now);
-          gain.gain.linearRampToValueAtTime(0.28, now + 0.6);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
-
-          osc1.connect(gain);
-          osc2.connect(gain);
-          gain.connect(masterGain);
-
-          osc1.start(now);
-          osc2.start(now);
-          osc1.stop(now + 1.25);
-          osc2.stop(now + 1.25);
-        } else if (type === "scan") {
-          // Resonant laser scanline pass
-          const osc = actx.createOscillator();
-          const filter = actx.createBiquadFilter();
-          const gain = actx.createGain();
-
-          osc.type = "sawtooth";
-          osc.frequency.setValueAtTime(680, now);
-          osc.frequency.exponentialRampToValueAtTime(240, now + 0.9);
-
-          filter.type = "bandpass";
-          filter.frequency.setValueAtTime(1500, now);
-          filter.Q.setValueAtTime(4.5, now);
-
-          gain.gain.setValueAtTime(0.16, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
-
-          osc.connect(filter);
-          filter.connect(gain);
-          gain.connect(masterGain);
-
-          osc.start(now);
-          osc.stop(now + 0.9);
-        } else if (type === "shatter") {
-          // Sub-bass impact boom (cinema trailer drop)
-          const sub = actx.createOscillator();
-          const subGain = actx.createGain();
-          sub.type = "sine";
-          sub.frequency.setValueAtTime(160, now);
-          sub.frequency.exponentialRampToValueAtTime(42, now + 0.45);
-          subGain.gain.setValueAtTime(0.45, now);
-          subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
-          sub.connect(subGain);
-          subGain.connect(masterGain);
-          sub.start(now);
-          sub.stop(now + 0.45);
-
-          // Glass / digital pixel shatter burst
-          const bufferSize = Math.floor(actx.sampleRate * 0.4);
-          const buffer = actx.createBuffer(1, bufferSize, actx.sampleRate);
-          const data = buffer.getChannelData(0);
-          for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-          const noise = actx.createBufferSource();
-          noise.buffer = buffer;
-          const filter = actx.createBiquadFilter();
-          filter.type = "bandpass";
-          filter.frequency.setValueAtTime(3200, now);
-          filter.Q.setValueAtTime(3.5, now);
-          const nGain = actx.createGain();
-          nGain.gain.setValueAtTime(0.35, now);
-          nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-          noise.connect(filter);
-          filter.connect(nGain);
-          nGain.connect(masterGain);
-          noise.start(now);
-        } else if (type === "suction") {
-          // Deep cosmic reverse gravitational suction whoosh
-          const osc = actx.createOscillator();
-          const filter = actx.createBiquadFilter();
-          const gain = actx.createGain();
-
-          osc.type = "sawtooth";
-          osc.frequency.setValueAtTime(75, now);
-          osc.frequency.exponentialRampToValueAtTime(480, now + 0.70);
-
-          filter.type = "bandpass";
-          filter.frequency.setValueAtTime(200, now);
-          filter.frequency.exponentialRampToValueAtTime(2400, now + 0.70);
-          filter.Q.setValueAtTime(4.0, now);
-
-          // Volume swells smoothly as particles converge
-          gain.gain.setValueAtTime(0.02, now);
-          gain.gain.linearRampToValueAtTime(0.36, now + 0.55);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.70);
-
-          osc.connect(filter);
-          filter.connect(gain);
-          gain.connect(masterGain);
-
-          osc.start(now);
-          osc.stop(now + 0.70);
-        } else if (type === "lock") {
-          // Luxurious futuristic chime chord (C5, E5, G5, C6, E6, G6)
-          const freqs = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98];
-          freqs.forEach((freq, idx) => {
-            const osc = actx.createOscillator();
-            const gain = actx.createGain();
-            osc.type = "sine";
-            const noteTime = now + idx * 0.025;
-            osc.frequency.setValueAtTime(freq, noteTime);
-            gain.gain.setValueAtTime(0.22, noteTime);
-            gain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 0.75);
-            osc.connect(gain);
-            gain.connect(masterGain);
-            osc.start(noteTime);
-            osc.stop(noteTime + 0.75);
-          });
-        }
-      } catch {}
-    };
-
-    // Trigger charge sound on start
-    setTimeout(() => playSfx("charge"), 80);
+    // Safety fallback: If user doesn't tap within 1.6s, start animation automatically
+    const autoFallbackTimer = setTimeout(() => {
+      if (!hasAnimationStartedRef.current) {
+        hasAnimationStartedRef.current = true;
+        setIsWaitingForTap(false);
+        playAudioScore(0);
+      }
+    }, 1600);
 
     // Build the holographic vector printer particle matrix
     const particles: NeonParticle[] = [];
@@ -404,7 +600,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     const assignTargetsAndScatter = (width: number, height: number) => {
       const centerX = width / 2;
       const centerY = height / 2;
-      // Exact 1:1 dimensions and coordinates of the real PrintFlow card
+      // Exact 1:1 dimensions and coordinates matching the real PrintFlow card
       const cardW = Math.min(width * 0.92, 512);
       const cardH = 340;
       const cardX = centerX - cardW / 2;
@@ -506,14 +702,12 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
     assignTargetsAndScatter(window.innerWidth, window.innerHeight);
 
-    // Timeline Pacing:
+    // Exact Choreography Timeline:
     // 0.0s - 1.25s: Printer materializes and laser sweeps down strictly ONCE
     // 1.25s - 1.45s: Energy charge ring contracts into center
-    // 1.45s: Explosion burst starts! Sound: 'shatter'
-    // 1.45s - 1.95s: Pixels accelerate completely OUT OF THE SCREEN (100% offscreen)
-    // 1.95s: Cosmic reverse suction begins! Sound: 'suction'
-    // 1.95s - 2.65s: Pixels rush back inward from offscreen to directly build first page
-    // 2.65s: Pixels lock into place forming first page! Sound: 'lock' chime + live page reveals
+    // 1.45s: Explosion burst! Pixels launch completely OUT OF THE SCREEN
+    // 1.95s: Cosmic reverse suction begins! Pixels rush back inward from offscreen
+    // 2.65s: Pixels lock into place forming first page! Live page reveals
     // 2.65s - 2.95s: Clean fade-out into live interactive page
     // 2.95s: Finish!
     const T_CHARGE = 1.25;
@@ -522,14 +716,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     const T_ASSEMBLE = 2.65;
     const T_FINISH = 2.95;
 
-    let scanPlayed = false;
-    let shatterPlayed = false;
-    let suctionPlayed = false;
-    let lockPlayed = false;
-
     const render = (timestamp: number) => {
-      if (!startTime) startTime = timestamp;
-      const elapsed = (timestamp - startTime) / 1000;
       const width = window.innerWidth;
       const height = window.innerHeight;
       const centerX = width / 2;
@@ -549,6 +736,94 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       bgGrad.addColorStop(0, "#08132B");
       bgGrad.addColorStop(0.4, "#03081A");
       bgGrad.addColorStop(1, "#01030B");
+
+      // While waiting for user interaction, render preview state
+      if (!hasAnimationStartedRef.current) {
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, width, height);
+
+        // Cyberpunk Neon Perspective Floor Grid
+        ctx.strokeStyle = "rgba(0, 245, 255, 0.09)";
+        ctx.lineWidth = 1;
+        const horizon = centerY + 140;
+        for (let i = -14; i <= 14; i++) {
+          ctx.beginPath();
+          ctx.moveTo(centerX + i * 40, horizon);
+          ctx.lineTo(centerX + i * 240, height);
+          ctx.stroke();
+        }
+        for (let gy = horizon; gy < height; gy += 24) {
+          ctx.beginPath();
+          ctx.moveTo(0, gy);
+          ctx.lineTo(width, gy);
+          ctx.stroke();
+        }
+
+        // Floating gentle breathing halo
+        const pulse = (Math.sin(timestamp / 380) + 1) * 0.5;
+        const idleFloatY = Math.sin(timestamp / 450) * 4;
+
+        const auraGrad = ctx.createRadialGradient(
+          centerX,
+          centerY + idleFloatY,
+          20,
+          centerX,
+          centerY + idleFloatY,
+          240
+        );
+        auraGrad.addColorStop(0, `rgba(0, 245, 255, ${0.35 + 0.15 * pulse})`);
+        auraGrad.addColorStop(0.4, `rgba(255, 0, 85, ${0.18 + 0.1 * pulse})`);
+        auraGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+        ctx.save();
+        ctx.fillStyle = auraGrad;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY + idleFloatY, 260, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        const fov = 340;
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          const scale = fov / (fov + p.z);
+          const px = centerX + p.origX * scale;
+          const py = centerY + (p.origY + idleFloatY) * scale;
+          const pSize = Math.max(p.size * scale, 1.4);
+          p.lastX = px;
+          p.lastY = py;
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = p.alpha;
+          ctx.fillRect(px - pSize / 2, py - pSize / 2, pSize, pSize);
+        }
+
+        // Render Typography
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const textY = centerY + (idleFloatY + 82);
+
+        ctx.font = "800 22px 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        try { ctx.letterSpacing = "2.5px"; } catch {}
+        ctx.shadowColor = "rgba(0, 245, 255, 0.85)";
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = NEON_WHITE;
+        ctx.fillText("RU PRINT PORTAL", centerX, textY);
+
+        ctx.font = "700 11px 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        try { ctx.letterSpacing = "3px"; } catch {}
+        ctx.shadowColor = "rgba(255, 0, 85, 0.9)";
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = NEON_MAGENTA;
+        ctx.fillText("RISHIHOOD UNIVERSITY", centerX, textY + 22);
+        ctx.restore();
+
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
+
+      if (!startTime) startTime = timestamp;
+      const elapsed = (timestamp - startTime) / 1000;
+      currentElapsedRef.current = elapsed;
 
       // Seamless background fade as first page is created
       let bgAlpha = 1;
@@ -628,11 +903,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         // Horizontal Neon Laser Scanner Beam:
         // Sweeps strictly ONCE from top to bottom (from 0.25s to 1.25s) with NO modulo wrapping!
         if (elapsed > 0.25 && elapsed <= T_CHARGE) {
-          if (!scanPlayed) {
-            scanPlayed = true;
-            playSfx("scan");
-          }
-
           const scanProgress = Math.min(Math.max((elapsed - 0.25) / (T_CHARGE - 0.25), 0), 1.0);
           const beamY = centerY - 140 + scanProgress * 280;
 
@@ -699,11 +969,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       }
       // ── PHASE 2A: PIXELS GO COMPLETELY OUT OF SCREEN (1.45s - 1.95s) ──
       else if (elapsed >= T_EXPLODE && elapsed < T_SUCTION) {
-        if (!shatterPlayed) {
-          shatterPlayed = true;
-          playSfx("shatter");
-        }
-
         const explodeTime = elapsed - T_EXPLODE;
         const explodeProgress = Math.min(explodeTime / (T_SUCTION - T_EXPLODE), 1.0);
 
@@ -766,11 +1031,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       }
       // ── PHASE 2B: PIXELS RUSH BACK IN FROM OFF-SCREEN & DIRECTLY CREATE FIRST PAGE (1.95s - 2.65s) ──
       else if (elapsed >= T_SUCTION && elapsed < T_ASSEMBLE) {
-        if (!suctionPlayed) {
-          suctionPlayed = true;
-          playSfx("suction");
-        }
-
         const suctionTime = elapsed - T_SUCTION;
         const reProgress = Math.min(suctionTime / (T_ASSEMBLE - T_SUCTION), 1.0);
 
@@ -825,14 +1085,10 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       }
       // ── PHASE 2C: FIRST PAGE CREATION LOCK (2.65s - 2.95s) ──
       else if (elapsed >= T_ASSEMBLE && elapsed < T_FINISH) {
-        if (!lockPlayed) {
-          lockPlayed = true;
-          playSfx("lock");
-          if (!hasTriggeredZoom.current) {
-            hasTriggeredZoom.current = true;
-            if (onZoomStartRef.current) {
-              onZoomStartRef.current();
-            }
+        if (!hasTriggeredZoom.current) {
+          hasTriggeredZoom.current = true;
+          if (onZoomStartRef.current) {
+            onZoomStartRef.current();
           }
         }
 
@@ -888,10 +1144,11 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      clearTimeout(autoFallbackTimer);
       window.removeEventListener("resize", updateDimensions);
-      unlockEvents.forEach((ev) => window.removeEventListener(ev, unlockUserAudio));
+      unlockEvents.forEach((ev) => window.removeEventListener(ev, handleUserInteraction));
     };
-  }, [ensureAudio]);
+  }, [handleUserInteraction, playAudioScore, getAudioCtx]);
 
   if (isDone) return null;
 
@@ -901,9 +1158,19 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         initial={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
-        className="fixed inset-0 z-[9999] pointer-events-none select-none overflow-hidden cursor-default"
+        onClick={handleUserInteraction}
+        onPointerDown={handleUserInteraction}
+        className="fixed inset-0 z-[9999] pointer-events-auto select-none overflow-hidden cursor-pointer"
       >
         <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
+
+        {/* Ambient indicator when browser holds audio suspended pending first user tap */}
+        {isWaitingForTap && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 mt-36 z-50 pointer-events-none flex items-center gap-2.5 px-6 py-3 rounded-full bg-slate-900/90 border border-cyan-400/70 text-cyan-200 text-sm font-semibold backdrop-blur-md shadow-2xl shadow-cyan-500/40 animate-pulse">
+            <Volume2 className="w-5 h-5 text-cyan-400 animate-bounce" />
+            <span>Click or tap anywhere for sound</span>
+          </div>
+        )}
       </motion.div>
     </AnimatePresence>
   );
