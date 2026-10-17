@@ -141,18 +141,30 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
     window.print();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 12 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 12 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          className="relative w-full max-w-4xl bg-card border border-border/80 rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto"
-        >
+    <>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            key="qr-standee-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) onClose();
+            }}
+          >
+            <motion.div
+              key="qr-standee-modal-card"
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="relative w-full max-w-4xl bg-card border border-border/80 rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-border/60 bg-muted/40">
             <div className="flex items-center gap-3">
@@ -458,37 +470,39 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
             </div>
           </div>
         </motion.div>
-      </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
 
-      {/* Dedicated Clean Print Stylesheet for Physical Paper / Card Printing */}
-      <style jsx global>{`
-        @media print {
-          /* Hide all UI, headers, modals, backgrounds */
-          body * {
-            visibility: hidden;
-          }
-          /* Make ONLY the printable standee card visible */
-          #printable-qr-standee,
-          #printable-qr-standee * {
-            visibility: visible;
-          }
-          #printable-qr-standee {
-            position: fixed;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%) scale(1.15);
-            margin: 0;
-            box-shadow: none !important;
-            page-break-inside: avoid;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          @page {
-            size: A4 portrait;
-            margin: 10mm;
-          }
-        }
-      `}</style>
-    </AnimatePresence>
-  );
+  {/* Dedicated Clean Print Stylesheet for Physical Paper / Card Printing */}
+  <style jsx global>{`
+    @media print {
+      /* Hide all UI, headers, modals, backgrounds */
+      body * {
+        visibility: hidden;
+      }
+      /* Make ONLY the printable standee card visible */
+      #printable-qr-standee,
+      #printable-qr-standee * {
+        visibility: visible;
+      }
+      #printable-qr-standee {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%) scale(1.15);
+        margin: 0;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 10mm;
+      }
+    }
+  `}</style>
+</>
+);
 }
