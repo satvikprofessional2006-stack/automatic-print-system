@@ -404,23 +404,24 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     const assignTargetsAndScatter = (width: number, height: number) => {
       const centerX = width / 2;
       const centerY = height / 2;
-      const cardW = Math.min(width * 0.92, 480);
+      // Exact 1:1 dimensions and coordinates of the real PrintFlow card
+      const cardW = Math.min(width * 0.92, 512);
       const cardH = 340;
       const cardX = centerX - cardW / 2;
-      const cardY = centerY - cardH / 2 + 25;
+      const cardY = Math.max(135, centerY - 210);
 
-      const headerY = cardY - 78;
-      const stepperY = cardY - 32;
-      const btnW = Math.min(cardW - 60, 360);
+      const headerY = cardY - 95;
+      const stepperY = cardY - 45;
+      const btnW = Math.min(cardW - 48, 440);
       const btnH = 46;
       const btnX = centerX - btnW / 2;
-      const btnY = cardY + 204;
+      const btnY = cardY + 185;
 
       const n = particles.length;
       const perim = 2 * (cardW + cardH);
 
       // Distance guaranteed to be COMPLETELY OUTSIDE the viewport in any direction
-      const baseOutDist = Math.hypot(width, height) * 0.65;
+      const baseOutDist = Math.hypot(width, height) * 0.68;
 
       for (let i = 0; i < n; i++) {
         const p = particles[i];
@@ -850,10 +851,10 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         }
 
         // Radiant neon lock perimeter trace around the newly built card
-        const cardW = Math.min(width * 0.92, 480);
+        const cardW = Math.min(width * 0.92, 512);
         const cardH = 340;
         const cardX = centerX - cardW / 2;
-        const cardY = centerY - cardH / 2 + 25;
+        const cardY = Math.max(135, centerY - 210);
 
         ctx.strokeStyle = NEON_CYAN;
         ctx.lineWidth = 2.5;
