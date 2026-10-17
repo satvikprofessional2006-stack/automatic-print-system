@@ -365,9 +365,9 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           ctx.fillRect(px - pSize / 2, py - pSize / 2, pSize, pSize);
         }
 
-        // Single smooth vertical laser scan beam
-        if (elapsed > 0.2) {
-          const scanProgress = ((elapsed - 0.2) * 1.3) % 1.0;
+        // Single smooth vertical laser scan beam (sweeps down strictly ONCE from top to bottom)
+        if (elapsed > 0.25 && elapsed < T_EXPLODE) {
+          const scanProgress = Math.min((elapsed - 0.25) / (T_EXPLODE - 0.35), 1.0);
           const beamY = centerY - 130 + scanProgress * 260;
 
           const beamGrad = ctx.createLinearGradient(centerX - 180, beamY, centerX + 180, beamY);
