@@ -3,10 +3,14 @@
 import React, { useState, useEffect } from "react";
 import { ThemeToggle } from "./ThemeToggle";
 import { useAuth } from "@/context/AuthContext";
-import { LogOut, Shield } from "lucide-react";
+import { LogOut, Shield, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function Header() {
+interface HeaderProps {
+  onOpenQrModal?: () => void;
+}
+
+export function Header({ onOpenQrModal }: HeaderProps = {}) {
   const { user, logout } = useAuth();
   const [timeStr, setTimeStr] = useState("");
 
@@ -48,6 +52,17 @@ export function Header() {
 
       {/* Right */}
       <div className="flex items-center gap-3">
+        {onOpenQrModal && (
+          <Button
+            onClick={onOpenQrModal}
+            size="sm"
+            className="h-8 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold rounded-lg transition-all shadow-xs"
+          >
+            <QrCode className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Print QR Standees</span>
+          </Button>
+        )}
+
         {timeStr && (
           <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-muted-foreground bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/15 px-3 py-1 rounded-full">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />

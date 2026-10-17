@@ -11,12 +11,14 @@ import { PrintJobsTable } from "@/components/admin/PrintJobsTable";
 import { RevenueTab } from "@/components/admin/RevenueTab";
 import { AdminPrintTab } from "@/components/admin/AdminPrintTab";
 import { OverviewTab } from "@/components/admin/OverviewTab";
+import { QrStandeeModal } from "@/components/admin/QrStandeeModal";
 import { Info } from "lucide-react";
 
 function AdminDashboardContent() {
   const { isAuthenticated, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("logs");
   const [revenueSubView, setRevenueSubView] = useState<"daywise" | "transactions" | "register">("daywise");
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
   const handleNavigate = (tab: string, subView?: "daywise" | "transactions" | "register") => {
     if (subView) {
@@ -42,7 +44,7 @@ function AdminDashboardContent() {
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-background flex flex-col font-sans">
-      <Header />
+      <Header onOpenQrModal={() => setIsQrModalOpen(true)} />
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
         <Sidebar
           activeTab={activeTab}
@@ -118,6 +120,7 @@ function AdminDashboardContent() {
           </AnimatePresence>
         </main>
       </div>
+      <QrStandeeModal isOpen={isQrModalOpen} onClose={() => setIsQrModalOpen(false)} />
     </div>
   );
 }
