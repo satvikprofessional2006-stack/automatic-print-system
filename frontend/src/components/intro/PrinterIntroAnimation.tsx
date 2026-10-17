@@ -83,7 +83,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
   const getAudioCtx = useCallback(() => {
     if (typeof window === "undefined") return null;
     try {
-      if (!audioCtxRef.current) {
+      if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
         const AudioCtx =
           window.AudioContext ||
           (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -101,8 +101,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
   }, []);
 
   // ── MASTER CONTINUOUS AUDIO ENGINE (From 0.00s to 3.20s) ──
-  // Guarantees audio starts from the very first frame (0.00s) and plays continuously to the end without gaps
-  // ── MASTER CONTINUOUS AUDIO ENGINE (From 0.00s to 3.20s) ──
   // Guarantees audio aligns with current animation progress without gaps or repeats
   const playAudioScore = useCallback((startOffset: number = 0) => {
     try {
@@ -118,6 +116,10 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       }
 
       const now = actx.currentTime;
+      // Guarantee master volume is restored to full cinematic level (0.50)
+      masterGain.gain.cancelScheduledValues(now);
+      masterGain.gain.setValueAtTime(0.50, now);
+
       // Precision relative scheduler: clamps past events, aligns future events with tiny 0.005s safety buffer
       const sched = (targetT: number) => now + Math.max(0.005, targetT - startOffset);
 
@@ -415,14 +417,22 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     updateDimensions();
     window.addEventListener("resize", updateDimensions);
 
-    // 1. Initial check: if browser allows immediate autoplay, play audio from 0.0s right away!
+    // 1. Attempt immediate autoplay on mount
     const actx = getAudioCtx();
-    if (actx && actx.state === "running") {
-      playAudioScore(0);
+    if (actx) {
+      if (actx.state === "running") {
+        playAudioScore(0);
+      } else {
+        actx.resume().then(() => {
+          if (!hasAudioStartedRef.current && actx.state === "running") {
+            playAudioScore(currentElapsedRef.current);
+          }
+        }).catch(() => {});
+      }
     }
 
-    // 2. If autoplay is suspended (mobile browser), clicking/tapping during animation
-    // plays the audio starting from that EXACT elapsed second (e.g. second 2.0 -> audio plays from 2.0s)
+    // 2. Multi-event passive unlock: if autoplay was suspended, user tap/move/key resumes audio
+    // starting from that EXACT elapsed second (e.g. second 2.0 -> audio plays from 2.0s)
     const handleGesture = () => {
       if (hasAudioStartedRef.current) return;
       const elapsed = currentElapsedRef.current;
@@ -436,9 +446,8 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       playAudioScore(elapsed);
     };
 
-    window.addEventListener("pointerdown", handleGesture, { passive: true });
-    window.addEventListener("touchstart", handleGesture, { passive: true });
-    window.addEventListener("click", handleGesture, { passive: true });
+    const unlockEvents = ["pointerdown", "mousedown", "touchstart", "keydown", "click", "pointermove"];
+    unlockEvents.forEach((ev) => window.addEventListener(ev, handleGesture, { passive: true }));
 
     // Build the holographic vector printer particle matrix
     const particles: NeonParticle[] = [];
@@ -1048,9 +1057,8 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", updateDimensions);
-      window.removeEventListener("pointerdown", handleGesture);
-      window.removeEventListener("touchstart", handleGesture);
-      window.removeEventListener("click", handleGesture);
+      unlockEvents.forEach((ev) => window.removeEventListener(ev, handleGesture));
+      hasAudioStartedRef.current = false;
       try {
         if (masterGainRef.current && audioCtxRef.current) {
           masterGainRef.current.gain.setValueAtTime(0, audioCtxRef.current.currentTime);
