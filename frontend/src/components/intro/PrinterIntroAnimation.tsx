@@ -61,8 +61,6 @@ interface NeonParticle {
 export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDone, setIsDone] = useState(false);
-  const [isStarted, setIsStarted] = useState(false);
-  const isStartedRef = useRef(false);
 
   // Single shared AudioContext & Master Gain Node
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -104,8 +102,13 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
   // ── MASTER CONTINUOUS AUDIO ENGINE (From 0.00s to 3.20s) ──
   // Guarantees audio starts from the very first frame (0.00s) and plays continuously to the end without gaps
+  // ── MASTER CONTINUOUS AUDIO ENGINE (From 0.00s to 3.20s) ──
+  // Guarantees audio aligns with current animation progress without gaps or repeats
   const playAudioScore = useCallback((startOffset: number = 0) => {
     try {
+      if (hasAudioStartedRef.current) return;
+      hasAudioStartedRef.current = true;
+
       const actx = getAudioCtx();
       const masterGain = masterGainRef.current;
       if (!actx || !masterGain) return;
@@ -114,12 +117,9 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         actx.resume().catch(() => {});
       }
 
-      if (hasAudioStartedRef.current) return;
-      hasAudioStartedRef.current = true;
-
       const now = actx.currentTime;
-      // Precision relative scheduler: clamps past events, aligns future events exactly
-      const sched = (targetT: number) => now + Math.max(0, targetT - startOffset);
+      // Precision relative scheduler: clamps past events, aligns future events with tiny 0.005s safety buffer
+      const sched = (targetT: number) => now + Math.max(0.005, targetT - startOffset);
 
       // ── LAYER 1: INSTANT POWER-ON CYBER BOOT CHORD & PUNCH (0.00s - 0.85s) ──
       if (startOffset < 0.6) {
@@ -206,7 +206,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         scanFilter.frequency.exponentialRampToValueAtTime(650, sched(1.25));
         scanFilter.Q.setValueAtTime(5.5, sched(0.25));
 
-        scanGain.gain.setValueAtTime(0.001, sched(0));
         scanGain.gain.setValueAtTime(0.26, sched(0.25));
         scanGain.gain.linearRampToValueAtTime(0.28, sched(0.75));
         scanGain.gain.exponentialRampToValueAtTime(0.001, sched(1.25));
@@ -231,7 +230,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         riserOsc2.frequency.setValueAtTime(520, sched(1.15));
         riserOsc2.frequency.exponentialRampToValueAtTime(2760, sched(1.45));
 
-        riserGain.gain.setValueAtTime(0.001, sched(0));
         riserGain.gain.setValueAtTime(0.12, sched(1.15));
         riserGain.gain.linearRampToValueAtTime(0.40, sched(1.43));
         riserGain.gain.exponentialRampToValueAtTime(0.001, sched(1.46));
@@ -253,7 +251,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         subBoom.type = "sine";
         subBoom.frequency.setValueAtTime(180, sched(1.45));
         subBoom.frequency.exponentialRampToValueAtTime(36, sched(1.95));
-        subGain.gain.setValueAtTime(0.001, sched(0));
         subGain.gain.setValueAtTime(0.55, sched(1.45));
         subGain.gain.exponentialRampToValueAtTime(0.001, sched(1.95));
         subBoom.connect(subGain);
@@ -287,7 +284,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         nFilter.frequency.exponentialRampToValueAtTime(1200, sched(1.95));
         nFilter.Q.setValueAtTime(3.8, sched(1.45));
         const nGain = actx.createGain();
-        nGain.gain.setValueAtTime(0.001, sched(0));
         nGain.gain.setValueAtTime(0.42, sched(1.45));
         nGain.gain.exponentialRampToValueAtTime(0.001, sched(1.95));
         noiseSource.connect(nFilter);
@@ -311,7 +307,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         sNoiseFilter.frequency.exponentialRampToValueAtTime(3200, sched(2.65));
         sNoiseFilter.Q.setValueAtTime(4.2, sched(1.95));
         const sNoiseGain = actx.createGain();
-        sNoiseGain.gain.setValueAtTime(0.001, sched(0));
         sNoiseGain.gain.setValueAtTime(0.08, sched(1.95));
         sNoiseGain.gain.linearRampToValueAtTime(0.38, sched(2.55));
         sNoiseGain.gain.exponentialRampToValueAtTime(0.001, sched(2.65));
@@ -331,7 +326,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         suctionOsc2.frequency.setValueAtTime(170, sched(1.95));
         suctionOsc2.frequency.exponentialRampToValueAtTime(1160, sched(2.65));
 
-        suctionGain.gain.setValueAtTime(0.001, sched(0));
         suctionGain.gain.setValueAtTime(0.10, sched(1.95));
         suctionGain.gain.linearRampToValueAtTime(0.40, sched(2.55));
         suctionGain.gain.exponentialRampToValueAtTime(0.001, sched(2.65));
@@ -368,7 +362,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           osc.type = "sine";
           const noteTime = sched(2.65 + idx * 0.024);
           osc.frequency.setValueAtTime(freq, noteTime);
-          gain.gain.setValueAtTime(0.001, sched(0));
           gain.gain.setValueAtTime(0.26, noteTime);
           gain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 0.85);
           osc.connect(gain);
@@ -382,7 +375,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         const subChordGain = actx.createGain();
         subChord.type = "sine";
         subChord.frequency.setValueAtTime(130.81, sched(2.65)); // C3
-        subChordGain.gain.setValueAtTime(0.001, sched(0));
         subChordGain.gain.setValueAtTime(0.22, sched(2.65));
         subChordGain.gain.exponentialRampToValueAtTime(0.001, sched(3.20));
         subChord.connect(subChordGain);
@@ -392,25 +384,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       }
     } catch {}
   }, [getAudioCtx]);
-
-  // Master Synchronized Start Handler:
-  // Starts visual timer (0.00s) and WebAudio engine (0.00s) simultaneously on exact same frame.
-  // Executes once, guaranteeing audio never restarts on subsequent clicks/touches.
-  const startExperience = useCallback(() => {
-    if (isStartedRef.current) return;
-    isStartedRef.current = true;
-    setIsStarted(true);
-
-    try {
-      const actx = getAudioCtx();
-      if (actx) {
-        if (actx.state === "suspended") {
-          actx.resume().catch(() => {});
-        }
-        playAudioScore(0);
-      }
-    } catch {}
-  }, [getAudioCtx, playAudioScore]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -442,20 +415,30 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     updateDimensions();
     window.addEventListener("resize", updateDimensions);
 
-    // Initial check: if browser allows immediate autoplay, start right away!
+    // 1. Initial check: if browser allows immediate autoplay, play audio from 0.0s right away!
     const actx = getAudioCtx();
     if (actx && actx.state === "running") {
-      startExperience();
+      playAudioScore(0);
     }
 
-    // Attach single one-time gesture trigger: tap/click anywhere ignites audio + animation together from 0.0s
+    // 2. If autoplay is suspended (mobile browser), clicking/tapping during animation
+    // plays the audio starting from that EXACT elapsed second (e.g. second 2.0 -> audio plays from 2.0s)
     const handleGesture = () => {
-      startExperience();
+      if (hasAudioStartedRef.current) return;
+      const elapsed = currentElapsedRef.current;
+      if (elapsed >= 2.95) return; // Intro finished
+
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+      playAudioScore(elapsed);
     };
 
-    window.addEventListener("pointerdown", handleGesture, { passive: true, once: true });
-    window.addEventListener("touchstart", handleGesture, { passive: true, once: true });
-    window.addEventListener("click", handleGesture, { passive: true, once: true });
+    window.addEventListener("pointerdown", handleGesture, { passive: true });
+    window.addEventListener("touchstart", handleGesture, { passive: true });
+    window.addEventListener("click", handleGesture, { passive: true });
 
     // Build the holographic vector printer particle matrix
     const particles: NeonParticle[] = [];
@@ -715,95 +698,14 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     const T_FINISH = 2.95;
 
     const render = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = (timestamp - startTime) / 1000;
+      currentElapsedRef.current = elapsed;
+
       const width = window.innerWidth;
       const height = window.innerHeight;
       const centerX = width / 2;
       const centerY = height / 2;
-
-      // ── IDLE STATE (Awaiting user interaction to unlock sound on mobile) ──
-      // Renders hovering printer with gentle neon breathing pulse until tapped
-      if (!isStartedRef.current) {
-        ctx.clearRect(0, 0, width, height);
-
-        // Deep space neon radial glow
-        const bgGrad = ctx.createRadialGradient(
-          centerX,
-          centerY,
-          40,
-          centerX,
-          centerY,
-          Math.max(width, height) * 0.85
-        );
-        bgGrad.addColorStop(0, "#08132B");
-        bgGrad.addColorStop(0.4, "#03081A");
-        bgGrad.addColorStop(1, "#01030B");
-
-        ctx.save();
-        ctx.fillStyle = bgGrad;
-        ctx.fillRect(0, 0, width, height);
-
-        // Perspective Floor Grid
-        ctx.strokeStyle = "rgba(0, 245, 255, 0.09)";
-        ctx.lineWidth = 1;
-        const horizon = centerY + 140;
-        for (let i = -14; i <= 14; i++) {
-          ctx.beginPath();
-          ctx.moveTo(centerX + i * 40, horizon);
-          ctx.lineTo(centerX + i * 240, height);
-          ctx.stroke();
-        }
-        for (let gy = horizon; gy < height; gy += 24) {
-          ctx.beginPath();
-          ctx.moveTo(0, gy);
-          ctx.lineTo(width, gy);
-          ctx.stroke();
-        }
-        ctx.restore();
-
-        // Ambient Floating Neon Aura
-        const floatY = Math.sin(timestamp / 450) * 5;
-        const auraGrad = ctx.createRadialGradient(
-          centerX,
-          centerY + floatY,
-          20,
-          centerX,
-          centerY + floatY,
-          240
-        );
-        auraGrad.addColorStop(0, "rgba(0, 245, 255, 0.45)");
-        auraGrad.addColorStop(0.4, "rgba(255, 0, 85, 0.25)");
-        auraGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-
-        ctx.save();
-        ctx.fillStyle = auraGrad;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY + floatY, 260, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        // Render intact hovering printer particles
-        const fov = 340;
-        for (let i = 0; i < particles.length; i++) {
-          const p = particles[i];
-          const scale = fov / (fov + p.z);
-          const px = centerX + p.origX * scale;
-          const py = centerY + (p.origY + floatY) * scale;
-          const pSize = Math.max(p.size * scale, 1.4);
-          p.lastX = px;
-          p.lastY = py;
-          ctx.fillStyle = p.color;
-          ctx.globalAlpha = p.alpha;
-          ctx.fillRect(px - pSize / 2, py - pSize / 2, pSize, pSize);
-        }
-
-        animationFrameId = requestAnimationFrame(render);
-        return;
-      }
-
-      // ── RUNNING STATE (Visuals & Audio locked 1:1 from 0.00s) ──
-      if (!startTime) startTime = timestamp;
-      const elapsed = (timestamp - startTime) / 1000;
-      currentElapsedRef.current = elapsed;
 
       ctx.clearRect(0, 0, width, height);
 
@@ -1155,7 +1057,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         }
       } catch {}
     };
-  }, [startExperience, getAudioCtx]);
+  }, [playAudioScore, getAudioCtx]);
 
   const handleSkip = useCallback(() => {
     try {
@@ -1186,36 +1088,12 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       >
         <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
 
-        {/* Interactive Tap-to-Start Prompt for mobile browsers that require audio unlock */}
-        {!isStarted && (
-          <button
-            type="button"
-            onClick={startExperience}
-            aria-label="Tap to Start Experience"
-            className="pointer-events-auto absolute inset-0 z-[10001] flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] cursor-pointer select-none transition-opacity hover:bg-black/30"
-          >
-            <div className="flex flex-col items-center gap-3 animate-pulse">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#7A0019] via-[#C5A059] to-[#00F5FF] p-[2px] shadow-[0_0_40px_rgba(0,245,255,0.45)]">
-                <div className="w-full h-full rounded-full bg-black/85 flex items-center justify-center">
-                  <span className="text-2xl">⚡</span>
-                </div>
-              </div>
-              <span className="px-5 py-2 rounded-full text-xs font-bold tracking-widest uppercase text-white bg-black/75 border border-white/20 backdrop-blur-md shadow-2xl">
-                Tap anywhere to start
-              </span>
-              <span className="text-[11px] text-white/60 tracking-wider">
-                Holographic 3D Audio Experience
-              </span>
-            </div>
-          </button>
-        )}
-        
         {/* Mobile-friendly skip action */}
         <button
           onClick={handleSkip}
           type="button"
           aria-label="Skip Intro Animation"
-          className="pointer-events-auto absolute top-5 right-5 z-[10002] px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase text-white/80 hover:text-white bg-black/40 hover:bg-black/60 active:bg-black/80 backdrop-blur-md border border-white/20 transition-all shadow-lg active:scale-95"
+          className="pointer-events-auto absolute top-5 right-5 z-[10000] px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase text-white/80 hover:text-white bg-black/40 hover:bg-black/60 active:bg-black/80 backdrop-blur-md border border-white/20 transition-all shadow-lg active:scale-95"
         >
           Skip &rarr;
         </button>
