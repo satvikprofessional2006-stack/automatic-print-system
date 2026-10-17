@@ -15,6 +15,8 @@ import {
   Building2,
   ShieldCheck,
   Sparkles,
+  Ban,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -37,6 +39,7 @@ export function PrintSuccess({ job, onReset }: Props) {
   const [copied, setCopied] = useState(false);
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isCancelled, setIsCancelled] = useState(false);
   const [taskDisplayId, setTaskDisplayId] = useState<string | null>(job.taskDisplayId || null);
 
   const effectiveTaskId = taskDisplayId || job.taskDisplayId || (job.id && job.id.length > 8 ? `RU-${job.id.slice(0, 4).toUpperCase()}` : `#${job.id}`);
@@ -79,7 +82,11 @@ export function PrintSuccess({ job, onReset }: Props) {
           if (data.position) {
             setQueuePosition(data.position);
           }
-          if (data.status === "printing") {
+          if (data.status === "cancelled") {
+            setIsCancelled(true);
+            setDone(true);
+            clearInterval(pollInterval);
+          } else if (data.status === "printing") {
             setIsPrinting(true);
             setStage(3);
           } else if (data.status === "completed") {
@@ -156,6 +163,25 @@ export function PrintSuccess({ job, onReset }: Props) {
               ))}
             </div>
           </motion.div>
+        ) : isCancelled ? (
+          <motion.div
+            key="cancelled-stage"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: "spring", stiffness: 340, damping: 25 }}
+            className="flex flex-col items-center gap-2"
+          >
+            <div className="relative p-4 rounded-full bg-red-500/15 border border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.25)]">
+              <Ban className="h-12 w-12 text-red-500" />
+            </div>
+
+            <h2 className="text-xl font-extrabold tracking-tight text-foreground mt-2">
+              Print Job Cancelled
+            </h2>
+            <p className="text-xs text-muted-foreground max-w-sm">
+              This print job was cancelled by the print desk operator.
+            </p>
+          </motion.div>
         ) : (
           <motion.div
             key="done-stage"
@@ -186,8 +212,84 @@ export function PrintSuccess({ job, onReset }: Props) {
         )}
       </AnimatePresence>
 
+      {/* ── CANCELLATION & REFUND CARD ── */}
+      {done && isCancelled && (
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.35 }}
+          className="w-full rounded-2xl border-2 border-red-500/30 bg-gradient-to-b from-red-500/10 via-red-500/5 to-transparent p-4 sm:p-5 text-left shadow-lg space-y-3.5"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between gap-2 border-b border-red-500/20 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-red-500/20 text-red-600 dark:text-red-400">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold tracking-wider uppercase text-red-600 dark:text-red-400">
+                  Status Update
+                </span>
+                <h3 className="text-sm font-bold text-foreground">
+                  Cancelled by Library Operator
+                </h3>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30">
+              Cancelled
+            </span>
+          </div>
+
+          {/* Refund Guarantee Box */}
+          <div className="bg-emerald-500/10 dark:bg-emerald-950/30 rounded-xl p-3.5 border border-emerald-500/30 space-y-2">
+            <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold text-sm">
+              <ShieldCheck className="h-5 w-5 shrink-0" />
+              <span>100% Full Refund Initiated (₹{job.amount})</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              A complete refund has been automatically initiated via Razorpay back to your original payment method.
+            </p>
+            <div className="text-[11px] text-muted-foreground/90 space-y-1 bg-background/60 p-2.5 rounded-lg border border-emerald-500/15">
+              <p>• <strong>UPI / Google Pay / PhonePe:</strong> Reflects within 15 mins to 2 hours. You will receive an SMS from your bank.</p>
+              <p>• <strong>Debit / Credit Card / NetBanking:</strong> 2–4 business days depending on your bank.</p>
+            </div>
+          </div>
+
+          {/* Task ID Banner with Copy */}
+          <div className="flex items-center justify-between bg-background/80 border border-border rounded-xl p-3">
+            <div>
+              <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                Task / Job ID
+              </p>
+              <p className="font-mono text-base font-extrabold text-foreground tracking-wide select-all">
+                {effectiveTaskId}
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleCopyId}
+              className="h-8 gap-1.5 text-xs font-semibold rounded-lg hover:bg-muted"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-emerald-500" />
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5" />
+                  <span>Copy ID</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
       {/* ── CENTRAL LIBRARY COLLECTION CARD (Step 6 Highlight) ── */}
-      {done && (
+      {done && !isCancelled && (
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
