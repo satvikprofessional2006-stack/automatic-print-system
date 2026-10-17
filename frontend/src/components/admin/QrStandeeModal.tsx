@@ -45,11 +45,12 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
   const [spoolMessage, setSpoolMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
   const [isExporting, setIsExporting] = useState<"png" | "pdf" | null>(null);
   const [connectedPrinterName, setConnectedPrinterName] = useState<string>("");
+  const [isPrinterOnline, setIsPrinterOnline] = useState<boolean>(false);
   const printAreaRef = useRef<HTMLDivElement>(null);
 
   const isPureQr = selectedStyle === "pure_qr" || selectedStyle === "pure_qr_bw";
 
-  // Detect connected printer dynamically
+  // Detect connected printer dynamically and verify live connection
   useEffect(() => {
     if (!isOpen) return;
     const fetchPrinterInfo = async () => {
@@ -57,12 +58,21 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
         const res = await fetch("/api/admin/printer-status");
         if (res.ok) {
           const data = await res.json();
-          if (data?.connectedPrinter?.name) {
-            setConnectedPrinterName(data.connectedPrinter.name);
+          const p = data?.connectedPrinter;
+          if (p && p.isConnected && p.state !== "offline") {
+            setIsPrinterOnline(true);
+            setConnectedPrinterName(p.name || "");
+          } else {
+            setIsPrinterOnline(false);
+            setConnectedPrinterName("");
           }
+        } else {
+          setIsPrinterOnline(false);
+          setConnectedPrinterName("");
         }
       } catch {
-        // Fallback gracefully
+        setIsPrinterOnline(false);
+        setConnectedPrinterName("");
       }
     };
     fetchPrinterInfo();
@@ -196,8 +206,10 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
       }
 
       setSpoolMessage({
-        type: "success",
-        text: `Direct print sent! ${targetPrinter} will print in ~3s.`,
+        type: isPrinterOnline ? "success" : "info",
+        text: isPrinterOnline
+          ? `Direct print sent! ${connectedPrinterName} will print in ~3s.`
+          : "Spooling to print queue! (Printer is currently offline — will print once reconnected)",
       });
 
       setTimeout(() => setSpoolMessage(null), 5000);
@@ -523,12 +535,32 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                         </>
                       ) : (
                         <>
-                          <Zap className="h-4 w-4 fill-current" />
+                          {isPrinterOnline ? (
+                            <Zap className="h-4 w-4 fill-current text-amber-300" />
+                          ) : (
+                            <Printer className="h-4 w-4 opacity-80" />
+                          )}
                           <span>Direct Print</span>
-                          {connectedPrinterName && (
-                            <span className="text-[11px] font-normal opacity-85 truncate max-w-[140px]">
-                              ({connectedPrinterName})
-                            </span>
+                          {isPrinterOnline && connectedPrinterName ? (
+                            <>
+                              <span className="text-[11px] font-normal opacity-85 truncate max-w-[130px]">
+                                ({connectedPrinterName})
+                              </span>
+                              <span
+                                className="h-2 w-2 rounded-full bg-emerald-400 shrink-0 ml-0.5 inline-block"
+                                title="Printer Connected & Ready"
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-[10px] font-normal text-amber-200/90 ml-0.5">
+                                (Offline)
+                              </span>
+                              <span
+                                className="h-2 w-2 rounded-full bg-amber-400 shrink-0 ml-0.5 inline-block"
+                                title="Printer Disconnected / Offline"
+                              />
+                            </>
                           )}
                         </>
                       )}
