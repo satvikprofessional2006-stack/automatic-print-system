@@ -21,6 +21,10 @@ import {
   AlertCircle,
   Palette,
   CircleDot,
+  Smartphone,
+  Upload,
+  ShieldCheck,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -29,12 +33,12 @@ interface QrStandeeModalProps {
   onClose: () => void;
 }
 
-type StandeeStyle = "crimson" | "cyberpunk" | "minimal" | "student" | "industrial" | "pure_qr";
+type StandeeStyle = "executive" | "editorial" | "notice" | "tech_lab" | "pure_qr";
 type StandeeFormat = "poster" | "standee";
 type PrintColorMode = "color" | "bw";
 
 export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
-  const [selectedStyle, setSelectedStyle] = useState<StandeeStyle>("crimson");
+  const [selectedStyle, setSelectedStyle] = useState<StandeeStyle>("executive");
   const [selectedFormat, setSelectedFormat] = useState<StandeeFormat>("poster");
   const [colorMode, setColorMode] = useState<PrintColorMode>("color");
   const [portalUrl, setPortalUrl] = useState("https://automatic-print-system.vercel.app");
@@ -54,7 +58,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
     }
   }, []);
 
-  // Generate High-DPI QR Code with Centered Rishihood Logo
+  // Generate High-DPI QR Code with Centered Rishihood Logo (Unified Color Grading)
   useEffect(() => {
     if (!portalUrl) return;
 
@@ -65,24 +69,11 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
         canvas.width = qrSize;
         canvas.height = qrSize;
 
-        // Custom dark/light colors depending on style & color mode
-        let darkColor = "#000000";
-        let lightColor = "#FFFFFF";
-
-        if (colorMode === "color") {
-          if (selectedStyle === "cyberpunk") {
-            darkColor = "#00F5FF";
-            lightColor = "#0A1128";
-          } else if (selectedStyle === "crimson") {
-            darkColor = "#7A0019";
-          } else if (selectedStyle === "student") {
-            darkColor = "#FF6B35";
-          } else if (selectedStyle === "minimal") {
-            darkColor = "#0F172A";
-          } else {
-            darkColor = "#000000";
-          }
-        }
+        // Unified Institutional Color Palette:
+        // Color Mode: Rishihood Crimson (#7A0019) on Pure White (#FFFFFF)
+        // B&W Mode: Pure Black (#000000) on Pure White (#FFFFFF)
+        const darkColor = colorMode === "color" ? "#7A0019" : "#000000";
+        const lightColor = "#FFFFFF";
 
         await QRCode.toCanvas(canvas, portalUrl, {
           errorCorrectionLevel: "H", // 30% error recovery allows logo in center
@@ -112,7 +103,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
             const y = center - logoSize / 2;
             const badgeRadius = logoSize * 0.62;
 
-            // Draw clean white circular backing badge with subtle shadow
+            // Clean white circular backing badge with soft shadow
             ctx.save();
             ctx.shadowColor = "rgba(0, 0, 0, 0.25)";
             ctx.shadowBlur = 12;
@@ -122,7 +113,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
             ctx.fill();
             ctx.restore();
 
-            // Circular badge border matching theme
+            // Circular badge border matching unified crimson / black theme
             ctx.strokeStyle = darkColor;
             ctx.lineWidth = 5;
             ctx.beginPath();
@@ -320,11 +311,11 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                     <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                       QR Standee & Poster Studio
                       <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/20">
-                        Official
+                        Official RU Palette
                       </span>
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                      Print full-page posters, desk standees, or pure plain QR codes with official Rishihood logo.
+                      Unified Rishihood University Crimson & Gold color grading across all design templates.
                     </p>
                   </div>
                 </div>
@@ -407,8 +398,8 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                             : "border-border hover:bg-muted/50 text-muted-foreground"
                         }`}
                       >
-                        <Palette className="h-4 w-4 text-amber-500" />
-                        <span>Full Colour</span>
+                        <Palette className="h-4 w-4 text-[#7A0019]" />
+                        <span>RU Crimson & Gold</span>
                       </button>
 
                       <button
@@ -425,48 +416,42 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                     </div>
                   </div>
 
-                  {/* 3. Style Selector */}
+                  {/* 3. Style Selector (All sharing same unified RU color grading) */}
                   <div>
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">
-                      3. Choose Template Style
+                      3. Choose Design Styling
                     </label>
                     <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
                       {[
                         {
-                          id: "pure_qr" as StandeeStyle,
-                          name: "Plain QR Code Only",
-                          desc: "No framing, text, or borders — only QR & center logo",
-                          badge: "bg-black dark:bg-white",
-                        },
-                        {
-                          id: "crimson" as StandeeStyle,
-                          name: "University Crimson & Gold",
-                          desc: "Official RU colors, crest & premium gold trim",
+                          id: "executive" as StandeeStyle,
+                          name: "University Executive",
+                          desc: "Rich crimson banner, gold pinstripe & crest emblem",
                           badge: "bg-[#7A0019]",
                         },
                         {
-                          id: "cyberpunk" as StandeeStyle,
-                          name: "Cyberpunk Tech Lab",
-                          desc: "Dark obsidian, neon cyan & corner matrix accents",
-                          badge: "bg-cyan-400",
+                          id: "editorial" as StandeeStyle,
+                          name: "Modern Swiss Editorial",
+                          desc: "Clean white layout with crimson & gold hairline borders",
+                          badge: "bg-[#C5A059]",
                         },
                         {
-                          id: "minimal" as StandeeStyle,
-                          name: "Apple Minimalist",
-                          desc: "Clean monochrome typography & crisp lines",
-                          badge: "bg-slate-900",
+                          id: "notice" as StandeeStyle,
+                          name: "Campus Notice Board",
+                          desc: "Split-block header with floating step instruction cards",
+                          badge: "bg-[#7A0019]",
                         },
                         {
-                          id: "student" as StandeeStyle,
-                          name: "Vibrant Campus",
-                          desc: "Friendly badges & bold step instructions",
-                          badge: "bg-amber-500",
+                          id: "tech_lab" as StandeeStyle,
+                          name: "Innovation & Tech Lab",
+                          desc: "Dark obsidian canvas with rich crimson & gold accents",
+                          badge: "bg-[#18080E]",
                         },
                         {
-                          id: "industrial" as StandeeStyle,
-                          name: "High-Contrast Industrial",
-                          desc: "Extra-bold warning-bar framing for max range",
-                          badge: "bg-yellow-400",
+                          id: "pure_qr" as StandeeStyle,
+                          name: "Plain QR Code Only",
+                          desc: "Zero framing or text — pure QR with centered RU logo",
+                          badge: "bg-black dark:bg-white",
                         },
                       ].map((style) => (
                         <button
@@ -567,7 +552,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                     </p>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-medium">
-                        {colorMode === "bw" ? "B&W Mode" : "Colour Mode"}
+                        {colorMode === "bw" ? "B&W Mode" : "RU Crimson & Gold"}
                       </span>
                       <span className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-full font-medium">
                         {selectedFormat === "poster" ? "100% Page Fill" : "4\" × 6\" Cut Size"}
@@ -589,18 +574,18 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                     } ${
                       selectedStyle === "pure_qr"
                         ? "style-pure_qr bg-white text-black border-0 shadow-sm items-center justify-center p-4"
-                        : selectedStyle === "crimson"
-                        ? "bg-[#FCFAF8] text-[#1E1E24] border-4 border-[#7A0019]"
-                        : selectedStyle === "cyberpunk"
-                        ? "bg-[#090D1A] text-[#E2E8F0] border-2 border-[#00F5FF] shadow-[0_0_30px_rgba(0,245,255,0.25)]"
-                        : selectedStyle === "minimal"
-                        ? "bg-white text-slate-900 border-2 border-slate-900"
-                        : selectedStyle === "student"
-                        ? "bg-gradient-to-b from-[#FFFDF9] to-[#FFF5E6] text-slate-900 border-4 border-[#FF6B35]"
-                        : "bg-[#FAFAFA] text-black border-4 border-black"
+                        : selectedStyle === "executive"
+                        ? "bg-[#FFFDF9] text-[#1E1E24] border-[3px] border-[#7A0019]"
+                        : selectedStyle === "editorial"
+                        ? "bg-white text-slate-900 border-2 border-[#7A0019]/40"
+                        : selectedStyle === "notice"
+                        ? "bg-[#FDFBF7] text-[#1A1A1A] border-2 border-[#7A0019]"
+                        : "bg-[#14080E] text-zinc-100 border-2 border-[#7A0019] shadow-[0_0_25px_rgba(122,0,25,0.35)]"
                     }`}
                   >
-                    {/* If Plain QR style is selected: NO headers, NO footers, NO text — pure QR only! */}
+                    {/* ═══════════════════════════════════════════════════════
+                        TEMPLATE 5: PLAIN QR CODE ONLY (Zero Frame, Zero Text)
+                       ═══════════════════════════════════════════════════════ */}
                     {selectedStyle === "pure_qr" ? (
                       <div className="flex-1 flex flex-col items-center justify-center p-2 text-center w-full h-full">
                         {qrDataUrl ? (
@@ -619,52 +604,175 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                           </div>
                         )}
                       </div>
-                    ) : (
+                    ) : selectedStyle === "executive" ? (
+                      /* ═══════════════════════════════════════════════════════
+                          TEMPLATE 1: UNIVERSITY EXECUTIVE (Official Crimson & Gold)
+                         ═══════════════════════════════════════════════════════ */
                       <>
-                        {/* ── CARD HEADER ── */}
-                        <div
-                          className={`p-4 text-center border-b ${
-                            selectedStyle === "crimson"
-                              ? "bg-[#7A0019] text-white border-[#5A0012]"
-                              : selectedStyle === "cyberpunk"
-                              ? "bg-[#0A1128] text-[#00F5FF] border-[#00F5FF]/30"
-                              : selectedStyle === "minimal"
-                              ? "bg-white text-slate-900 border-slate-200"
-                              : selectedStyle === "student"
-                              ? "bg-[#FF6B35] text-white border-[#E0531E]"
-                              : "bg-[#FFDE59] text-black border-black"
-                          }`}
-                        >
+                        <div className="bg-[#7A0019] text-white p-4 text-center border-b-2 border-[#C5A059]">
                           <div className="flex items-center justify-center gap-2 mb-1">
                             <img
                               src="/Rishihood_University_idxo_lfgcw_2.png"
                               alt="RU"
                               className="h-6 w-6 object-contain"
                             />
-                            <p className="poster-header-brand text-[12px] font-black uppercase tracking-wider">
+                            <p className="poster-header-brand text-[12px] font-black uppercase tracking-wider text-[#F7E7CE]">
                               Rishihood University
                             </p>
                           </div>
-                          <h4 className="poster-header-title text-sm font-extrabold uppercase tracking-tight">
-                            {selectedStyle === "cyberpunk"
-                              ? "⚡ CLOUD PRINT TERMINAL"
-                              : selectedStyle === "student"
-                              ? "🚀 SCAN & PRINT IN 30 SECONDS"
-                              : selectedStyle === "industrial"
-                              ? "⚠️ DIRECT PRINT POINT"
-                              : "Official Direct Print Station"}
+                          <h4 className="poster-header-title text-sm font-extrabold uppercase tracking-tight text-white">
+                            Direct Print Station
+                          </h4>
+                          <p className="text-[9px] uppercase tracking-widest text-[#E5C378] font-semibold mt-0.5">
+                            Wireless • Cloud Powered • Instant
+                          </p>
+                        </div>
+
+                        <div className="flex-1 flex flex-col items-center justify-center p-3 text-center">
+                          <div className="relative p-3 rounded-2xl bg-white border border-[#7A0019]/25 shadow-md">
+                            {qrDataUrl ? (
+                              <img
+                                src={qrDataUrl}
+                                alt="RU Portal QR"
+                                className="qr-code-img w-44 h-44 object-contain rounded-xl"
+                              />
+                            ) : (
+                              <div className="w-44 h-44 flex items-center justify-center">
+                                <span className="h-6 w-6 rounded-full border-2 border-[#7A0019] border-t-transparent animate-spin" />
+                              </div>
+                            )}
+                          </div>
+                          <p className="poster-scan-title mt-2 text-[11px] font-bold tracking-tight uppercase text-[#7A0019]">
+                            Point Camera to Scan & Print
+                          </p>
+                          <p className="poster-url-text text-[9px] opacity-75 font-mono text-zinc-600">
+                            automatic-print-system.vercel.app
+                          </p>
+                        </div>
+
+                        <div className="bg-[#FAF5EE] border-t border-[#7A0019]/20 p-3 text-[10px]">
+                          <div className="grid grid-cols-3 gap-1.5 text-center">
+                            <div className="flex flex-col items-center">
+                              <div className="step-num h-5 w-5 rounded-full bg-[#7A0019] text-[#FFFDF9] flex items-center justify-center font-bold text-[9px] mb-0.5 shadow-xs">
+                                1
+                              </div>
+                              <span className="step-title font-bold text-zinc-900 leading-tight">Scan QR</span>
+                              <span className="step-sub text-[8px] text-zinc-600">Phone Camera</span>
+                            </div>
+                            <div className="flex flex-col items-center">
+                              <div className="step-num h-5 w-5 rounded-full bg-[#7A0019] text-[#FFFDF9] flex items-center justify-center font-bold text-[9px] mb-0.5 shadow-xs">
+                                2
+                              </div>
+                              <span className="step-title font-bold text-zinc-900 leading-tight">Upload Doc</span>
+                              <span className="step-sub text-[8px] text-zinc-600">PDF / Image</span>
+                            </div>
+                            <div className="flex flex-col items-center">
+                              <div className="step-num h-5 w-5 rounded-full bg-[#7A0019] text-[#FFFDF9] flex items-center justify-center font-bold text-[9px] mb-0.5 shadow-xs">
+                                3
+                              </div>
+                              <span className="step-title font-bold text-zinc-900 leading-tight">Collect</span>
+                              <span className="step-sub text-[8px] text-zinc-600">Instant Output</span>
+                            </div>
+                          </div>
+                          <div className="poster-brand-footer mt-2 text-center text-[8px] text-zinc-500 font-medium border-t border-[#7A0019]/15 pt-1">
+                            Official Rishihood University Campus Direct Print Service
+                          </div>
+                        </div>
+                      </>
+                    ) : selectedStyle === "editorial" ? (
+                      /* ═══════════════════════════════════════════════════════
+                          TEMPLATE 2: MODERN SWISS EDITORIAL (Crimson & Gold Hairlines)
+                         ═══════════════════════════════════════════════════════ */
+                      <>
+                        <div className="p-4 bg-white text-slate-900 border-b border-zinc-200">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <img
+                                src="/Rishihood_University_idxo_lfgcw_2.png"
+                                alt="RU"
+                                className="h-6 w-6 object-contain"
+                              />
+                              <span className="poster-header-brand text-[11px] font-black uppercase tracking-widest text-[#7A0019]">
+                                Rishihood
+                              </span>
+                            </div>
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#7A0019]/10 text-[#7A0019] border border-[#7A0019]/20">
+                              Direct Print
+                            </span>
+                          </div>
+                          <div className="h-[2px] w-full bg-gradient-to-r from-[#7A0019] via-[#C5A059] to-transparent my-2" />
+                          <h4 className="poster-header-title text-base font-black tracking-tight text-zinc-950">
+                            Scan. Upload. Print.
                           </h4>
                         </div>
 
-                        {/* ── CARD CENTER: QR CODE WITH LOGO ── */}
                         <div className="flex-1 flex flex-col items-center justify-center p-3 text-center">
-                          <div
-                            className={`relative p-2.5 rounded-2xl shadow-lg ${
-                              selectedStyle === "cyberpunk"
-                                ? "bg-[#0A1128] border-2 border-[#00F5FF]/60"
-                                : "bg-white border-2 border-slate-200"
-                            }`}
-                          >
+                          <div className="relative p-2.5 rounded-xl bg-white border-2 border-[#7A0019]/30 shadow-xs">
+                            {qrDataUrl ? (
+                              <img
+                                src={qrDataUrl}
+                                alt="RU Portal QR"
+                                className="qr-code-img w-44 h-44 object-contain rounded-lg"
+                              />
+                            ) : (
+                              <div className="w-44 h-44 flex items-center justify-center">
+                                <span className="h-6 w-6 rounded-full border-2 border-[#7A0019] border-t-transparent animate-spin" />
+                              </div>
+                            )}
+                          </div>
+                          <p className="poster-scan-title mt-2 text-[10px] font-bold uppercase tracking-wider text-zinc-800">
+                            Compatible with Any Phone Camera
+                          </p>
+                          <p className="poster-url-text text-[9px] font-mono text-[#7A0019]">
+                            automatic-print-system.vercel.app
+                          </p>
+                        </div>
+
+                        <div className="p-3 bg-zinc-50 border-t border-zinc-200 text-[10px]">
+                          <div className="flex items-center justify-between text-center px-2">
+                            <div className="flex items-center gap-1">
+                              <span className="font-bold text-[#7A0019]">01</span>
+                              <span className="font-medium text-zinc-800">Scan</span>
+                            </div>
+                            <ArrowRight className="h-3 w-3 text-zinc-400" />
+                            <div className="flex items-center gap-1">
+                              <span className="font-bold text-[#7A0019]">02</span>
+                              <span className="font-medium text-zinc-800">Upload</span>
+                            </div>
+                            <ArrowRight className="h-3 w-3 text-zinc-400" />
+                            <div className="flex items-center gap-1">
+                              <span className="font-bold text-[#7A0019]">03</span>
+                              <span className="font-medium text-zinc-800">Collect</span>
+                            </div>
+                          </div>
+                          <div className="poster-brand-footer mt-2 text-center text-[8px] text-zinc-400 font-medium border-t border-zinc-200 pt-1">
+                            RU IT Services • High-Speed Canon Direct Print
+                          </div>
+                        </div>
+                      </>
+                    ) : selectedStyle === "notice" ? (
+                      /* ═══════════════════════════════════════════════════════
+                          TEMPLATE 3: CAMPUS NOTICE BOARD (Card-Based Posters)
+                         ═══════════════════════════════════════════════════════ */
+                      <>
+                        <div className="bg-[#7A0019] text-white p-3.5 text-center">
+                          <div className="flex items-center justify-center gap-2 mb-1">
+                            <img
+                              src="/Rishihood_University_idxo_lfgcw_2.png"
+                              alt="RU"
+                              className="h-5 w-5 object-contain"
+                            />
+                            <p className="poster-header-brand text-[11px] font-black uppercase tracking-wider">
+                              Rishihood University
+                            </p>
+                          </div>
+                          <h4 className="poster-header-title text-sm font-black uppercase tracking-wide">
+                            Print Station Here
+                          </h4>
+                        </div>
+
+                        <div className="flex-1 flex flex-col items-center justify-center p-3 text-center">
+                          <div className="relative p-2.5 rounded-2xl bg-white border border-[#C5A059] shadow-md">
                             {qrDataUrl ? (
                               <img
                                 src={qrDataUrl}
@@ -676,73 +784,103 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                                 <span className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                               </div>
                             )}
+                          </div>
+                          <p className="poster-scan-title mt-2 text-[10px] font-black uppercase tracking-wider text-[#7A0019]">
+                            Scan QR Code to Start
+                          </p>
+                        </div>
 
-                            {/* Corner Crosshair Accents for Cyberpunk */}
-                            {selectedStyle === "cyberpunk" && (
-                              <>
-                                <span className="absolute top-1 left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-[#00F5FF]" />
-                                <span className="absolute top-1 right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-[#00F5FF]" />
-                                <span className="absolute bottom-1 left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-[#00F5FF]" />
-                                <span className="absolute bottom-1 right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-[#00F5FF]" />
-                              </>
+                        <div className="p-3 bg-[#FAF7F2] border-t border-[#7A0019]/20 text-[10px]">
+                          <div className="grid grid-cols-3 gap-1.5">
+                            <div className="bg-white rounded-lg p-1.5 border border-[#7A0019]/15 text-center shadow-2xs">
+                              <Smartphone className="h-3.5 w-3.5 mx-auto text-[#7A0019] mb-0.5" />
+                              <p className="font-bold text-[9px] text-zinc-900">1. Scan</p>
+                              <p className="text-[7.5px] text-zinc-500">Camera</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-1.5 border border-[#7A0019]/15 text-center shadow-2xs">
+                              <Upload className="h-3.5 w-3.5 mx-auto text-[#7A0019] mb-0.5" />
+                              <p className="font-bold text-[9px] text-zinc-900">2. Upload</p>
+                              <p className="text-[7.5px] text-zinc-500">Document</p>
+                            </div>
+                            <div className="bg-white rounded-lg p-1.5 border border-[#7A0019]/15 text-center shadow-2xs">
+                              <Printer className="h-3.5 w-3.5 mx-auto text-[#7A0019] mb-0.5" />
+                              <p className="font-bold text-[9px] text-zinc-900">3. Print</p>
+                              <p className="text-[7.5px] text-zinc-500">Instant</p>
+                            </div>
+                          </div>
+                          <div className="poster-brand-footer mt-2 text-center text-[8px] text-zinc-500 font-medium">
+                            Self-Service Printing for Students & Faculty
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      /* ═══════════════════════════════════════════════════════
+                          TEMPLATE 4: INNOVATION & TECH LAB (Dark Crimson & Gold)
+                         ═══════════════════════════════════════════════════════ */
+                      <>
+                        <div className="bg-gradient-to-r from-[#2B0008] via-[#7A0019] to-[#2B0008] text-white p-4 text-center border-b border-[#C5A059]/40">
+                          <div className="flex items-center justify-center gap-2 mb-1">
+                            <img
+                              src="/Rishihood_University_idxo_lfgcw_2.png"
+                              alt="RU"
+                              className="h-6 w-6 object-contain"
+                            />
+                            <p className="poster-header-brand text-[12px] font-black uppercase tracking-wider text-[#E5C378]">
+                              Rishihood University
+                            </p>
+                          </div>
+                          <h4 className="poster-header-title text-sm font-extrabold uppercase tracking-tight text-zinc-100 flex items-center justify-center gap-1.5">
+                            <Zap className="h-3.5 w-3.5 text-[#E5C378]" />
+                            Cloud Print Terminal
+                          </h4>
+                        </div>
+
+                        <div className="flex-1 flex flex-col items-center justify-center p-3 text-center">
+                          <div className="relative p-2.5 rounded-2xl bg-white border-2 border-[#C5A059] shadow-[0_0_20px_rgba(122,0,25,0.4)]">
+                            {qrDataUrl ? (
+                              <img
+                                src={qrDataUrl}
+                                alt="RU Portal QR"
+                                className="qr-code-img w-44 h-44 object-contain rounded-xl"
+                              />
+                            ) : (
+                              <div className="w-44 h-44 flex items-center justify-center">
+                                <span className="h-6 w-6 rounded-full border-2 border-[#E5C378] border-t-transparent animate-spin" />
+                              </div>
                             )}
+
+                            {/* Corner Tech Brackets */}
+                            <span className="absolute top-1 left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-[#C5A059]" />
+                            <span className="absolute top-1 right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-[#C5A059]" />
+                            <span className="absolute bottom-1 left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-[#C5A059]" />
+                            <span className="absolute bottom-1 right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-[#C5A059]" />
                           </div>
 
-                          {/* Scan Subtext */}
-                          <p
-                            className={`poster-scan-title mt-2 text-[11px] font-bold tracking-tight uppercase ${
-                              selectedStyle === "cyberpunk"
-                                ? "text-[#00F5FF]"
-                                : selectedStyle === "crimson"
-                                ? "text-[#7A0019]"
-                                : "text-slate-800"
-                            }`}
-                          >
-                            Point Camera to Scan & Print
+                          <p className="poster-scan-title mt-2 text-[10px] font-bold tracking-widest uppercase text-[#E5C378]">
+                            Direct Spool Active • Scan Now
                           </p>
-                          <p className="poster-url-text text-[9.5px] opacity-75 font-mono">
+                          <p className="poster-url-text text-[9px] opacity-75 font-mono text-zinc-400">
                             automatic-print-system.vercel.app
                           </p>
                         </div>
 
-                        {/* ── CARD FOOTER: 3 SIMPLE STEPS ── */}
-                        <div
-                          className={`poster-footer p-3 border-t text-[10px] ${
-                            selectedStyle === "cyberpunk"
-                              ? "bg-[#080E1E] border-[#00F5FF]/20"
-                              : selectedStyle === "crimson"
-                              ? "bg-[#F5EBE6] border-[#7A0019]/20"
-                              : "bg-slate-50 border-slate-200"
-                          }`}
-                        >
+                        <div className="bg-[#1C0810] border-t border-[#7A0019]/40 p-3 text-[10px] text-zinc-300">
                           <div className="grid grid-cols-3 gap-1.5 text-center">
                             <div className="flex flex-col items-center">
-                              <div className="step-num h-5 w-5 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-[9px] mb-0.5">
-                                1
-                              </div>
-                              <span className="step-title font-bold leading-tight">Scan QR</span>
-                              <span className="step-sub text-[8px] opacity-75">Phone Camera</span>
+                              <span className="step-num text-[10px] font-mono text-[#E5C378] font-bold">01 // SCAN</span>
+                              <span className="step-sub text-[8px] text-zinc-400">QR Code</span>
                             </div>
-
                             <div className="flex flex-col items-center">
-                              <div className="step-num h-5 w-5 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-[9px] mb-0.5">
-                                2
-                              </div>
-                              <span className="step-title font-bold leading-tight">Upload Doc</span>
-                              <span className="step-sub text-[8px] opacity-75">PDF / Word</span>
+                              <span className="step-num text-[10px] font-mono text-[#E5C378] font-bold">02 // UPLOAD</span>
+                              <span className="step-sub text-[8px] text-zinc-400">Cloud Spool</span>
                             </div>
-
                             <div className="flex flex-col items-center">
-                              <div className="step-num h-5 w-5 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-[9px] mb-0.5">
-                                3
-                              </div>
-                              <span className="step-title font-bold leading-tight">Collect</span>
-                              <span className="step-sub text-[8px] opacity-75">Instant Print</span>
+                              <span className="step-num text-[10px] font-mono text-[#E5C378] font-bold">03 // PRINT</span>
+                              <span className="step-sub text-[8px] text-zinc-400">Instant</span>
                             </div>
                           </div>
-
-                          <div className="poster-brand-footer mt-2 text-center text-[8px] opacity-65 font-medium border-t border-black/10 dark:border-white/10 pt-1">
-                            Powered by Rishihood University Direct Print System
+                          <div className="poster-brand-footer mt-2 text-center text-[8px] text-zinc-400 font-mono border-t border-[#7A0019]/30 pt-1">
+                            CANON MF280 HARDWARE SPOOL • 24/7 ONLINE
                           </div>
                         </div>
                       </>
@@ -788,7 +926,6 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
             margin: 0 !important;
             padding: 36px 32px !important;
             border-radius: 0 !important;
-            border-width: 8px !important;
             box-sizing: border-box !important;
             display: flex !important;
             flex-direction: column !important;
@@ -823,7 +960,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
           }
 
           #printable-qr-standee.format-poster .poster-header-title {
-            font-size: 24px !important;
+            font-size: 26px !important;
             margin-top: 6px !important;
           }
 
