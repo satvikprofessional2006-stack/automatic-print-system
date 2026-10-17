@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Volume2, VolumeX } from "lucide-react";
 
 interface PrinterIntroProps {
   onZoomStart?: () => void;
@@ -35,9 +34,8 @@ interface NeonParticle {
 export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDone, setIsDone] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
 
-  // Single shared AudioContext & Master Gain Node
+  // Single shared AudioContext & Master Gain Node (Sound is ALWAYS ON)
   const audioCtxRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
 
@@ -52,8 +50,8 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     onCompleteRef.current = onComplete;
   }, [onZoomStart, onComplete]);
 
-  // Audio Context Initializer & Browser Autoplay Unlocker
-  const initAudio = useCallback(() => {
+  // Audio Context Initializer - Sound ALWAYS ON with Auto-Resume
+  const ensureAudio = useCallback(() => {
     try {
       if (!audioCtxRef.current) {
         const AudioCtx =
@@ -62,7 +60,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         if (!AudioCtx) return null;
         const actx = new AudioCtx();
         const masterGain = actx.createGain();
-        masterGain.gain.setValueAtTime(0.35, actx.currentTime); // Rich, audible master level
+        masterGain.gain.setValueAtTime(0.4, actx.currentTime); // Rich, audible cinematic level
         masterGain.connect(actx.destination);
 
         audioCtxRef.current = actx;
@@ -77,23 +75,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       return null;
     }
   }, []);
-
-  const toggleSound = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const actx = initAudio();
-    if (!actx) return;
-    if (isMuted) {
-      if (masterGainRef.current) {
-        masterGainRef.current.gain.setValueAtTime(0.35, actx.currentTime);
-      }
-      setIsMuted(false);
-    } else {
-      if (masterGainRef.current) {
-        masterGainRef.current.gain.setValueAtTime(0.0001, actx.currentTime);
-      }
-      setIsMuted(true);
-    }
-  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -125,21 +106,28 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     updateDimensions();
     window.addEventListener("resize", updateDimensions);
 
-    // Auto-unlock audio on any user gesture anywhere on window
+    // Auto-unlock audio on ANY ambient user interaction (pointer, touch, key, scroll)
     const unlockUserAudio = () => {
-      initAudio();
+      ensureAudio();
     };
-    window.addEventListener("pointerdown", unlockUserAudio, { once: true });
-    window.addEventListener("keydown", unlockUserAudio, { once: true });
-    window.addEventListener("touchstart", unlockUserAudio, { once: true });
+    const unlockEvents = [
+      "pointerdown",
+      "mousedown",
+      "touchstart",
+      "keydown",
+      "mousemove",
+      "wheel",
+      "focus",
+    ];
+    unlockEvents.forEach((ev) => window.addEventListener(ev, unlockUserAudio, { passive: true }));
 
-    // Try starting audio immediately
-    initAudio();
+    // Start audio context immediately
+    ensureAudio();
 
-    // High-definition Sound Effects Synthesizer
+    // High-definition Sound Effects Synthesizer (ALWAYS ON)
     const playSfx = (type: "charge" | "scan" | "shatter" | "suction" | "lock") => {
       try {
-        const actx = initAudio();
+        const actx = ensureAudio();
         const masterGain = masterGainRef.current;
         if (!actx || !masterGain) return;
         const now = actx.currentTime;
@@ -159,7 +147,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           osc2.frequency.exponentialRampToValueAtTime(1080, now + 1.25);
 
           gain.gain.setValueAtTime(0.02, now);
-          gain.gain.linearRampToValueAtTime(0.24, now + 0.6);
+          gain.gain.linearRampToValueAtTime(0.28, now + 0.6);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
 
           osc1.connect(gain);
@@ -184,7 +172,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           filter.frequency.setValueAtTime(1500, now);
           filter.Q.setValueAtTime(4.5, now);
 
-          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.setValueAtTime(0.16, now);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
 
           osc.connect(filter);
@@ -200,7 +188,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           sub.type = "sine";
           sub.frequency.setValueAtTime(160, now);
           sub.frequency.exponentialRampToValueAtTime(42, now + 0.45);
-          subGain.gain.setValueAtTime(0.40, now);
+          subGain.gain.setValueAtTime(0.45, now);
           subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
           sub.connect(subGain);
           subGain.connect(masterGain);
@@ -219,7 +207,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           filter.frequency.setValueAtTime(3200, now);
           filter.Q.setValueAtTime(3.5, now);
           const nGain = actx.createGain();
-          nGain.gain.setValueAtTime(0.32, now);
+          nGain.gain.setValueAtTime(0.35, now);
           nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
           noise.connect(filter);
           filter.connect(nGain);
@@ -242,7 +230,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
           // Volume swells smoothly as particles converge
           gain.gain.setValueAtTime(0.02, now);
-          gain.gain.linearRampToValueAtTime(0.32, now + 0.55);
+          gain.gain.linearRampToValueAtTime(0.36, now + 0.55);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.70);
 
           osc.connect(filter);
@@ -260,7 +248,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
             osc.type = "sine";
             const noteTime = now + idx * 0.025;
             osc.frequency.setValueAtTime(freq, noteTime);
-            gain.gain.setValueAtTime(0.18, noteTime);
+            gain.gain.setValueAtTime(0.22, noteTime);
             gain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 0.75);
             osc.connect(gain);
             gain.connect(masterGain);
@@ -900,11 +888,9 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", updateDimensions);
-      window.removeEventListener("pointerdown", unlockUserAudio);
-      window.removeEventListener("keydown", unlockUserAudio);
-      window.removeEventListener("touchstart", unlockUserAudio);
+      unlockEvents.forEach((ev) => window.removeEventListener(ev, unlockUserAudio));
     };
-  }, [initAudio]);
+  }, [ensureAudio]);
 
   if (isDone) return null;
 
@@ -914,31 +900,9 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         initial={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
-        onClick={initAudio}
-        className="fixed inset-0 z-[9999] pointer-events-auto select-none overflow-hidden cursor-default"
+        className="fixed inset-0 z-[9999] pointer-events-none select-none overflow-hidden cursor-default"
       >
         <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
-
-        {/* Floating Sound Control Pill */}
-        <div className="absolute top-4 right-4 z-50 pointer-events-auto">
-          <button
-            onClick={toggleSound}
-            aria-label={isMuted ? "Unmute audio" : "Mute audio"}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/80 hover:bg-slate-800/95 border border-cyan-500/40 text-cyan-300 text-xs font-medium backdrop-blur-md shadow-lg shadow-cyan-500/10 transition-all hover:scale-105 active:scale-95"
-          >
-            {isMuted ? (
-              <>
-                <VolumeX className="w-3.5 h-3.5 text-rose-400" />
-                <span className="text-rose-300">Muted</span>
-              </>
-            ) : (
-              <>
-                <Volume2 className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-                <span className="text-cyan-300">Sound ON</span>
-              </>
-            )}
-          </button>
-        </div>
       </motion.div>
     </AnimatePresence>
   );
