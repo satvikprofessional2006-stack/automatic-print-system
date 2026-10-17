@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Volume2 } from "lucide-react";
 
 interface PrinterIntroProps {
   onZoomStart?: () => void;
@@ -35,13 +34,11 @@ interface NeonParticle {
 export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDone, setIsDone] = useState(false);
-  const [isWaitingForTap, setIsWaitingForTap] = useState(false);
 
   // Single shared AudioContext & Master Gain Node
   const audioCtxRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
   const hasAudioStartedRef = useRef(false);
-  const hasAnimationStartedRef = useRef(false);
   const currentElapsedRef = useRef(0);
 
   // Stable callback references to prevent unmount / restarts
@@ -367,21 +364,13 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     } catch {}
   }, [getAudioCtx]);
 
-  // Direct user gesture unlock handler (guarantees Chrome/Safari un-suspends AudioContext)
-  const handleUserInteraction = useCallback(() => {
+  // Direct passive audio un-suspend handler (un-suspends sound on any gesture without pause or prompt)
+  const ensureAudioIsActive = useCallback(() => {
     const actx = getAudioCtx();
     if (actx && actx.state === "suspended") {
-      actx.resume().then(() => {
-        setIsWaitingForTap(false);
-      }).catch(() => {});
-    } else {
-      setIsWaitingForTap(false);
+      actx.resume().catch(() => {});
     }
-
-    if (!hasAnimationStartedRef.current) {
-      hasAnimationStartedRef.current = true;
-      playAudioScore(0);
-    } else if (!hasAudioStartedRef.current) {
+    if (!hasAudioStartedRef.current) {
       playAudioScore(currentElapsedRef.current);
     }
   }, [getAudioCtx, playAudioScore]);
@@ -416,47 +405,20 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     updateDimensions();
     window.addEventListener("resize", updateDimensions);
 
-    // Register multi-event gestures so ANY touch, click, or key press instantly starts audio
+    // Passive unlock events: if browser suspended audio, any touch/move/key resumes it seamlessly
     const unlockEvents = [
       "pointerdown",
       "mousedown",
       "touchstart",
       "keydown",
+      "pointermove",
       "click",
+      "wheel",
     ];
-    unlockEvents.forEach((ev) => window.addEventListener(ev, handleUserInteraction, { passive: true }));
+    unlockEvents.forEach((ev) => window.addEventListener(ev, ensureAudioIsActive, { passive: true }));
 
-    // Check Audio Context state on mount
-    const actx = getAudioCtx();
-    if (actx) {
-      if (actx.state === "running") {
-        hasAnimationStartedRef.current = true;
-        playAudioScore(0);
-        setIsWaitingForTap(false);
-      } else {
-        // Attempt automatic resume if permissions allow
-        actx.resume().then(() => {
-          if (actx.state === "running") {
-            hasAnimationStartedRef.current = true;
-            playAudioScore(0);
-            setIsWaitingForTap(false);
-          } else {
-            setIsWaitingForTap(true);
-          }
-        }).catch(() => {
-          setIsWaitingForTap(true);
-        });
-      }
-    }
-
-    // Safety fallback: If user doesn't tap within 1.6s, start animation automatically
-    const autoFallbackTimer = setTimeout(() => {
-      if (!hasAnimationStartedRef.current) {
-        hasAnimationStartedRef.current = true;
-        setIsWaitingForTap(false);
-        playAudioScore(0);
-      }
-    }, 1600);
+    // Start audio engine immediately at 0.0s
+    playAudioScore(0);
 
     // Build the holographic vector printer particle matrix
     const particles: NeonParticle[] = [];
@@ -702,13 +664,12 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
     assignTargetsAndScatter(window.innerWidth, window.innerHeight);
 
-    // Exact Choreography Timeline:
+    // Exact Unified Choreography Timeline (starts immediately at frame 0):
     // 0.0s - 1.25s: Printer materializes and laser sweeps down strictly ONCE
     // 1.25s - 1.45s: Energy charge ring contracts into center
-    // 1.45s: Explosion burst! Pixels launch completely OUT OF THE SCREEN
-    // 1.95s: Cosmic reverse suction begins! Pixels rush back inward from offscreen
-    // 2.65s: Pixels lock into place forming first page! Live page reveals
-    // 2.65s - 2.95s: Clean fade-out into live interactive page
+    // 1.45s - 1.95s: Explosion burst! Pixels launch completely OUT OF THE SCREEN
+    // 1.95s - 2.65s: Cosmic reverse suction! Pixels rush back inward from offscreen & build first page
+    // 2.65s - 2.95s: Clean first page lock & reveal
     // 2.95s: Finish!
     const T_CHARGE = 1.25;
     const T_EXPLODE = 1.45;
@@ -717,6 +678,10 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     const T_FINISH = 2.95;
 
     const render = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = (timestamp - startTime) / 1000;
+      currentElapsedRef.current = elapsed;
+
       const width = window.innerWidth;
       const height = window.innerHeight;
       const centerX = width / 2;
@@ -736,94 +701,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       bgGrad.addColorStop(0, "#08132B");
       bgGrad.addColorStop(0.4, "#03081A");
       bgGrad.addColorStop(1, "#01030B");
-
-      // While waiting for user interaction, render preview state
-      if (!hasAnimationStartedRef.current) {
-        ctx.fillStyle = bgGrad;
-        ctx.fillRect(0, 0, width, height);
-
-        // Cyberpunk Neon Perspective Floor Grid
-        ctx.strokeStyle = "rgba(0, 245, 255, 0.09)";
-        ctx.lineWidth = 1;
-        const horizon = centerY + 140;
-        for (let i = -14; i <= 14; i++) {
-          ctx.beginPath();
-          ctx.moveTo(centerX + i * 40, horizon);
-          ctx.lineTo(centerX + i * 240, height);
-          ctx.stroke();
-        }
-        for (let gy = horizon; gy < height; gy += 24) {
-          ctx.beginPath();
-          ctx.moveTo(0, gy);
-          ctx.lineTo(width, gy);
-          ctx.stroke();
-        }
-
-        // Floating gentle breathing halo
-        const pulse = (Math.sin(timestamp / 380) + 1) * 0.5;
-        const idleFloatY = Math.sin(timestamp / 450) * 4;
-
-        const auraGrad = ctx.createRadialGradient(
-          centerX,
-          centerY + idleFloatY,
-          20,
-          centerX,
-          centerY + idleFloatY,
-          240
-        );
-        auraGrad.addColorStop(0, `rgba(0, 245, 255, ${0.35 + 0.15 * pulse})`);
-        auraGrad.addColorStop(0.4, `rgba(255, 0, 85, ${0.18 + 0.1 * pulse})`);
-        auraGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-
-        ctx.save();
-        ctx.fillStyle = auraGrad;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY + idleFloatY, 260, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        const fov = 340;
-        for (let i = 0; i < particles.length; i++) {
-          const p = particles[i];
-          const scale = fov / (fov + p.z);
-          const px = centerX + p.origX * scale;
-          const py = centerY + (p.origY + idleFloatY) * scale;
-          const pSize = Math.max(p.size * scale, 1.4);
-          p.lastX = px;
-          p.lastY = py;
-          ctx.fillStyle = p.color;
-          ctx.globalAlpha = p.alpha;
-          ctx.fillRect(px - pSize / 2, py - pSize / 2, pSize, pSize);
-        }
-
-        // Render Typography
-        ctx.save();
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        const textY = centerY + (idleFloatY + 82);
-
-        ctx.font = "800 22px 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-        try { ctx.letterSpacing = "2.5px"; } catch {}
-        ctx.shadowColor = "rgba(0, 245, 255, 0.85)";
-        ctx.shadowBlur = 12;
-        ctx.fillStyle = NEON_WHITE;
-        ctx.fillText("RU PRINT PORTAL", centerX, textY);
-
-        ctx.font = "700 11px 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-        try { ctx.letterSpacing = "3px"; } catch {}
-        ctx.shadowColor = "rgba(255, 0, 85, 0.9)";
-        ctx.shadowBlur = 10;
-        ctx.fillStyle = NEON_MAGENTA;
-        ctx.fillText("RISHIHOOD UNIVERSITY", centerX, textY + 22);
-        ctx.restore();
-
-        animationFrameId = requestAnimationFrame(render);
-        return;
-      }
-
-      if (!startTime) startTime = timestamp;
-      const elapsed = (timestamp - startTime) / 1000;
-      currentElapsedRef.current = elapsed;
 
       // Seamless background fade as first page is created
       let bgAlpha = 1;
@@ -859,10 +736,11 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       const fov = 340;
 
       // ── PHASE 1: PRINTER MATERIALIZATION & SCAN (0.0s - 1.45s) ──
-      // Exactly identical, playing strictly ONCE!
+      // Pure continuous single sweep with zero stutter or disappearance!
       if (elapsed < T_EXPLODE) {
-        const appearProgress = Math.min(elapsed / 0.65, 1);
-        const floatY = Math.sin(elapsed * 4) * 5;
+        // Smooth initial fade-in (0.0s to 0.45s)
+        const appearProgress = Math.min(elapsed / 0.45, 1.0);
+        const floatY = Math.sin(elapsed * 3.5) * 4;
 
         // Glowing Neon Ambient Halo behind printer
         const auraGrad = ctx.createRadialGradient(
@@ -975,7 +853,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         // Quadratic acceleration launching all particles completely past the screen edges
         const launchEase = explodeProgress * explodeProgress;
 
-        // Typography dissolves forward quickly
+        // Typography dissolves forward smoothly
         if (explodeTime < 0.25) {
           const textFade = Math.max(0, 1 - explodeTime / 0.25);
           const textY = centerY + 82 + explodeTime * 35;
@@ -1037,7 +915,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         // Smooth cubic ease-out: rushes in fast from off-screen, then gently settles into first page targets
         const ease = 1 - Math.pow(1 - reProgress, 3);
 
-        // Proactively begin revealing the live page underneath as particles near their destinations
+        // Proactively reveal live page underneath as particles near their destinations
         if (reProgress > 0.75 && !hasTriggeredZoom.current) {
           hasTriggeredZoom.current = true;
           if (onZoomStartRef.current) {
@@ -1144,11 +1022,10 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      clearTimeout(autoFallbackTimer);
       window.removeEventListener("resize", updateDimensions);
-      unlockEvents.forEach((ev) => window.removeEventListener(ev, handleUserInteraction));
+      unlockEvents.forEach((ev) => window.removeEventListener(ev, ensureAudioIsActive));
     };
-  }, [handleUserInteraction, playAudioScore, getAudioCtx]);
+  }, [ensureAudioIsActive, playAudioScore, getAudioCtx]);
 
   if (isDone) return null;
 
@@ -1158,19 +1035,9 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         initial={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
-        onClick={handleUserInteraction}
-        onPointerDown={handleUserInteraction}
-        className="fixed inset-0 z-[9999] pointer-events-auto select-none overflow-hidden cursor-pointer"
+        className="fixed inset-0 z-[9999] pointer-events-none select-none overflow-hidden"
       >
         <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
-
-        {/* Ambient indicator when browser holds audio suspended pending first user tap */}
-        {isWaitingForTap && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 mt-36 z-50 pointer-events-none flex items-center gap-2.5 px-6 py-3 rounded-full bg-slate-900/90 border border-cyan-400/70 text-cyan-200 text-sm font-semibold backdrop-blur-md shadow-2xl shadow-cyan-500/40 animate-pulse">
-            <Volume2 className="w-5 h-5 text-cyan-400 animate-bounce" />
-            <span>Click or tap anywhere for sound</span>
-          </div>
-        )}
       </motion.div>
     </AnimatePresence>
   );

@@ -34,9 +34,9 @@ export default function Page() {
     setShowIntro(false);
   }, []);
 
-  // During SSR / first hydration tick, render PrintFlow directly
+  // During SSR / first hydration tick, render dark background so PrintFlow never flashes before intro
   if (showIntro === null) {
-    return <PrintFlow />;
+    return <div className="w-full min-h-screen bg-[#01030B]" />;
   }
 
   return (
