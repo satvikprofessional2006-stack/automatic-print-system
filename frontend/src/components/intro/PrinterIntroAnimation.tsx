@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Volume2, VolumeX } from "lucide-react";
 
 interface PrinterIntroProps {
   onZoomStart?: () => void;
@@ -34,6 +35,11 @@ interface NeonParticle {
 export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDone, setIsDone] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+
+  // Single shared AudioContext & Master Gain Node
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const masterGainRef = useRef<GainNode | null>(null);
 
   // Stable callback references to prevent unmount / restarts
   const onZoomStartRef = useRef(onZoomStart);
@@ -46,6 +52,49 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     onCompleteRef.current = onComplete;
   }, [onZoomStart, onComplete]);
 
+  // Audio Context Initializer & Browser Autoplay Unlocker
+  const initAudio = useCallback(() => {
+    try {
+      if (!audioCtxRef.current) {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (!AudioCtx) return null;
+        const actx = new AudioCtx();
+        const masterGain = actx.createGain();
+        masterGain.gain.setValueAtTime(0.35, actx.currentTime); // Rich, audible master level
+        masterGain.connect(actx.destination);
+
+        audioCtxRef.current = actx;
+        masterGainRef.current = masterGain;
+      }
+
+      if (audioCtxRef.current.state === "suspended") {
+        audioCtxRef.current.resume().catch(() => {});
+      }
+      return audioCtxRef.current;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const toggleSound = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const actx = initAudio();
+    if (!actx) return;
+    if (isMuted) {
+      if (masterGainRef.current) {
+        masterGainRef.current.gain.setValueAtTime(0.35, actx.currentTime);
+      }
+      setIsMuted(false);
+    } else {
+      if (masterGainRef.current) {
+        masterGainRef.current.gain.setValueAtTime(0.0001, actx.currentTime);
+      }
+      setIsMuted(true);
+    }
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -54,7 +103,6 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
     let animationFrameId: number;
     let startTime: number | null = null;
-    let audioPlayed = false;
 
     // Vibrant Neon Palette
     const NEON_CYAN = "#00F5FF";
@@ -77,34 +125,90 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     updateDimensions();
     window.addEventListener("resize", updateDimensions);
 
-    // Audio synthesizer sfx using Web Audio API
-    const playSfx = (type: "charge" | "shatter" | "suction" | "lock") => {
+    // Auto-unlock audio on any user gesture anywhere on window
+    const unlockUserAudio = () => {
+      initAudio();
+    };
+    window.addEventListener("pointerdown", unlockUserAudio, { once: true });
+    window.addEventListener("keydown", unlockUserAudio, { once: true });
+    window.addEventListener("touchstart", unlockUserAudio, { once: true });
+
+    // Try starting audio immediately
+    initAudio();
+
+    // High-definition Sound Effects Synthesizer
+    const playSfx = (type: "charge" | "scan" | "shatter" | "suction" | "lock") => {
       try {
-        const AudioCtx =
-          window.AudioContext ||
-          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        if (!AudioCtx) return;
-        const actx = new AudioCtx();
-        if (actx.state === "suspended") actx.resume();
+        const actx = initAudio();
+        const masterGain = masterGainRef.current;
+        if (!actx || !masterGain) return;
         const now = actx.currentTime;
 
         if (type === "charge") {
-          // Subtle sci-fi energy charge hum
-          const osc = actx.createOscillator();
+          // Dual-oscillator sci-fi harmonic charge hum
+          const osc1 = actx.createOscillator();
+          const osc2 = actx.createOscillator();
           const gain = actx.createGain();
-          osc.type = "sine";
-          osc.frequency.setValueAtTime(160, now);
-          osc.frequency.exponentialRampToValueAtTime(520, now + 1.2);
-          gain.gain.setValueAtTime(0.01, now);
-          gain.gain.linearRampToValueAtTime(0.06, now + 0.5);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
-          osc.connect(gain);
-          gain.connect(actx.destination);
+
+          osc1.type = "sine";
+          osc1.frequency.setValueAtTime(140, now);
+          osc1.frequency.exponentialRampToValueAtTime(540, now + 1.25);
+
+          osc2.type = "triangle";
+          osc2.frequency.setValueAtTime(280, now);
+          osc2.frequency.exponentialRampToValueAtTime(1080, now + 1.25);
+
+          gain.gain.setValueAtTime(0.02, now);
+          gain.gain.linearRampToValueAtTime(0.24, now + 0.6);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
+
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(masterGain);
+
+          osc1.start(now);
+          osc2.start(now);
+          osc1.stop(now + 1.25);
+          osc2.stop(now + 1.25);
+        } else if (type === "scan") {
+          // Resonant laser scanline pass
+          const osc = actx.createOscillator();
+          const filter = actx.createBiquadFilter();
+          const gain = actx.createGain();
+
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(680, now);
+          osc.frequency.exponentialRampToValueAtTime(240, now + 0.9);
+
+          filter.type = "bandpass";
+          filter.frequency.setValueAtTime(1500, now);
+          filter.Q.setValueAtTime(4.5, now);
+
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(masterGain);
+
           osc.start(now);
-          osc.stop(now + 1.2);
+          osc.stop(now + 0.9);
         } else if (type === "shatter") {
-          // Powerful pixel burst explosion launching offscreen
-          const bufferSize = Math.floor(actx.sampleRate * 0.35);
+          // Sub-bass impact boom (cinema trailer drop)
+          const sub = actx.createOscillator();
+          const subGain = actx.createGain();
+          sub.type = "sine";
+          sub.frequency.setValueAtTime(160, now);
+          sub.frequency.exponentialRampToValueAtTime(42, now + 0.45);
+          subGain.gain.setValueAtTime(0.40, now);
+          subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+          sub.connect(subGain);
+          subGain.connect(masterGain);
+          sub.start(now);
+          sub.stop(now + 0.45);
+
+          // Glass / digital pixel shatter burst
+          const bufferSize = Math.floor(actx.sampleRate * 0.4);
           const buffer = actx.createBuffer(1, bufferSize, actx.sampleRate);
           const data = buffer.getChannelData(0);
           for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
@@ -112,61 +216,63 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
           noise.buffer = buffer;
           const filter = actx.createBiquadFilter();
           filter.type = "bandpass";
-          filter.frequency.setValueAtTime(2400, now);
-          filter.Q.setValueAtTime(3.8, now);
-          const gain = actx.createGain();
-          gain.gain.setValueAtTime(0.1, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          filter.frequency.setValueAtTime(3200, now);
+          filter.Q.setValueAtTime(3.5, now);
+          const nGain = actx.createGain();
+          nGain.gain.setValueAtTime(0.32, now);
+          nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
           noise.connect(filter);
-          filter.connect(gain);
-          gain.connect(actx.destination);
+          filter.connect(nGain);
+          nGain.connect(masterGain);
           noise.start(now);
         } else if (type === "suction") {
           // Deep cosmic reverse gravitational suction whoosh
           const osc = actx.createOscillator();
           const filter = actx.createBiquadFilter();
           const gain = actx.createGain();
+
           osc.type = "sawtooth";
-          osc.frequency.setValueAtTime(80, now);
-          osc.frequency.exponentialRampToValueAtTime(420, now + 0.65);
+          osc.frequency.setValueAtTime(75, now);
+          osc.frequency.exponentialRampToValueAtTime(480, now + 0.70);
 
           filter.type = "bandpass";
-          filter.frequency.setValueAtTime(220, now);
-          filter.frequency.exponentialRampToValueAtTime(2200, now + 0.65);
-          filter.Q.setValueAtTime(3.5, now);
+          filter.frequency.setValueAtTime(200, now);
+          filter.frequency.exponentialRampToValueAtTime(2400, now + 0.70);
+          filter.Q.setValueAtTime(4.0, now);
 
-          gain.gain.setValueAtTime(0.01, now);
-          gain.gain.linearRampToValueAtTime(0.09, now + 0.45);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+          // Volume swells smoothly as particles converge
+          gain.gain.setValueAtTime(0.02, now);
+          gain.gain.linearRampToValueAtTime(0.32, now + 0.55);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.70);
 
           osc.connect(filter);
           filter.connect(gain);
-          gain.connect(actx.destination);
+          gain.connect(masterGain);
+
           osc.start(now);
-          osc.stop(now + 0.65);
+          osc.stop(now + 0.70);
         } else if (type === "lock") {
-          // Shimmering harmonic crystallization chime chord (C6, E6, G6, C7)
-          const freqs = [1046.5, 1318.5, 1567.98, 2093.0];
+          // Luxurious futuristic chime chord (C5, E5, G5, C6, E6, G6)
+          const freqs = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98];
           freqs.forEach((freq, idx) => {
             const osc = actx.createOscillator();
             const gain = actx.createGain();
             osc.type = "sine";
-            osc.frequency.setValueAtTime(freq, now + idx * 0.025);
-            gain.gain.setValueAtTime(0.045 / (idx + 1), now + idx * 0.025);
-            gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.025 + 0.6);
+            const noteTime = now + idx * 0.025;
+            osc.frequency.setValueAtTime(freq, noteTime);
+            gain.gain.setValueAtTime(0.18, noteTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 0.75);
             osc.connect(gain);
-            gain.connect(actx.destination);
-            osc.start(now + idx * 0.025);
-            osc.stop(now + idx * 0.025 + 0.6);
+            gain.connect(masterGain);
+            osc.start(noteTime);
+            osc.stop(noteTime + 0.75);
           });
         }
       } catch {}
     };
 
-    if (!audioPlayed) {
-      audioPlayed = true;
-      setTimeout(() => playSfx("charge"), 100);
-    }
+    // Trigger charge sound on start
+    setTimeout(() => playSfx("charge"), 80);
 
     // Build the holographic vector printer particle matrix
     const particles: NeonParticle[] = [];
@@ -427,6 +533,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     const T_ASSEMBLE = 2.65;
     const T_FINISH = 2.95;
 
+    let scanPlayed = false;
     let shatterPlayed = false;
     let suctionPlayed = false;
     let lockPlayed = false;
@@ -532,6 +639,11 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         // Horizontal Neon Laser Scanner Beam:
         // Sweeps strictly ONCE from top to bottom (from 0.25s to 1.25s) with NO modulo wrapping!
         if (elapsed > 0.25 && elapsed <= T_CHARGE) {
+          if (!scanPlayed) {
+            scanPlayed = true;
+            playSfx("scan");
+          }
+
           const scanProgress = Math.min(Math.max((elapsed - 0.25) / (T_CHARGE - 0.25), 0), 1.0);
           const beamY = centerY - 140 + scanProgress * 280;
 
@@ -788,8 +900,11 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener("resize", updateDimensions);
+      window.removeEventListener("pointerdown", unlockUserAudio);
+      window.removeEventListener("keydown", unlockUserAudio);
+      window.removeEventListener("touchstart", unlockUserAudio);
     };
-  }, []); // Empty dependency array: NEVER restarts mid-animation!
+  }, [initAudio]);
 
   if (isDone) return null;
 
@@ -799,9 +914,31 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
         initial={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
-        className="fixed inset-0 z-[9999] pointer-events-none select-none overflow-hidden"
+        onClick={initAudio}
+        className="fixed inset-0 z-[9999] pointer-events-auto select-none overflow-hidden cursor-default"
       >
         <canvas ref={canvasRef} className="absolute inset-0 block w-full h-full" />
+
+        {/* Floating Sound Control Pill */}
+        <div className="absolute top-4 right-4 z-50 pointer-events-auto">
+          <button
+            onClick={toggleSound}
+            aria-label={isMuted ? "Unmute audio" : "Mute audio"}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/80 hover:bg-slate-800/95 border border-cyan-500/40 text-cyan-300 text-xs font-medium backdrop-blur-md shadow-lg shadow-cyan-500/10 transition-all hover:scale-105 active:scale-95"
+          >
+            {isMuted ? (
+              <>
+                <VolumeX className="w-3.5 h-3.5 text-rose-400" />
+                <span className="text-rose-300">Muted</span>
+              </>
+            ) : (
+              <>
+                <Volume2 className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                <span className="text-cyan-300">Sound ON</span>
+              </>
+            )}
+          </button>
+        </div>
       </motion.div>
     </AnimatePresence>
   );
