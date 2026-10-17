@@ -10,7 +10,6 @@ import {
   Printer,
   Download,
   QrCode,
-  Sparkles,
   Layers,
   Check,
   FileText,
@@ -23,7 +22,6 @@ import {
   CircleDot,
   Smartphone,
   Upload,
-  ShieldCheck,
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -58,7 +56,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
     }
   }, []);
 
-  // Generate High-DPI QR Code with Centered Rishihood Logo (Unified Color Grading)
+  // Generate High-DPI QR Code with Centered Rishihood Logo (Unified Brand Palette)
   useEffect(() => {
     if (!portalUrl) return;
 
@@ -315,7 +313,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                       </span>
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                      Unified Rishihood University Crimson & Gold color grading across all design templates.
+                      Clean signage layouts with high scannability and meaningful directions.
                     </p>
                   </div>
                 </div>
@@ -426,25 +424,25 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                         {
                           id: "executive" as StandeeStyle,
                           name: "University Executive",
-                          desc: "Rich crimson banner, gold pinstripe & crest emblem",
+                          desc: "Crimson banner, gold trim & clear 1-2-3 action steps",
                           badge: "bg-[#7A0019]",
                         },
                         {
                           id: "editorial" as StandeeStyle,
-                          name: "Modern Swiss Editorial",
-                          desc: "Clean white layout with crimson & gold hairline borders",
+                          name: "Modern Swiss Minimal",
+                          desc: "Clean white layout with precision hairline borders",
                           badge: "bg-[#C5A059]",
                         },
                         {
                           id: "notice" as StandeeStyle,
                           name: "Campus Notice Board",
-                          desc: "Split-block header with floating step instruction cards",
+                          desc: "Bold high-contrast header with 3 clean step cards",
                           badge: "bg-[#7A0019]",
                         },
                         {
                           id: "tech_lab" as StandeeStyle,
                           name: "Innovation & Tech Lab",
-                          desc: "Dark obsidian canvas with rich crimson & gold accents",
+                          desc: "Obsidian dark canvas with crimson & gold accents",
                           badge: "bg-[#18080E]",
                         },
                         {
@@ -580,7 +578,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                         ? "bg-white text-slate-900 border-2 border-[#7A0019]/40"
                         : selectedStyle === "notice"
                         ? "bg-[#FDFBF7] text-[#1A1A1A] border-2 border-[#7A0019]"
-                        : "bg-[#14080E] text-zinc-100 border-2 border-[#7A0019] shadow-[0_0_25px_rgba(122,0,25,0.35)]"
+                        : "bg-[#12070B] text-zinc-100 border-2 border-[#7A0019] shadow-[0_0_25px_rgba(122,0,25,0.35)]"
                     }`}
                   >
                     {/* ═══════════════════════════════════════════════════════
@@ -620,12 +618,9 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                               Rishihood University
                             </p>
                           </div>
-                          <h4 className="poster-header-title text-sm font-extrabold uppercase tracking-tight text-white">
-                            Direct Print Station
+                          <h4 className="poster-header-title text-base font-extrabold uppercase tracking-tight text-white">
+                            Print Station
                           </h4>
-                          <p className="text-[9px] uppercase tracking-widest text-[#E5C378] font-semibold mt-0.5">
-                            Wireless • Cloud Powered • Instant
-                          </p>
                         </div>
 
                         <div className="flex-1 flex flex-col items-center justify-center p-3 text-center">
@@ -642,10 +637,10 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                               </div>
                             )}
                           </div>
-                          <p className="poster-scan-title mt-2 text-[11px] font-bold tracking-tight uppercase text-[#7A0019]">
-                            Point Camera to Scan & Print
+                          <p className="poster-scan-title mt-2.5 text-[11px] font-bold tracking-tight uppercase text-[#7A0019]">
+                            Scan with Phone Camera
                           </p>
-                          <p className="poster-url-text text-[9px] opacity-75 font-mono text-zinc-600">
+                          <p className="poster-url-text text-[9px] opacity-75 font-mono text-zinc-600 mt-0.5">
                             automatic-print-system.vercel.app
                           </p>
                         </div>
@@ -657,31 +652,25 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                                 1
                               </div>
                               <span className="step-title font-bold text-zinc-900 leading-tight">Scan QR</span>
-                              <span className="step-sub text-[8px] text-zinc-600">Phone Camera</span>
                             </div>
                             <div className="flex flex-col items-center">
                               <div className="step-num h-5 w-5 rounded-full bg-[#7A0019] text-[#FFFDF9] flex items-center justify-center font-bold text-[9px] mb-0.5 shadow-xs">
                                 2
                               </div>
-                              <span className="step-title font-bold text-zinc-900 leading-tight">Upload Doc</span>
-                              <span className="step-sub text-[8px] text-zinc-600">PDF / Image</span>
+                              <span className="step-title font-bold text-zinc-900 leading-tight">Upload File</span>
                             </div>
                             <div className="flex flex-col items-center">
                               <div className="step-num h-5 w-5 rounded-full bg-[#7A0019] text-[#FFFDF9] flex items-center justify-center font-bold text-[9px] mb-0.5 shadow-xs">
                                 3
                               </div>
-                              <span className="step-title font-bold text-zinc-900 leading-tight">Collect</span>
-                              <span className="step-sub text-[8px] text-zinc-600">Instant Output</span>
+                              <span className="step-title font-bold text-zinc-900 leading-tight">Collect Print</span>
                             </div>
-                          </div>
-                          <div className="poster-brand-footer mt-2 text-center text-[8px] text-zinc-500 font-medium border-t border-[#7A0019]/15 pt-1">
-                            Official Rishihood University Campus Direct Print Service
                           </div>
                         </div>
                       </>
                     ) : selectedStyle === "editorial" ? (
                       /* ═══════════════════════════════════════════════════════
-                          TEMPLATE 2: MODERN SWISS EDITORIAL (Crimson & Gold Hairlines)
+                          TEMPLATE 2: MODERN SWISS MINIMAL (Precision Hairlines)
                          ═══════════════════════════════════════════════════════ */
                       <>
                         <div className="p-4 bg-white text-slate-900 border-b border-zinc-200">
@@ -693,16 +682,16 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                                 className="h-6 w-6 object-contain"
                               />
                               <span className="poster-header-brand text-[11px] font-black uppercase tracking-widest text-[#7A0019]">
-                                Rishihood
+                                Rishihood University
                               </span>
                             </div>
                             <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#7A0019]/10 text-[#7A0019] border border-[#7A0019]/20">
-                              Direct Print
+                              Print Station
                             </span>
                           </div>
                           <div className="h-[2px] w-full bg-gradient-to-r from-[#7A0019] via-[#C5A059] to-transparent my-2" />
                           <h4 className="poster-header-title text-base font-black tracking-tight text-zinc-950">
-                            Scan. Upload. Print.
+                            Scan to Print
                           </h4>
                         </div>
 
@@ -720,39 +709,24 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                               </div>
                             )}
                           </div>
-                          <p className="poster-scan-title mt-2 text-[10px] font-bold uppercase tracking-wider text-zinc-800">
-                            Compatible with Any Phone Camera
-                          </p>
-                          <p className="poster-url-text text-[9px] font-mono text-[#7A0019]">
+                          <p className="poster-url-text text-[9px] font-mono text-[#7A0019] mt-2">
                             automatic-print-system.vercel.app
                           </p>
                         </div>
 
                         <div className="p-3 bg-zinc-50 border-t border-zinc-200 text-[10px]">
-                          <div className="flex items-center justify-between text-center px-2">
-                            <div className="flex items-center gap-1">
-                              <span className="font-bold text-[#7A0019]">01</span>
-                              <span className="font-medium text-zinc-800">Scan</span>
-                            </div>
-                            <ArrowRight className="h-3 w-3 text-zinc-400" />
-                            <div className="flex items-center gap-1">
-                              <span className="font-bold text-[#7A0019]">02</span>
-                              <span className="font-medium text-zinc-800">Upload</span>
-                            </div>
-                            <ArrowRight className="h-3 w-3 text-zinc-400" />
-                            <div className="flex items-center gap-1">
-                              <span className="font-bold text-[#7A0019]">03</span>
-                              <span className="font-medium text-zinc-800">Collect</span>
-                            </div>
-                          </div>
-                          <div className="poster-brand-footer mt-2 text-center text-[8px] text-zinc-400 font-medium border-t border-zinc-200 pt-1">
-                            RU IT Services • High-Speed Canon Direct Print
+                          <div className="flex items-center justify-between text-center px-4">
+                            <span className="font-bold text-zinc-900">1. Scan</span>
+                            <ArrowRight className="h-3 w-3 text-[#7A0019]" />
+                            <span className="font-bold text-zinc-900">2. Upload</span>
+                            <ArrowRight className="h-3 w-3 text-[#7A0019]" />
+                            <span className="font-bold text-zinc-900">3. Collect</span>
                           </div>
                         </div>
                       </>
                     ) : selectedStyle === "notice" ? (
                       /* ═══════════════════════════════════════════════════════
-                          TEMPLATE 3: CAMPUS NOTICE BOARD (Card-Based Posters)
+                          TEMPLATE 3: CAMPUS NOTICE BOARD (Clear Step Cards)
                          ═══════════════════════════════════════════════════════ */
                       <>
                         <div className="bg-[#7A0019] text-white p-3.5 text-center">
@@ -766,8 +740,8 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                               Rishihood University
                             </p>
                           </div>
-                          <h4 className="poster-header-title text-sm font-black uppercase tracking-wide">
-                            Print Station Here
+                          <h4 className="poster-header-title text-base font-black uppercase tracking-wide">
+                            Print Station
                           </h4>
                         </div>
 
@@ -786,39 +760,36 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                             )}
                           </div>
                           <p className="poster-scan-title mt-2 text-[10px] font-black uppercase tracking-wider text-[#7A0019]">
-                            Scan QR Code to Start
+                            Scan to Print
+                          </p>
+                          <p className="poster-url-text text-[9px] opacity-75 font-mono text-zinc-600">
+                            automatic-print-system.vercel.app
                           </p>
                         </div>
 
                         <div className="p-3 bg-[#FAF7F2] border-t border-[#7A0019]/20 text-[10px]">
-                          <div className="grid grid-cols-3 gap-1.5">
-                            <div className="bg-white rounded-lg p-1.5 border border-[#7A0019]/15 text-center shadow-2xs">
-                              <Smartphone className="h-3.5 w-3.5 mx-auto text-[#7A0019] mb-0.5" />
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="bg-white rounded-lg p-2 border border-[#7A0019]/15 text-center shadow-2xs">
+                              <Smartphone className="h-4 w-4 mx-auto text-[#7A0019] mb-1" />
                               <p className="font-bold text-[9px] text-zinc-900">1. Scan</p>
-                              <p className="text-[7.5px] text-zinc-500">Camera</p>
                             </div>
-                            <div className="bg-white rounded-lg p-1.5 border border-[#7A0019]/15 text-center shadow-2xs">
-                              <Upload className="h-3.5 w-3.5 mx-auto text-[#7A0019] mb-0.5" />
+                            <div className="bg-white rounded-lg p-2 border border-[#7A0019]/15 text-center shadow-2xs">
+                              <Upload className="h-4 w-4 mx-auto text-[#7A0019] mb-1" />
                               <p className="font-bold text-[9px] text-zinc-900">2. Upload</p>
-                              <p className="text-[7.5px] text-zinc-500">Document</p>
                             </div>
-                            <div className="bg-white rounded-lg p-1.5 border border-[#7A0019]/15 text-center shadow-2xs">
-                              <Printer className="h-3.5 w-3.5 mx-auto text-[#7A0019] mb-0.5" />
-                              <p className="font-bold text-[9px] text-zinc-900">3. Print</p>
-                              <p className="text-[7.5px] text-zinc-500">Instant</p>
+                            <div className="bg-white rounded-lg p-2 border border-[#7A0019]/15 text-center shadow-2xs">
+                              <Printer className="h-4 w-4 mx-auto text-[#7A0019] mb-1" />
+                              <p className="font-bold text-[9px] text-zinc-900">3. Collect</p>
                             </div>
-                          </div>
-                          <div className="poster-brand-footer mt-2 text-center text-[8px] text-zinc-500 font-medium">
-                            Self-Service Printing for Students & Faculty
                           </div>
                         </div>
                       </>
                     ) : (
                       /* ═══════════════════════════════════════════════════════
-                          TEMPLATE 4: INNOVATION & TECH LAB (Dark Crimson & Gold)
+                          TEMPLATE 4: INNOVATION & TECH LAB (Obsidian Dark)
                          ═══════════════════════════════════════════════════════ */
                       <>
-                        <div className="bg-gradient-to-r from-[#2B0008] via-[#7A0019] to-[#2B0008] text-white p-4 text-center border-b border-[#C5A059]/40">
+                        <div className="bg-gradient-to-r from-[#20050D] via-[#7A0019] to-[#20050D] text-white p-4 text-center border-b border-[#C5A059]/40">
                           <div className="flex items-center justify-center gap-2 mb-1">
                             <img
                               src="/Rishihood_University_idxo_lfgcw_2.png"
@@ -829,9 +800,9 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                               Rishihood University
                             </p>
                           </div>
-                          <h4 className="poster-header-title text-sm font-extrabold uppercase tracking-tight text-zinc-100 flex items-center justify-center gap-1.5">
-                            <Zap className="h-3.5 w-3.5 text-[#E5C378]" />
-                            Cloud Print Terminal
+                          <h4 className="poster-header-title text-base font-extrabold uppercase tracking-tight text-zinc-100 flex items-center justify-center gap-1.5">
+                            <Zap className="h-4 w-4 text-[#E5C378]" />
+                            Print Terminal
                           </h4>
                         </div>
 
@@ -857,30 +828,24 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
                           </div>
 
                           <p className="poster-scan-title mt-2 text-[10px] font-bold tracking-widest uppercase text-[#E5C378]">
-                            Direct Spool Active • Scan Now
+                            Scan to Print
                           </p>
-                          <p className="poster-url-text text-[9px] opacity-75 font-mono text-zinc-400">
+                          <p className="poster-url-text text-[9px] opacity-75 font-mono text-zinc-400 mt-0.5">
                             automatic-print-system.vercel.app
                           </p>
                         </div>
 
-                        <div className="bg-[#1C0810] border-t border-[#7A0019]/40 p-3 text-[10px] text-zinc-300">
+                        <div className="bg-[#18070E] border-t border-[#7A0019]/40 p-3 text-[10px] text-zinc-300">
                           <div className="grid grid-cols-3 gap-1.5 text-center">
                             <div className="flex flex-col items-center">
-                              <span className="step-num text-[10px] font-mono text-[#E5C378] font-bold">01 // SCAN</span>
-                              <span className="step-sub text-[8px] text-zinc-400">QR Code</span>
+                              <span className="step-num text-[10px] font-mono text-[#E5C378] font-bold">1. SCAN</span>
                             </div>
                             <div className="flex flex-col items-center">
-                              <span className="step-num text-[10px] font-mono text-[#E5C378] font-bold">02 // UPLOAD</span>
-                              <span className="step-sub text-[8px] text-zinc-400">Cloud Spool</span>
+                              <span className="step-num text-[10px] font-mono text-[#E5C378] font-bold">2. UPLOAD</span>
                             </div>
                             <div className="flex flex-col items-center">
-                              <span className="step-num text-[10px] font-mono text-[#E5C378] font-bold">03 // PRINT</span>
-                              <span className="step-sub text-[8px] text-zinc-400">Instant</span>
+                              <span className="step-num text-[10px] font-mono text-[#E5C378] font-bold">3. PRINT</span>
                             </div>
-                          </div>
-                          <div className="poster-brand-footer mt-2 text-center text-[8px] text-zinc-400 font-mono border-t border-[#7A0019]/30 pt-1">
-                            CANON MF280 HARDWARE SPOOL • 24/7 ONLINE
                           </div>
                         </div>
                       </>
@@ -924,7 +889,7 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
             max-width: none !important;
             max-height: none !important;
             margin: 0 !important;
-            padding: 36px 32px !important;
+            padding: 40px 36px !important;
             border-radius: 0 !important;
             box-sizing: border-box !important;
             display: flex !important;
@@ -956,11 +921,11 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
           }
 
           #printable-qr-standee.format-poster .poster-header-brand {
-            font-size: 16px !important;
+            font-size: 18px !important;
           }
 
           #printable-qr-standee.format-poster .poster-header-title {
-            font-size: 26px !important;
+            font-size: 28px !important;
             margin-top: 6px !important;
           }
 
@@ -970,38 +935,24 @@ export function QrStandeeModal({ isOpen, onClose }: QrStandeeModalProps) {
           }
 
           #printable-qr-standee.format-poster .poster-scan-title {
-            font-size: 18px !important;
+            font-size: 20px !important;
             margin-top: 14px !important;
           }
 
           #printable-qr-standee.format-poster .poster-url-text {
-            font-size: 13px !important;
+            font-size: 14px !important;
             margin-top: 4px !important;
           }
 
-          #printable-qr-standee.format-poster .poster-footer {
-            padding: 20px !important;
-          }
-
           #printable-qr-standee.format-poster .step-num {
-            height: 28px !important;
-            width: 28px !important;
-            font-size: 13px !important;
-            margin-bottom: 6px !important;
+            height: 32px !important;
+            width: 32px !important;
+            font-size: 15px !important;
+            margin-bottom: 8px !important;
           }
 
           #printable-qr-standee.format-poster .step-title {
-            font-size: 14px !important;
-          }
-
-          #printable-qr-standee.format-poster .step-sub {
-            font-size: 11px !important;
-          }
-
-          #printable-qr-standee.format-poster .poster-brand-footer {
-            font-size: 11px !important;
-            margin-top: 12px !important;
-            padding-top: 8px !important;
+            font-size: 16px !important;
           }
 
           /* COMPACT DESK STANDEE LAYOUT (4"x6" Centered on A4 with cut border) */
