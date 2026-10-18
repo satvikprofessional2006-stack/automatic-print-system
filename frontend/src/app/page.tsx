@@ -36,6 +36,9 @@ export default function Page() {
   }, []);
 
   const handleComplete = useCallback(() => {
+    try {
+      sessionStorage.setItem("ru_portal_intro_shown", "true");
+    } catch {}
     setShowIntro(false);
   }, []);
 
