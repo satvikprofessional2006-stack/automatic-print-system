@@ -250,8 +250,8 @@ export function PrintSuccess({ job, onReset }: Props) {
               A complete refund has been automatically initiated via Razorpay back to your original payment method.
             </p>
             <div className="text-[11px] text-muted-foreground/90 space-y-1 bg-background/60 p-2.5 rounded-lg border border-emerald-500/15">
-              <p>• <strong>UPI / Google Pay / PhonePe:</strong> Reflects within 15 mins to 2 hours. You will receive an SMS from your bank.</p>
-              <p>• <strong>Debit / Credit Card / NetBanking:</strong> 2–4 business days depending on your bank.</p>
+              <p>• <strong>UPI / Google Pay / PhonePe:</strong> Reflects within 2–5 days. You will receive an SMS from your bank.</p>
+              <p>• <strong>Debit / Credit Card / NetBanking:</strong> 2–7 business days depending on your bank.</p>
             </div>
           </div>
 
