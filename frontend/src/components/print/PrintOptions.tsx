@@ -182,25 +182,28 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
                 </div>
 
                 {/* Copies Stepper */}
-                <div className="flex items-center gap-1.5 shrink-0 bg-background/50 rounded-lg p-1 border border-border/40">
-                  <button
-                    type="button"
-                    onClick={() => updateCopies(idx, -1)}
-                    className="p-1 rounded bg-background shadow-xs hover:bg-muted text-muted-foreground disabled:opacity-40 transition-colors cursor-pointer"
-                    disabled={(f.settings?.copies || 1) <= 1}
-                    title="Decrease copies"
-                  >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <span className="text-xs font-semibold w-5 text-center font-mono">{f.settings?.copies || 1}</span>
-                  <button
-                    type="button"
-                    onClick={() => updateCopies(idx, 1)}
-                    className="p-1 rounded bg-background shadow-xs hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
-                    title="Increase copies"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
+                <div className="flex items-center gap-1.5 shrink-0 bg-muted/40 rounded-xl px-2 py-1 border border-border/50">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pr-0.5">Copies</span>
+                  <div className="flex items-center gap-1 bg-background rounded-lg p-0.5 border border-border/40 shadow-xs">
+                    <button
+                      type="button"
+                      onClick={() => updateCopies(idx, -1)}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground disabled:opacity-40 transition-colors cursor-pointer"
+                      disabled={(f.settings?.copies || 1) <= 1}
+                      title="Decrease copies"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <span className="text-xs font-bold w-5 text-center font-mono">{f.settings?.copies || 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => updateCopies(idx, 1)}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
+                      title="Increase copies"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -272,30 +275,43 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
                   </div>
                 </div>
 
-                {/* Duplex Toggle */}
-                <div
-                  className="flex items-center gap-2 cursor-pointer select-none"
-                  onClick={() => toggleDoubleSided(idx)}
-                >
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs font-medium text-foreground">Double-sided</span>
-                    <div className="relative group flex items-center">
-                      <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                      <div className="absolute bottom-full mb-2 right-0 w-44 p-2 bg-card border border-border text-foreground text-[10px] rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                        Prints on both sides to save paper.
+                {/* Duplex Toggle (Disabled for single-page documents) */}
+                {(() => {
+                  const isSinglePage = pages <= 1;
+                  return (
+                    <div
+                      className={cn(
+                        "flex items-center gap-2 select-none transition-opacity",
+                        isSinglePage ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                      )}
+                      onClick={() => !isSinglePage && toggleDoubleSided(idx)}
+                      title={isSinglePage ? "Single-page documents cannot be printed double-sided" : undefined}
+                    >
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-medium text-foreground">
+                          Double-sided {isSinglePage && <span className="text-[10px] text-muted-foreground font-normal">(N/A)</span>}
+                        </span>
+                        <div className="relative group flex items-center">
+                          <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                          <div className="absolute bottom-full mb-2 right-0 w-48 p-2 bg-card border border-border text-foreground text-[10px] rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                            {isSinglePage
+                              ? "Single-page documents cannot be printed double-sided."
+                              : "Prints on both sides to save paper."}
+                          </div>
+                        </div>
+                      </div>
+                      <div className={cn(
+                        "w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out",
+                        !isSinglePage && isDoubleSided ? "bg-primary" : "bg-muted-foreground/30"
+                      )}>
+                        <div className={cn(
+                          "w-4 h-4 rounded-full bg-white shadow-xs transition-transform duration-200 ease-in-out",
+                          !isSinglePage && isDoubleSided ? "translate-x-4" : "translate-x-0"
+                        )} />
                       </div>
                     </div>
-                  </div>
-                  <div className={cn(
-                    "w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out",
-                    isDoubleSided ? "bg-primary" : "bg-muted-foreground/30"
-                  )}>
-                    <div className={cn(
-                      "w-4 h-4 rounded-full bg-white shadow-xs transition-transform duration-200 ease-in-out",
-                      isDoubleSided ? "translate-x-4" : "translate-x-0"
-                    )} />
-                  </div>
-                </div>
+                  );
+                })()}
               </div>
             </motion.div>
           );
