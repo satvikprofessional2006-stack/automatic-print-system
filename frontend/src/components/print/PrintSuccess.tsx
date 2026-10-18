@@ -10,7 +10,6 @@ import {
   RotateCcw,
   Copy,
   Check,
-  ExternalLink,
   MapPin,
   Building2,
   ShieldCheck,
@@ -29,7 +28,7 @@ const PRINT_STAGES = [
   "Payment Confirmed ✓",
   "Connecting to Print Station…",
   "Sending Files to Printer…",
-  "Queued at Library Counter!",
+  "Ready at Library Counter!",
   "Ready for Collection!",
 ];
 
@@ -37,7 +36,6 @@ export function PrintSuccess({ job, onReset }: Props) {
   const [stage, setStage] = useState(0);
   const [done, setDone] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isCancelled, setIsCancelled] = useState(false);
   const [taskDisplayId, setTaskDisplayId] = useState<string | null>(job.taskDisplayId || null);
@@ -78,9 +76,6 @@ export function PrintSuccess({ job, onReset }: Props) {
           const data = await res.json();
           if (data.taskDisplayId) {
             setTaskDisplayId(data.taskDisplayId);
-          }
-          if (data.position) {
-            setQueuePosition(data.position);
           }
           if (data.status === "cancelled") {
             setIsCancelled(true);
@@ -206,7 +201,7 @@ export function PrintSuccess({ job, onReset }: Props) {
               Print Job Successful!
             </h2>
             <p className="text-xs text-muted-foreground max-w-sm">
-              Your files have been sent to the printer queue and payment has been verified.
+              Your files have been sent to the library counter and payment has been verified.
             </p>
           </motion.div>
         )}
@@ -250,8 +245,8 @@ export function PrintSuccess({ job, onReset }: Props) {
               A complete refund has been automatically initiated via Razorpay back to your original payment method.
             </p>
             <div className="text-[11px] text-muted-foreground/90 space-y-1 bg-background/60 p-2.5 rounded-lg border border-emerald-500/15">
-              <p>• <strong>UPI / Google Pay / PhonePe:</strong> Reflects within 2–5 days. You will receive an SMS from your bank.</p>
-              <p>• <strong>Debit / Credit Card / NetBanking:</strong> 2–7 business days depending on your bank.</p>
+              <p>• <strong>UPI / Google Pay / PhonePe:</strong> Reflects within 2–7 days. You will receive an SMS from your bank.</p>
+              <p>• <strong>Debit / Credit Card / NetBanking:</strong> 5–10 business days depending on your bank.</p>
             </div>
           </div>
 
@@ -307,7 +302,7 @@ export function PrintSuccess({ job, onReset }: Props) {
                   Collection Point
                 </span>
                 <h3 className="text-sm font-bold text-foreground">
-                  Collect from the Library
+                  Collect from Ashok Goel Library
                 </h3>
               </div>
             </div>
@@ -363,11 +358,6 @@ export function PrintSuccess({ job, onReset }: Props) {
               <ShieldCheck className="h-3.5 w-3.5" />
               Paid ₹{job.amount} · Verified Receipt
             </span>
-            {queuePosition && (
-              <span className="text-[11px] font-semibold text-foreground">
-                Queue Position: #{queuePosition}
-              </span>
-            )}
           </div>
         </motion.div>
       )}
@@ -406,25 +396,15 @@ export function PrintSuccess({ job, onReset }: Props) {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="flex flex-col sm:flex-row items-center gap-2.5 w-full pt-1"
+          className="w-full pt-1"
         >
           <Button
             type="button"
             onClick={onReset}
-            className="w-full sm:flex-1 h-11 rounded-xl gap-2 font-semibold text-sm shadow-md"
+            className="w-full h-11 rounded-xl gap-2 font-semibold text-sm shadow-md"
           >
             <RotateCcw className="h-4 w-4" />
             Print Another Document
-          </Button>
-
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => window.open(`/status/${job.id}`, "_blank")}
-            className="w-full sm:w-auto h-11 px-4 rounded-xl gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
-          >
-            <ExternalLink className="h-4 w-4" />
-            Live Queue
           </Button>
         </motion.div>
       )}

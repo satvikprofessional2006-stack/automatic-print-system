@@ -410,7 +410,7 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             <div className="text-center space-y-1">
               <p className="font-semibold text-sm text-foreground">Verifying Payment…</p>
               <p className="text-xs text-muted-foreground">
-                Confirming transaction receipt and queueing your print job. Please wait.
+                Confirming transaction receipt and preparing your print job. Please wait.
               </p>
             </div>
           </motion.div>

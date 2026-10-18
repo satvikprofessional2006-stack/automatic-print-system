@@ -69,11 +69,13 @@ export default function StatusPage() {
         {job.status === 'queued' && (
           <>
             <div className="status-icon">⏳</div>
-            <h2>Job Submitted!</h2>
-            <div className="queue-position">
-              You are #{job.position} in the print queue.
+            <h2>Order Ready at Counter</h2>
+            <div className="queue-position" style={{ background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0' }}>
+              Awaiting Counter Release
             </div>
-            <p>Please wait, your document will be printed soon.</p>
+            <p style={{ marginTop: '12px' }}>
+              Show your <strong>Task ID ({job.taskDisplayId || job.orderId || job.id})</strong> to the operator at the print counter to release and collect your prints.
+            </p>
           </>
         )}
         
@@ -110,7 +112,7 @@ export default function StatusPage() {
               ✓ Full Refund Initiated
             </div>
             <p style={{ fontSize: '13px', color: '#555', marginTop: '8px', lineHeight: '1.5' }}>
-              A 100% refund has been initiated to your original payment method via Razorpay. It typically reflects in your UPI / bank account within 2–4 hours (instant for UPI).
+              A 100% refund has been initiated to your original payment method via Razorpay. It typically reflects in 2–5 days for UPI and 2–7 business days for Cards / NetBanking.
             </p>
           </>
         )}
