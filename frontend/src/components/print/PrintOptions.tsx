@@ -396,9 +396,6 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
               </span>
             )}
           </div>
-          <span className="text-[10px] text-muted-foreground font-medium">
-            (B&amp;W: ₹{BW_RATE}/pg &bull; Colour: ₹{COLOR_RATE}/pg)
-          </span>
         </div>
       </div>
 

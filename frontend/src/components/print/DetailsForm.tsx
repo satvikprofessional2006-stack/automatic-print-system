@@ -300,9 +300,6 @@ export function DetailsForm({
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] text-muted-foreground">
-                  (B&amp;W: ₹{BW_RATE}/pg · Colour: ₹{COLOR_RATE}/pg)
-                </span>
               </div>
             </div>
           </div>
