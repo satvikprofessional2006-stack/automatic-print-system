@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { PrintFile, calcFilesAmount, parsePageRange, BW_RATE, COLOR_RATE, BW_A3_RATE, COLOR_A3_RATE, MIN_JOB_AMOUNT } from "@/lib/printStore";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeft, FileText, FileImage, File as FileIcon, Settings, Info, Minus, Plus, X } from "lucide-react";
+import { ArrowRight, ArrowLeft, FileText, FileImage, File as FileIcon, Settings, Info, Minus, Plus, X, Pencil, Eye, Check, Loader2 } from "lucide-react";
+import { renderPdfPageToDataUrl } from "@/lib/pdfRenderer";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -22,8 +23,97 @@ function fileIcon(type: string) {
 
 export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
   const [globalDoubleSided, setGlobalDoubleSided] = useState(false);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [peekIdx, setPeekIdx] = useState<number | null>(null);
+  const [peekPreviewUrl, setPeekPreviewUrl] = useState<string | null>(null);
+  const [isPeekLoading, setIsPeekLoading] = useState(false);
 
   const { bwPages, colorPages, bwA3Pages, colorA3Pages, totalPages, totalAmount } = calcFilesAmount(files);
+
+  const startRename = (idx: number, currentName: string) => {
+    setEditingIdx(idx);
+    const lastDot = currentName.lastIndexOf(".");
+    if (lastDot > 0) {
+      setEditName(currentName.substring(0, lastDot));
+    } else {
+      setEditName(currentName);
+    }
+  };
+
+  const saveRename = (idx: number) => {
+    if (!editName.trim()) {
+      setEditingIdx(null);
+      return;
+    }
+    const currentFile = files[idx];
+    const lastDot = currentFile.name.lastIndexOf(".");
+    const ext = lastDot > 0 ? currentFile.name.substring(lastDot) : "";
+    const cleanBase = editName.trim();
+    const finalName = cleanBase.toLowerCase().endsWith(ext.toLowerCase()) ? cleanBase : `${cleanBase}${ext}`;
+
+    const newFiles = [...files];
+    try {
+      const renamedFileObj = new File([currentFile.file], finalName, { type: currentFile.file.type });
+      newFiles[idx] = {
+        ...currentFile,
+        name: finalName,
+        file: renamedFileObj,
+      };
+    } catch {
+      newFiles[idx] = {
+        ...currentFile,
+        name: finalName,
+      };
+    }
+    onUpdateFiles(newFiles);
+    setEditingIdx(null);
+  };
+
+  const cancelRename = () => {
+    setEditingIdx(null);
+    setEditName("");
+  };
+
+  const openQuickPeek = async (idx: number) => {
+    setPeekIdx(idx);
+    setPeekPreviewUrl(null);
+    const target = files[idx];
+    if (!target) return;
+
+    if (target.type.startsWith("image/")) {
+      try {
+        const u = URL.createObjectURL(target.file);
+        setPeekPreviewUrl(u);
+      } catch (e) {
+        console.error("Error creating image preview URL", e);
+      }
+    } else if (target.type === "application/pdf") {
+      setIsPeekLoading(true);
+      try {
+        const res = await renderPdfPageToDataUrl(target.file, 1, 1.6);
+        if (res?.dataUrl) {
+          setPeekPreviewUrl(res.dataUrl);
+        } else {
+          const u = URL.createObjectURL(target.file);
+          setPeekPreviewUrl(u);
+        }
+      } catch (err) {
+        console.error("Failed to render PDF quick peek", err);
+        try {
+          const u = URL.createObjectURL(target.file);
+          setPeekPreviewUrl(u);
+        } catch {}
+      } finally {
+        setIsPeekLoading(false);
+      }
+    }
+  };
+
+  const closeQuickPeek = () => {
+    setPeekIdx(null);
+    setPeekPreviewUrl(null);
+  };
 
   const removeFile = (idx: number) => {
     if (files.length <= 1) return;
@@ -179,7 +269,64 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
                     <Icon className={cn("h-4 w-4", isColor ? "text-rose-500" : "text-primary")} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-foreground truncate">{f.name}</p>
+                    {editingIdx === idx ? (
+                      <div className="flex items-center gap-1.5 py-0.5">
+                        <input
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveRename(idx);
+                            if (e.key === "Escape") cancelRename();
+                          }}
+                          autoFocus
+                          className="h-7 px-2 text-xs font-semibold bg-background border border-primary rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 w-full max-w-[200px]"
+                          placeholder="File name"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => saveRename(idx)}
+                          className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer shrink-0"
+                          title="Save name"
+                          aria-label="Save name"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelRename}
+                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors cursor-pointer shrink-0"
+                          title="Cancel"
+                          aria-label="Cancel rename"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 min-w-0">
+                        <p className="text-xs font-semibold text-foreground truncate max-w-[150px] sm:max-w-[210px]" title={f.name}>
+                          {f.name}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => startRename(idx, f.name)}
+                          className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors cursor-pointer shrink-0"
+                          title="Rename document"
+                          aria-label="Rename document"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openQuickPeek(idx)}
+                          className="p-1 rounded-md text-primary/75 hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer shrink-0"
+                          title="Quick peek at document"
+                          aria-label="Quick peek at document"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
                     <p className="text-[11px] text-muted-foreground mt-0.5">
                       <span className="font-semibold text-foreground/80 uppercase">{paperSize}</span> &bull; {pages} pg{pages !== 1 ? 's' : ''} &bull;{" "}
                       <motion.span
@@ -418,6 +565,108 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
+
+      {/* ── Quick Peek Modal (Eye Button) ── */}
+      <AnimatePresence>
+        {peekIdx !== null && files[peekIdx] && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 sm:p-6"
+            onClick={closeQuickPeek}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative max-w-md w-full bg-card rounded-2xl border border-border shadow-2xl p-4 sm:p-5 flex flex-col gap-3.5 overflow-hidden"
+            >
+              {/* Peek Header */}
+              <div className="flex items-center justify-between gap-2 border-b pb-2.5 border-border/50">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
+                    <Eye className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-foreground truncate" title={files[peekIdx].name}>
+                      {files[peekIdx].name}
+                    </p>
+                    <p className="text-[10.5px] text-muted-foreground font-mono">
+                      Page 1 of {files[peekIdx].settings?.pages || 1} &bull; Quick Peek
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeQuickPeek}
+                  className="p-1.5 rounded-xl bg-muted/80 hover:bg-muted text-foreground/80 hover:text-foreground transition-colors cursor-pointer shrink-0"
+                  title="Close preview"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Peek Document Body */}
+              <div className="min-h-[260px] max-h-[60vh] flex items-center justify-center overflow-hidden rounded-xl bg-zinc-900/40 p-2 border border-border/40">
+                {isPeekLoading ? (
+                  <div className="flex flex-col items-center justify-center gap-2 p-6 text-center">
+                    <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                    <p className="text-xs text-muted-foreground font-mono">Rendering preview...</p>
+                  </div>
+                ) : peekPreviewUrl ? (
+                  files[peekIdx].type.startsWith("image/") || peekPreviewUrl.startsWith("data:image/") ? (
+                    <img
+                      src={peekPreviewUrl}
+                      alt={files[peekIdx].name}
+                      className="max-h-[55vh] max-w-full object-contain rounded shadow-md"
+                    />
+                  ) : (
+                    <iframe
+                      src={`${peekPreviewUrl}#toolbar=0&navpanes=0&view=Fit`}
+                      title="Document Preview"
+                      className="w-full h-[55vh] rounded border-none bg-white"
+                    />
+                  )
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-2 p-6 text-center">
+                    <FileText className="h-8 w-8 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground">Preview unavailable for this format</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Peek Footer */}
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const idxToEdit = peekIdx;
+                    closeQuickPeek();
+                    if (idxToEdit !== null) {
+                      startRename(idxToEdit, files[idxToEdit].name);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-semibold cursor-pointer"
+                >
+                  <Pencil className="h-3 w-3" />
+                  <span>Rename this file</span>
+                </button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={closeQuickPeek}
+                  className="rounded-xl text-xs h-8 px-3 cursor-pointer"
+                >
+                  Done
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
