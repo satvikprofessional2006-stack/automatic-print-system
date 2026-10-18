@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, X, FileText, FileImage, File as FileIcon, Loader2, Sparkles, CircleDot } from "lucide-react";
+import { Upload, X, FileText, FileImage, File as FileIcon, Loader2 } from "lucide-react";
 import { PrintFile, BW_RATE, COLOR_RATE } from "@/lib/printStore";
 import { cn } from "@/lib/utils";
 
@@ -41,12 +41,9 @@ function formatBytes(b: number) {
 
 export function FileUpload({ files, onChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<"bw" | "color">("bw");
   const [dragging, setDragging] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-
-  const isColorActive = activeTab === "color";
 
   const processFiles = useCallback(
     async (fileList: FileList | null) => {
@@ -105,7 +102,7 @@ export function FileUpload({ files, onChange }: Props) {
           type: f.type,
           file: f,
           settings: {
-            color: isColorActive,
+            color: false,
             copies: 1,
             layout: 'portrait',
             pages: pages,
@@ -118,7 +115,7 @@ export function FileUpload({ files, onChange }: Props) {
       onChange([...files, ...newFiles]);
       setIsProcessing(false);
     },
-    [files, onChange, isColorActive]
+    [files, onChange]
   );
 
   const handleDrop = useCallback(
@@ -154,45 +151,6 @@ export function FileUpload({ files, onChange }: Props) {
 
   return (
     <div className="space-y-3">
-      {/* ── 2 Upload Tabs: Black & White vs Colour ── */}
-      <div className="grid grid-cols-2 gap-2 p-1 bg-muted/60 dark:bg-muted/30 rounded-2xl border border-border/50">
-        <button
-          type="button"
-          onClick={() => setActiveTab("bw")}
-          className={cn(
-            "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-xs transition-all",
-            !isColorActive
-              ? "bg-background text-foreground shadow-sm border border-border/60"
-              : "text-muted-foreground hover:text-foreground hover:bg-background/40"
-          )}
-        >
-          <span className="text-sm">📄</span>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1.5 text-left">
-            <span>Black &amp; White</span>
-            <span className="text-[10px] font-medium text-muted-foreground">(₹{BW_RATE}/pg)</span>
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("color")}
-          className={cn(
-            "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-xs transition-all",
-            isColorActive
-              ? "bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-indigo-500/10 text-rose-600 dark:text-rose-400 shadow-sm border border-rose-500/30"
-              : "text-muted-foreground hover:text-foreground hover:bg-background/40"
-          )}
-        >
-          <span className="text-sm">🎨</span>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1.5 text-left">
-            <span className={cn(isColorActive && "font-bold bg-gradient-to-r from-rose-500 to-amber-600 bg-clip-text text-transparent")}>
-              Colour Print
-            </span>
-            <span className="text-[10px] font-medium text-muted-foreground">(₹{COLOR_RATE}/pg)</span>
-          </div>
-        </button>
-      </div>
-
       {/* Drop zone */}
       <div
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -200,14 +158,10 @@ export function FileUpload({ files, onChange }: Props) {
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
         className={cn(
-          "relative flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-5 cursor-pointer transition-all duration-200 select-none",
+          "relative flex flex-col items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed p-6 cursor-pointer transition-all duration-200 select-none",
           dragging
-            ? isColorActive
-              ? "border-rose-500 bg-rose-500/10 scale-[1.01]"
-              : "border-primary bg-primary/8 scale-[1.01]"
-            : isColorActive
-              ? "border-rose-500/30 bg-rose-500/5 hover:border-rose-500/60 hover:bg-rose-500/10"
-              : "border-border/60 bg-muted/30 hover:border-primary/50 hover:bg-primary/5"
+            ? "border-primary bg-primary/10 scale-[1.01]"
+            : "border-border/70 bg-muted/30 hover:border-primary/50 hover:bg-primary/5"
         )}
       >
         <input
@@ -220,33 +174,26 @@ export function FileUpload({ files, onChange }: Props) {
         />
         <div
           className={cn(
-            "p-3 rounded-full transition-colors",
-            dragging
-              ? isColorActive ? "bg-rose-500/20" : "bg-primary/20"
-              : isColorActive ? "bg-rose-500/10" : "bg-muted/60"
+            "p-3.5 rounded-full transition-colors",
+            dragging ? "bg-primary/20" : "bg-muted/70"
           )}
         >
           {isProcessing ? (
-            <Loader2 className={cn("h-6 w-6 animate-spin", isColorActive ? "text-rose-500" : "text-primary")} />
-          ) : isColorActive ? (
-            <Sparkles className="h-6 w-6 text-rose-500" />
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
           ) : (
             <Upload className={cn("h-6 w-6 transition-colors", dragging ? "text-primary" : "text-muted-foreground")} />
           )}
         </div>
-        <div className="text-center">
+        <div className="text-center space-y-1">
           <p className="text-sm font-semibold text-foreground">
             {isProcessing
               ? "Processing files..."
               : dragging
-              ? isColorActive ? "Drop Colour files here" : "Drop B&W files here"
-              : isColorActive ? "Click or drag files for Colour Print" : "Click or drag files for Black & White"}
+              ? "Drop your files here"
+              : "Click to upload or drag & drop"}
           </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            PDF, Word, JPEG, PNG, TXT — max {MAX_FILE_MB} MB each ·{" "}
-            <span className="font-semibold text-foreground">
-              {isColorActive ? `₹${COLOR_RATE}/page` : `₹${BW_RATE}/page`}
-            </span>
+          <p className="text-xs text-muted-foreground">
+            PDF, Word, JPEG, PNG, TXT — max {MAX_FILE_MB} MB each
           </p>
         </div>
       </div>
