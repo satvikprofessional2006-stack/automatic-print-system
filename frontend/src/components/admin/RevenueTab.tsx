@@ -207,7 +207,10 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
         logout();
         return;
       }
-      if (!res.ok) throw new Error("Failed to fetch jobs");
+      if (!res.ok) {
+        console.warn('Revenue jobs polling failed with status:', res.status);
+        return;
+      }
       const data = await res.json();
       const rawJobs = data.jobs || [];
 

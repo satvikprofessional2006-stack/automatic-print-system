@@ -87,7 +87,10 @@ export function PrintJobsTable() {
         logout();
         return;
       }
-      if (!res.ok) throw new Error('Failed to fetch jobs');
+      if (!res.ok) {
+        console.warn('Admin jobs polling failed with status:', res.status);
+        return;
+      }
       const data = await res.json();
       const rawJobs = data.jobs || [];
       const processedJobs: any[][] = [];
