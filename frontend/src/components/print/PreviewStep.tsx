@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   PrintFile,
@@ -40,6 +41,11 @@ interface Props {
 }
 
 export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [activeFileIndex, setActiveFileIndex] = useState(0);
   const [activePageNum, setActivePageNum] = useState(1);
   const [pageJumpInput, setPageJumpInput] = useState("");
@@ -1149,9 +1155,10 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
       </div>
 
       {/* ── Fullscreen Zoom / Inspect Modal ── */}
-      <AnimatePresence>
-        {isZoomed && (
-          <motion.div
+      {mounted && typeof document !== "undefined" && createPortal(
+        <AnimatePresence>
+          {isZoomed && (
+            <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1265,7 +1272,9 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
     </div>
   );
 }
