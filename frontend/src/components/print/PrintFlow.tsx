@@ -54,12 +54,16 @@ export function PrintFlow() {
   const [isTasksDrawerOpen, setIsTasksDrawerOpen] = useState(false);
   const [loadingTasks, setLoadingTasks] = useState(false);
 
-  const fetchMyTasks = async (emailOverride?: string) => {
+  const fetchMyTasks = async (nameOverride?: string, emailOverride?: string) => {
+    const targetName = nameOverride || studentAuth?.name || draftName;
     const targetEmail = emailOverride || studentAuth?.email;
-    if (!targetEmail) return;
+    if (!targetName && !targetEmail) return;
     try {
       setLoadingTasks(true);
-      const res = await fetch(`/api/student/my-jobs?email=${encodeURIComponent(targetEmail)}`);
+      const params = new URLSearchParams();
+      if (targetName) params.set("userName", targetName);
+      if (targetEmail) params.set("email", targetEmail);
+      const res = await fetch(`/api/student/my-jobs?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.tasks)) {
@@ -101,7 +105,7 @@ export function PrintFlow() {
           setDraftName(student.name || "");
           const savedEnrollment = localStorage.getItem(`ru_enrollment_${student.email}`) || "";
           setDraftEnrollment(savedEnrollment.trim().length >= 8 ? savedEnrollment.trim() : "");
-          fetchMyTasks(student.email);
+          fetchMyTasks(student.name, student.email);
           
           if (restoredJob) {
             setActiveJob(restoredJob);
@@ -137,7 +141,7 @@ export function PrintFlow() {
     setDraftName(student.name);
     const savedEnrollment = localStorage.getItem(`ru_enrollment_${student.email}`) || "";
     setDraftEnrollment(savedEnrollment.trim().length >= 8 ? savedEnrollment.trim() : "");
-    fetchMyTasks(student.email);
+    fetchMyTasks(student.name, student.email);
     go("details", 1);
   };
 
@@ -203,7 +207,7 @@ export function PrintFlow() {
     try {
       localStorage.setItem("ru_active_job", JSON.stringify(job));
     } catch {}
-    fetchMyTasks(studentAuth?.email || job.email);
+    fetchMyTasks(job.name || studentAuth?.name, studentAuth?.email || job.email);
     go("success", 1);
   };
 

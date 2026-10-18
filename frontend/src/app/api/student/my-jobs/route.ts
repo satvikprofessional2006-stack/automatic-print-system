@@ -7,9 +7,10 @@ import { computeTaskDisplayId } from '@/lib/orderNumber';
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const email = searchParams.get('email');
+    const userName = searchParams.get('userName') || searchParams.get('name') || '';
+    const email = searchParams.get('email') || '';
 
-    if (!email || !email.trim()) {
+    if (!userName.trim() && !email.trim()) {
       return NextResponse.json({ tasks: [] });
     }
 
@@ -17,19 +18,28 @@ export async function GET(req: Request) {
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const normalizedEmail = email.toLowerCase().trim();
-    // Get jobs created in the last 48 hours for this student
-    const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-
-    const { data: rawJobs, error } = await supabase
+    let query = supabase
       .from('PrintJob')
       .select('*')
-      .ilike('userEmail', normalizedEmail)
-      .gte('createdAt', since)
       .neq('id', '00000000-0000-0000-0000-000000000000')
-      .order('createdAt', { ascending: false });
+      .order('createdAt', { ascending: false })
+      .limit(40);
+
+    // Filter by student's name
+    if (userName.trim()) {
+      query = query.ilike('userName', `%${userName.trim()}%`);
+    } else if (email.trim()) {
+      // Fallback: extract name prefix from email (e.g. satvik.25110 -> satvik)
+      const cleanPrefix = email.split('@')[0].split('.')[0].replace(/[0-9]/g, '').trim();
+      if (cleanPrefix) {
+        query = query.ilike('userName', `%${cleanPrefix}%`);
+      }
+    }
+
+    const { data: rawJobs, error } = await query;
 
     if (error || !rawJobs || rawJobs.length === 0) {
+      if (error) console.error("Error querying PrintJob for student:", error);
       return NextResponse.json({ tasks: [] });
     }
 
@@ -64,12 +74,12 @@ export async function GET(req: Request) {
         else if (grp.some((j) => j.status === 'queued')) overallStatus = 'queued';
         else if (grp.some((j) => j.status === 'paid')) overallStatus = 'paid';
 
-        const explicitAmount = grp.reduce((sum, j) => sum + (j.amount || 0), 0);
-        const calculatedAmount = grp.reduce(
-          (sum, j) => sum + (j.copies || 1) * (j.color ? 10 : 2),
-          0
-        );
-        const amount = explicitAmount > 0 ? explicitAmount : calculatedAmount;
+        const calculatedAmount = grp.reduce((sum, j) => {
+          const copies = j.copies || 1;
+          const isA3 = (j.paper_size || j.paperSize) === 'A3';
+          const rate = isA3 ? (j.color ? 20 : 5) : (j.color ? 10 : 2);
+          return sum + copies * rate;
+        }, 0);
 
         const totalPages = grp.reduce((sum, j) => sum + (j.copies || 1), 0);
 
@@ -78,7 +88,7 @@ export async function GET(req: Request) {
           taskDisplayId,
           createdAt: first.createdAt,
           status: overallStatus,
-          amount,
+          amount: calculatedAmount,
           totalPages,
           files: grp.map((j) => ({
             id: j.id,
