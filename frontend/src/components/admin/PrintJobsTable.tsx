@@ -164,8 +164,10 @@ export function PrintJobsTable() {
 
       setJobs(normalized);
       setPrinterLastSeen(data.printerLastSeen || null);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      // In dev mode with Next.js Turbopack, transient network aborts/HMR reloads can throw TypeError: Failed to fetch.
+      // Silently catch so it doesn't pop up an error modal over the admin dashboard.
+      console.warn("Failed to fetch admin jobs (will retry on next poll):", err?.message || err);
     }
   };
 
