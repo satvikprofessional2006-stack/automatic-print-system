@@ -6,12 +6,40 @@ let scriptLoadingPromise: Promise<any> | null = null;
 
 async function getPdfjs(): Promise<any> {
   if (typeof window === "undefined") return null;
-  if ((window as any).pdfjsLib) return (window as any).pdfjsLib;
+  if ((window as any).pdfjsLib) {
+    const lib = (window as any).pdfjsLib;
+    if (lib && lib.GlobalWorkerOptions && !lib.GlobalWorkerOptions.workerSrc) {
+      lib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+    }
+    return lib;
+  }
   if (pdfjsLibInstance) return pdfjsLibInstance;
 
   if (scriptLoadingPromise) return scriptLoadingPromise;
 
   scriptLoadingPromise = new Promise((resolve) => {
+    let checkInterval: any = null;
+    let timeoutId: any = null;
+
+    const cleanup = () => {
+      if (checkInterval) clearInterval(checkInterval);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+
+    const done = (lib: any) => {
+      cleanup();
+      if (lib && lib.GlobalWorkerOptions && !lib.GlobalWorkerOptions.workerSrc) {
+        lib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+      }
+      pdfjsLibInstance = lib;
+      resolve(lib);
+    };
+
+    if ((window as any).pdfjsLib) {
+      done((window as any).pdfjsLib);
+      return;
+    }
+
     let script = document.querySelector('script[src="/pdf.min.js"]') as HTMLScriptElement;
     if (!script) {
       script = document.createElement("script");
@@ -20,33 +48,36 @@ async function getPdfjs(): Promise<any> {
       document.head.appendChild(script);
     }
 
-    const onReady = () => {
-      const lib = (window as any).pdfjsLib;
-      if (lib && lib.GlobalWorkerOptions) {
-        lib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+    script.addEventListener("load", () => {
+      if ((window as any).pdfjsLib) {
+        done((window as any).pdfjsLib);
       }
-      pdfjsLibInstance = lib;
-      resolve(lib);
-    };
+    });
 
-    if ((window as any).pdfjsLib) {
-      onReady();
-    } else {
-      script.onload = onReady;
-      script.onerror = async () => {
-        try {
-          const mod = await import("pdfjs-dist");
-          if (mod && mod.GlobalWorkerOptions) {
-            mod.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
-          }
-          pdfjsLibInstance = mod;
-          resolve(mod);
-        } catch (e) {
-          console.error("Dynamic import of pdfjs-dist failed:", e);
-          resolve(null);
-        }
-      };
-    }
+    // Active polling interval in case the script is already running or completes without triggering the new listener
+    checkInterval = setInterval(() => {
+      if ((window as any).pdfjsLib) {
+        done((window as any).pdfjsLib);
+      }
+    }, 40);
+
+    // Timeout safety net (2000ms): try dynamic import if script tag fails
+    timeoutId = setTimeout(async () => {
+      cleanup();
+      if ((window as any).pdfjsLib) {
+        done((window as any).pdfjsLib);
+        return;
+      }
+      try {
+        const mod: any = await import("pdfjs-dist");
+        const resolved = mod?.default?.getDocument ? mod.default : mod;
+        done(resolved);
+      } catch (e) {
+        console.warn("PDF.js loading fallback error:", e);
+        scriptLoadingPromise = null;
+        resolve(null);
+      }
+    }, 2000);
   });
 
   return scriptLoadingPromise;
@@ -76,7 +107,7 @@ export async function renderPdfPageToDataUrl(
     if (!pdfDoc) {
       const arrayBuffer = await file.arrayBuffer();
       const loadingTask = pdfjs.getDocument({
-        data: arrayBuffer,
+        data: new Uint8Array(arrayBuffer),
         cMapUrl: "/cmaps/",
         cMapPacked: true,
         standardFontDataUrl: "/standard_fonts/",
@@ -133,7 +164,7 @@ export async function countPdfPages(file: File): Promise<number> {
     if (!pdfDoc) {
       const arrayBuffer = await file.arrayBuffer();
       const loadingTask = pdfjs.getDocument({
-        data: arrayBuffer,
+        data: new Uint8Array(arrayBuffer),
         cMapUrl: "/cmaps/",
         cMapPacked: true,
         standardFontDataUrl: "/standard_fonts/",

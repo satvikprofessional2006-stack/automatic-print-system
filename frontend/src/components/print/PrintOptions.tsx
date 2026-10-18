@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PrintFile, calcFilesAmount, parsePageRange, BW_RATE, COLOR_RATE, BW_A3_RATE, COLOR_A3_RATE, MIN_JOB_AMOUNT } from "@/lib/printStore";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeft, FileText, FileImage, File as FileIcon, Settings, Info, Minus, Plus, X, Pencil, Eye, Check, Loader2 } from "lucide-react";
+import { ArrowRight, ArrowLeft, FileText, FileImage, File as FileIcon, Settings, Info, Minus, Plus, X, Pencil, Eye, Check, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { renderPdfPageToDataUrl } from "@/lib/pdfRenderer";
 import { cn } from "@/lib/utils";
 
@@ -26,8 +26,10 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [peekIdx, setPeekIdx] = useState<number | null>(null);
+  const [peekPage, setPeekPage] = useState<number>(1);
   const [peekPreviewUrl, setPeekPreviewUrl] = useState<string | null>(null);
   const [isPeekLoading, setIsPeekLoading] = useState(false);
+  const peekBlobUrlRef = React.useRef<string | null>(null);
 
   const { bwPages, colorPages, bwA3Pages, colorA3Pages, totalPages, totalAmount } = calcFilesAmount(files);
 
@@ -75,44 +77,104 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
     setEditName("");
   };
 
-  const openQuickPeek = async (idx: number) => {
-    setPeekIdx(idx);
-    setPeekPreviewUrl(null);
+  const cleanupPeekBlob = () => {
+    if (peekBlobUrlRef.current) {
+      try {
+        URL.revokeObjectURL(peekBlobUrlRef.current);
+      } catch {}
+      peekBlobUrlRef.current = null;
+    }
+  };
+
+  const loadPeekPreview = async (idx: number, page: number) => {
     const target = files[idx];
     if (!target) return;
 
-    if (target.type.startsWith("image/")) {
+    cleanupPeekBlob();
+    setPeekPreviewUrl(null);
+    setIsPeekLoading(true);
+
+    const isPdf = target.type === "application/pdf" || (target.name || "").toLowerCase().endsWith(".pdf");
+    const isImage = target.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|svg|heic)$/i.test(target.name || "");
+
+    if (isImage) {
       try {
         const u = URL.createObjectURL(target.file);
+        peekBlobUrlRef.current = u;
         setPeekPreviewUrl(u);
       } catch (e) {
         console.error("Error creating image preview URL", e);
+      } finally {
+        setIsPeekLoading(false);
       }
-    } else if (target.type === "application/pdf") {
-      setIsPeekLoading(true);
+      return;
+    }
+
+    if (isPdf) {
       try {
-        const res = await renderPdfPageToDataUrl(target.file, 1, 1.6);
+        // High-fidelity rendering via PDF.js (scale 1.8 for crisp display)
+        const res = await renderPdfPageToDataUrl(target.file, page, 1.8);
         if (res?.dataUrl) {
           setPeekPreviewUrl(res.dataUrl);
-        } else {
-          const u = URL.createObjectURL(target.file);
-          setPeekPreviewUrl(u);
+          setIsPeekLoading(false);
+          return;
         }
+
+        // Secondary fallback: slice single page with pdf-lib
+        const { PDFDocument } = await import("pdf-lib");
+        const arrayBuffer = await target.file.arrayBuffer();
+        const sourceDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+        const total = sourceDoc.getPageCount();
+        const safePage = Math.min(Math.max(1, page), total);
+        const singleDoc = await PDFDocument.create();
+        const [copiedPage] = await singleDoc.copyPages(sourceDoc, [safePage - 1]);
+        singleDoc.addPage(copiedPage);
+        const pdfBytes = await singleDoc.save();
+        const blob = new Blob([pdfBytes as unknown as BlobPart], { type: "application/pdf" });
+        const u = URL.createObjectURL(blob);
+        peekBlobUrlRef.current = u;
+        setPeekPreviewUrl(u);
       } catch (err) {
         console.error("Failed to render PDF quick peek", err);
         try {
           const u = URL.createObjectURL(target.file);
+          peekBlobUrlRef.current = u;
           setPeekPreviewUrl(u);
         } catch {}
       } finally {
         setIsPeekLoading(false);
       }
+      return;
+    }
+
+    // Generic fallback for any other allowed file format
+    try {
+      const u = URL.createObjectURL(target.file);
+      peekBlobUrlRef.current = u;
+      setPeekPreviewUrl(u);
+    } catch {} finally {
+      setIsPeekLoading(false);
     }
   };
 
+  const openQuickPeek = (idx: number) => {
+    setPeekIdx(idx);
+    setPeekPage(1);
+    loadPeekPreview(idx, 1);
+  };
+
+  const handlePeekPageChange = (newPage: number) => {
+    if (peekIdx === null) return;
+    setPeekPage(newPage);
+    loadPeekPreview(peekIdx, newPage);
+  };
+
   const closeQuickPeek = () => {
+    cleanupPeekBlob();
     setPeekIdx(null);
+    setPeekPage(1);
     setPeekPreviewUrl(null);
+    setIsPeekLoading(false);
   };
 
   const removeFile = (idx: number) => {
@@ -568,104 +630,188 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
 
       {/* ── Quick Peek Modal (Eye Button) ── */}
       <AnimatePresence>
-        {peekIdx !== null && files[peekIdx] && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 sm:p-6"
-            onClick={closeQuickPeek}
-          >
+        {peekIdx !== null && files[peekIdx] && (() => {
+          const currentPeekFile = files[peekIdx];
+          const isPdf = currentPeekFile.type === "application/pdf" || (currentPeekFile.name || "").toLowerCase().endsWith(".pdf");
+          const isImage = currentPeekFile.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|svg|heic)$/i.test(currentPeekFile.name || "");
+          const isCurrentBw = !currentPeekFile.settings?.color;
+          const docTotalPages = Math.max(1, currentPeekFile.settings?.pages || 1);
+          const paperSize = currentPeekFile.settings?.paperSize || "A4";
+
+          return (
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="relative max-w-md w-full bg-card rounded-2xl border border-border shadow-2xl p-4 sm:p-5 flex flex-col gap-3.5 overflow-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-6"
+              onClick={closeQuickPeek}
             >
-              {/* Peek Header */}
-              <div className="flex items-center justify-between gap-2 border-b pb-2.5 border-border/50">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
-                    <Eye className="h-4 w-4" />
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="relative max-w-lg w-full bg-card rounded-2xl border border-border shadow-2xl p-4 sm:p-5 flex flex-col gap-3.5 overflow-hidden"
+              >
+                {/* Peek Header */}
+                <div className="flex items-center justify-between gap-2 border-b pb-3 border-border/50">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+                      <Eye className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-bold text-foreground truncate" title={currentPeekFile.name}>
+                        {currentPeekFile.name}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-[10px] sm:text-[11px] text-muted-foreground font-mono">
+                          {paperSize} &bull; {docTotalPages} page{docTotalPages !== 1 ? 's' : ''}
+                        </span>
+                        <span className={cn(
+                          "text-[9.5px] font-bold px-2 py-0.2 rounded-full border leading-tight",
+                          isCurrentBw
+                            ? "bg-zinc-800/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
+                            : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                        )}>
+                          {isCurrentBw ? "B&W Preview" : "Colour Preview"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-foreground truncate" title={files[peekIdx].name}>
-                      {files[peekIdx].name}
-                    </p>
-                    <p className="text-[10.5px] text-muted-foreground font-mono">
-                      Page 1 of {files[peekIdx].settings?.pages || 1} &bull; Quick Peek
-                    </p>
+
+                  <button
+                    type="button"
+                    onClick={closeQuickPeek}
+                    className="p-1.5 rounded-xl bg-muted/80 hover:bg-muted text-foreground/80 hover:text-foreground transition-colors cursor-pointer shrink-0"
+                    title="Close preview"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Peek Document Body */}
+                <div className="relative min-h-[300px] max-h-[62vh] flex items-center justify-center overflow-hidden rounded-xl bg-zinc-950/60 p-2 border border-border/50">
+                  {isPeekLoading ? (
+                    <div className="flex flex-col items-center justify-center gap-2.5 p-8 text-center">
+                      <Loader2 className="h-7 w-7 text-primary animate-spin" />
+                      <p className="text-xs text-muted-foreground font-mono">
+                        Rendering page {peekPage}...
+                      </p>
+                    </div>
+                  ) : peekPreviewUrl ? (
+                    isImage || peekPreviewUrl.startsWith("data:image/") ? (
+                      <img
+                        key={`peek-img-${peekIdx}-${peekPage}`}
+                        src={peekPreviewUrl}
+                        alt={currentPeekFile.name}
+                        className={cn(
+                          "max-h-[58vh] max-w-full object-contain rounded-lg shadow-lg transition-all duration-300",
+                          isCurrentBw && "grayscale contrast-[1.06] brightness-[0.98]"
+                        )}
+                      />
+                    ) : (
+                      <object
+                        key={`peek-obj-${peekIdx}-${peekPage}`}
+                        data={`${peekPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
+                        type="application/pdf"
+                        className={cn(
+                          "w-full h-[58vh] rounded-lg border-none bg-white shadow-lg transition-all duration-300",
+                          isCurrentBw && "grayscale contrast-[1.06] brightness-[0.98]"
+                        )}
+                      >
+                        <iframe
+                          src={`${peekPreviewUrl}#toolbar=0&navpanes=0&view=Fit`}
+                          title="Document Preview"
+                          className="w-full h-[58vh] rounded-lg border-none bg-white"
+                        />
+                      </object>
+                    )
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-2 p-8 text-center">
+                      <FileText className="h-10 w-10 text-muted-foreground/60" />
+                      <p className="text-xs text-muted-foreground">Unable to render preview for this file</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Peek Footer Controls */}
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  {/* Page Navigator if multi-page */}
+                  {docTotalPages > 1 ? (
+                    <div className="flex items-center gap-1.5 bg-muted/60 p-1 rounded-xl border border-border/50">
+                      <button
+                        type="button"
+                        onClick={() => handlePeekPageChange(peekPage - 1)}
+                        disabled={peekPage <= 1 || isPeekLoading}
+                        className="p-1 rounded-lg hover:bg-muted text-foreground/80 hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        title="Previous page"
+                        aria-label="Previous page"
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5" />
+                      </button>
+                      <span className="text-[11px] font-mono font-semibold text-foreground px-1.5 text-center min-w-[55px]">
+                        {peekPage} / {docTotalPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handlePeekPageChange(peekPage + 1)}
+                        disabled={peekPage >= docTotalPages || isPeekLoading}
+                        className="p-1 rounded-lg hover:bg-muted text-foreground/80 hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                        title="Next page"
+                        aria-label="Next page"
+                      >
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const idxToEdit = peekIdx;
+                        closeQuickPeek();
+                        if (idxToEdit !== null) {
+                          startRename(idxToEdit, files[idxToEdit].name);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-semibold cursor-pointer"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      <span>Rename this file</span>
+                    </button>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    {docTotalPages > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const idxToEdit = peekIdx;
+                          closeQuickPeek();
+                          if (idxToEdit !== null) {
+                            startRename(idxToEdit, files[idxToEdit].name);
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium cursor-pointer"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        <span className="hidden sm:inline">Rename</span>
+                      </button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={closeQuickPeek}
+                      className="rounded-xl text-xs h-8 px-4 font-semibold cursor-pointer"
+                    >
+                      Close
+                    </Button>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={closeQuickPeek}
-                  className="p-1.5 rounded-xl bg-muted/80 hover:bg-muted text-foreground/80 hover:text-foreground transition-colors cursor-pointer shrink-0"
-                  title="Close preview"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              {/* Peek Document Body */}
-              <div className="min-h-[260px] max-h-[60vh] flex items-center justify-center overflow-hidden rounded-xl bg-zinc-900/40 p-2 border border-border/40">
-                {isPeekLoading ? (
-                  <div className="flex flex-col items-center justify-center gap-2 p-6 text-center">
-                    <Loader2 className="h-6 w-6 text-primary animate-spin" />
-                    <p className="text-xs text-muted-foreground font-mono">Rendering preview...</p>
-                  </div>
-                ) : peekPreviewUrl ? (
-                  files[peekIdx].type.startsWith("image/") || peekPreviewUrl.startsWith("data:image/") ? (
-                    <img
-                      src={peekPreviewUrl}
-                      alt={files[peekIdx].name}
-                      className="max-h-[55vh] max-w-full object-contain rounded shadow-md"
-                    />
-                  ) : (
-                    <iframe
-                      src={`${peekPreviewUrl}#toolbar=0&navpanes=0&view=Fit`}
-                      title="Document Preview"
-                      className="w-full h-[55vh] rounded border-none bg-white"
-                    />
-                  )
-                ) : (
-                  <div className="flex flex-col items-center justify-center gap-2 p-6 text-center">
-                    <FileText className="h-8 w-8 text-muted-foreground" />
-                    <p className="text-xs text-muted-foreground">Preview unavailable for this format</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Peek Footer */}
-              <div className="flex items-center justify-between gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const idxToEdit = peekIdx;
-                    closeQuickPeek();
-                    if (idxToEdit !== null) {
-                      startRename(idxToEdit, files[idxToEdit].name);
-                    }
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-semibold cursor-pointer"
-                >
-                  <Pencil className="h-3 w-3" />
-                  <span>Rename this file</span>
-                </button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={closeQuickPeek}
-                  className="rounded-xl text-xs h-8 px-3 cursor-pointer"
-                >
-                  Done
-                </Button>
-              </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
+          );
+        })()}
       </AnimatePresence>
     </div>
   );
