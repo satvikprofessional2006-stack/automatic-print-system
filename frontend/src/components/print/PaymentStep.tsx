@@ -133,6 +133,33 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
       const orderData = await orderRes.json();
       setIsGatewayReady(orderData.configured);
 
+      // Save pending order + binary files to IndexedDB disk storage BEFORE opening checkout.
+      // If Android kills Chrome to open PhonePe / GPay, the file survives safely on disk.
+      try {
+        const { savePendingOrderToCache } = await import("@/lib/orderCache");
+        await savePendingOrderToCache({
+          orderId: orderData.orderId,
+          jobId: job.id,
+          name: job.name,
+          enrollmentNo: job.enrollmentNo,
+          email: job.email,
+          userType: job.userType,
+          totalPages: job.totalPages,
+          amount: job.amount,
+          timestamp: Date.now(),
+          files: job.files.map((pf) => ({
+            name: pf.name,
+            size: pf.size,
+            type: pf.type || pf.file?.type || "application/pdf",
+            fileBlob: pf.file,
+            settings: pf.settings,
+          })),
+        });
+        localStorage.setItem("ru_pending_rzp_order_id", orderData.orderId);
+      } catch (cacheErr) {
+        console.warn("Could not cache order in IndexedDB:", cacheErr);
+      }
+
       // If Razorpay keys are not yet configured in .env, simulate demo payment
       if (!orderData.configured || !orderData.keyId) {
         console.warn("Razorpay keys not detected. Simulating verified demo payment.");
@@ -140,6 +167,11 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
         setPayState("verifying");
         setTimeout(async () => {
           await uploadAndFinalize("demo_payment_" + Date.now());
+          try {
+            const { clearPendingOrderFromCache } = await import("@/lib/orderCache");
+            await clearPendingOrderFromCache(orderData.orderId);
+            localStorage.removeItem("ru_pending_rzp_order_id");
+          } catch {}
         }, 1200);
         return;
       }
@@ -195,6 +227,13 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
               response.razorpay_payment_id,
               verifyData?.utrNo || response.razorpay_payment_id
             );
+
+            // Clean up cache once successfully uploaded
+            try {
+              const { clearPendingOrderFromCache } = await import("@/lib/orderCache");
+              await clearPendingOrderFromCache(response.razorpay_order_id);
+              localStorage.removeItem("ru_pending_rzp_order_id");
+            } catch {}
           } catch (verifyErr: any) {
             console.error("Verification error:", verifyErr);
             setErrorMessage(verifyErr?.message || "Payment verification failed");

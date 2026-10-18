@@ -53,6 +53,7 @@ export function PrintFlow() {
   const [tasks, setTasks] = useState<StudentTaskItem[]>([]);
   const [isTasksDrawerOpen, setIsTasksDrawerOpen] = useState(false);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const [recoveringPayment, setRecoveringPayment] = useState(false);
 
   const fetchMyTasks = async (nameOverride?: string, emailOverride?: string) => {
     const targetName = nameOverride || studentAuth?.name || draftName;
@@ -77,54 +78,143 @@ export function PrintFlow() {
     }
   };
 
-  // Restore authenticated student session & active print job on initial page load
+  // Restore authenticated student session & auto-recover paid orders across tab crashes / LMK
   useEffect(() => {
-    try {
-      // 1. Check if there is an active recent print job (within last 12 hours)
-      const savedJobStr = localStorage.getItem("ru_active_job");
-      let restoredJob: PrintJob | null = null;
-      if (savedJobStr) {
-        try {
-          const parsed = JSON.parse(savedJobStr);
-          const createdAt = new Date(parsed.createdAt || "").getTime();
-          // Keep active job for up to 12 hours so student can close site, walk to library, and see step 6
-          if (!isNaN(createdAt) && Date.now() - createdAt < 12 * 60 * 60 * 1000) {
-            restoredJob = parsed;
-          } else {
-            localStorage.removeItem("ru_active_job");
-          }
-        } catch {}
-      }
+    const initSessionAndRecovery = async () => {
+      try {
+        // 1. Check if there was an active payment interrupted by low-end OS memory kill / tab discard
+        const pendingOrderId = localStorage.getItem("ru_pending_rzp_order_id");
+        if (pendingOrderId) {
+          try {
+            const { getPendingOrderFromCache, clearPendingOrderFromCache, pruneStalePendingOrders } = await import("@/lib/orderCache");
+            await pruneStalePendingOrders();
+            const cached = await getPendingOrderFromCache(pendingOrderId);
+            if (cached && cached.files && cached.files.length > 0) {
+              setRecoveringPayment(true);
+              // Query backend: did Razorpay capture this order?
+              const checkRes = await fetch(`/api/payment/check-order-status?orderId=${encodeURIComponent(pendingOrderId)}`);
+              if (checkRes.ok) {
+                const checkData = await checkRes.json();
+                if (checkData.paid) {
+                  // Payment was completed in UPI app while browser was killed!
+                  // Seamlessly finalize file upload now that browser is back:
+                  const uploadPromises = cached.files.map(async (cf) => {
+                    const formData = new FormData();
+                    const restoredFile = new File([cf.fileBlob], cf.name, { type: cf.type || "application/pdf" });
+                    formData.append("file", restoredFile);
+                    formData.append("copies", (cf.settings?.copies || 1).toString());
+                    formData.append("doubleSided", cf.settings?.doubleSided ? "true" : "false");
+                    formData.append("color", cf.settings?.color ? "true" : "false");
+                    formData.append("layout", cf.settings?.layout || "portrait");
+                    formData.append("paperSize", cf.settings?.paperSize || "A4");
+                    formData.append("pageRange", cf.settings?.pageRange || "all");
+                    formData.append("userName", cached.name);
+                    if (checkData.paymentId) formData.append("paymentId", checkData.paymentId);
+                    if (checkData.utrNo) formData.append("utrNo", checkData.utrNo);
 
-      // 2. Restore authenticated student session
-      const savedSession = localStorage.getItem("ru_student_session");
-      if (savedSession) {
-        const student: StudentAuth = JSON.parse(savedSession);
-        if (student?.email) {
-          setStudentAuth(student);
-          setDraftName(student.name || "");
-          const savedEnrollment = localStorage.getItem(`ru_enrollment_${student.email}`) || "";
-          setDraftEnrollment(savedEnrollment.trim().length >= 8 ? savedEnrollment.trim() : "");
-          fetchMyTasks(student.name, student.email);
-          
-          if (restoredJob) {
-            setActiveJob(restoredJob);
-            setStep("success");
+                    const res = await fetch("/api/upload", {
+                      method: "POST",
+                      body: formData,
+                    });
+                    if (!res.ok) throw new Error("Upload failed");
+                    return res.json();
+                  });
+
+                  const uploadResults = await Promise.all(uploadPromises);
+                  const serverJobId = uploadResults[0]?.id || cached.jobId;
+                  const taskDisplayId = uploadResults[0]?.taskDisplayId;
+
+                  const reconstructedJob: PrintJob = {
+                    id: serverJobId,
+                    taskDisplayId,
+                    name: cached.name,
+                    enrollmentNo: cached.enrollmentNo,
+                    email: cached.email,
+                    userType: (cached.userType as any) || "student",
+                    files: cached.files.map((cf) => ({
+                      name: cf.name,
+                      size: cf.size,
+                      type: cf.type || "application/pdf",
+                      file: new File([cf.fileBlob], cf.name, { type: cf.type || "application/pdf" }),
+                      settings: cf.settings,
+                    })),
+                    totalPages: cached.totalPages,
+                    amount: cached.amount,
+                    status: "paid",
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                  };
+
+                  await clearPendingOrderFromCache(pendingOrderId);
+                  localStorage.removeItem("ru_pending_rzp_order_id");
+                  localStorage.setItem("ru_active_job", JSON.stringify(reconstructedJob));
+
+                  setActiveJob(reconstructedJob);
+                  fetchMyTasks(cached.name, cached.email);
+                  setStep("success");
+                  setRecoveringPayment(false);
+                  return;
+                } else if (checkData.status === "failed" || checkData.status === "cancelled") {
+                  // Order was cancelled, safely clear cache
+                  await clearPendingOrderFromCache(pendingOrderId);
+                  localStorage.removeItem("ru_pending_rzp_order_id");
+                }
+              }
+              setRecoveringPayment(false);
+            }
+          } catch (recErr) {
+            console.warn("Auto-recovery error:", recErr);
+            setRecoveringPayment(false);
+          }
+        }
+
+        // 2. Check if there is an active recent print job (within last 12 hours)
+        const savedJobStr = localStorage.getItem("ru_active_job");
+        let restoredJob: PrintJob | null = null;
+        if (savedJobStr) {
+          try {
+            const parsed = JSON.parse(savedJobStr);
+            const createdAt = new Date(parsed.createdAt || "").getTime();
+            if (!isNaN(createdAt) && Date.now() - createdAt < 12 * 60 * 60 * 1000) {
+              restoredJob = parsed;
+            } else {
+              localStorage.removeItem("ru_active_job");
+            }
+          } catch {}
+        }
+
+        // 3. Restore authenticated student session
+        const savedSession = localStorage.getItem("ru_student_session");
+        if (savedSession) {
+          const student: StudentAuth = JSON.parse(savedSession);
+          if (student?.email) {
+            setStudentAuth(student);
+            setDraftName(student.name || "");
+            const savedEnrollment = localStorage.getItem(`ru_enrollment_${student.email}`) || "";
+            setDraftEnrollment(savedEnrollment.trim().length >= 8 ? savedEnrollment.trim() : "");
+            fetchMyTasks(student.name, student.email);
+
+            if (restoredJob) {
+              setActiveJob(restoredJob);
+              setStep("success");
+              return;
+            }
+
+            setStep("details");
             return;
           }
-
-          setStep("details");
-          return;
         }
-      }
 
-      if (restoredJob) {
-        setActiveJob(restoredJob);
-        setStep("success");
+        if (restoredJob) {
+          setActiveJob(restoredJob);
+          setStep("success");
+        }
+      } catch (e) {
+        console.error("Session restore error:", e);
       }
-    } catch (e) {
-      console.error("Session restore error:", e);
-    }
+    };
+
+    initSessionAndRecovery();
   }, []);
 
   const go = (next: Step, direction: number) => {
@@ -366,7 +456,16 @@ export function PrintFlow() {
                   exit="exit"
                   transition={{ type: "spring", stiffness: 380, damping: 30, mass: 0.8 }}
                 >
-                  {step === "auth" && (
+                  {recoveringPayment && (
+                    <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                      <div className="h-10 w-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                      <h3 className="text-base font-bold text-foreground">Finalizing Your Print Job...</h3>
+                      <p className="text-xs text-muted-foreground max-w-xs">
+                        Your payment was received! Restoring your documents and registering your print task...
+                      </p>
+                    </div>
+                  )}
+                  {!recoveringPayment && step === "auth" && (
                     <GoogleAuthStep onSuccess={handleAuthSuccess} />
                   )}
                   {step === "details" && (
