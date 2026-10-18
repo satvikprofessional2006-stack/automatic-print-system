@@ -237,6 +237,11 @@ export function FileUpload({ files, onChange }: Props) {
                   : "bg-card/60 border-border/50"
               )}
             >
+              {/* File Serial Number */}
+              <span className="flex items-center justify-center h-5 w-5 rounded-md bg-muted/80 text-[11px] font-mono font-bold text-muted-foreground shrink-0 border border-border/60">
+                {idx + 1}
+              </span>
+
               <div className={cn("p-1.5 rounded-lg shrink-0", isColor ? "bg-rose-500/10" : "bg-primary/10")}>
                 <Icon className={cn("h-4 w-4", isColor ? "text-rose-500" : "text-primary")} />
               </div>
