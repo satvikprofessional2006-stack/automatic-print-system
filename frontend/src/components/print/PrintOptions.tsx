@@ -378,11 +378,11 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
                         <button
                           type="button"
                           onClick={() => startRename(idx, f.name)}
-                          className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors cursor-pointer shrink-0"
+                          className="p-1 rounded-md text-primary/80 hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer shrink-0"
                           title="Rename document"
                           aria-label="Rename document"
                         >
-                          <Pencil className="h-3 w-3" />
+                          <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <button
                           type="button"
