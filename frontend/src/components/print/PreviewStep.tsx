@@ -600,20 +600,6 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
           <span>Zoom</span>
         </button>
 
-        {/* Top-Left Page Inclusion Banner */}
-        <div className="absolute top-2.5 left-2.5 z-20 flex flex-wrap items-center gap-1.5 max-w-[calc(100%-80px)]">
-          {docPages > 1 && (
-            isCurrentPageIncluded ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold text-[10px] border border-emerald-500/20 backdrop-blur shadow-2xs">
-                <Check className="h-3 w-3" /> Page {activePageNum} included
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold text-[10px] border border-amber-500/30 backdrop-blur shadow-2xs">
-                ✕ Page {activePageNum} skipped
-              </span>
-            )
-          )}
-        </div>
 
         {/* Paper Sheet Mockup with Framer Motion Layout Animation */}
         <motion.div
@@ -817,25 +803,8 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
           </div>
         )}
 
-        {/* Carousel Dots & Active Status */}
+        {/* Active Document Status */}
         <div className="flex flex-col items-center gap-1 mt-2.5 z-10">
-          {files.length > 1 && (
-            <div className="flex items-center gap-1.5 mb-0.5">
-              {files.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setActiveFileIndex(i)}
-                  className={cn(
-                    "h-1.5 rounded-full transition-all",
-                    i === activeFileIndex ? "w-4 bg-primary" : "w-1.5 bg-muted-foreground/30 hover:bg-muted-foreground"
-                  )}
-                  title={`View file ${i + 1}`}
-                />
-              ))}
-            </div>
-          )}
-
           <p className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5">
             <span>Paper:</span>
             <strong className="text-foreground uppercase">{paperSize}</strong>
@@ -1159,8 +1128,8 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
         </div>
       </div>
 
-      {/* ── Navigation Buttons ── */}
-      <div className="pt-2 pb-2 flex gap-2.5 sm:gap-3">
+      {/* ── Navigation Buttons (Sticky on Mobile) ── */}
+      <div className="pt-2 pb-2 flex gap-2.5 sm:gap-3 sticky bottom-0 bg-background/85 backdrop-blur-md -mx-4 px-4 sm:mx-0 sm:px-0 z-20">
         <Button
           type="button"
           variant="outline"
@@ -1173,7 +1142,7 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
           type="button"
           disabled={!parsedRange.valid || hasInvalidRange}
           onClick={onNext}
-          className="gap-1.5 sm:gap-2 rounded-xl text-xs sm:text-sm h-11 flex-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm disabled:opacity-50 px-3 sm:px-4 cursor-pointer"
+          className="gap-1.5 sm:gap-2 rounded-xl text-xs sm:text-sm h-11 flex-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm disabled:opacity-50 px-3 sm:px-4 font-bold cursor-pointer"
         >
           Continue to Payment <ArrowRight className="h-4 w-4" />
         </Button>
@@ -1196,32 +1165,35 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
               onClick={(e) => e.stopPropagation()}
               className="relative max-w-4xl max-h-[90vh] w-full bg-card rounded-2xl border border-border shadow-2xl p-4 sm:p-6 flex flex-col gap-4 overflow-hidden"
             >
-              <div className="flex items-center justify-between border-b pb-3 border-border/50">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground truncate max-w-[300px] sm:max-w-md">
+              <div className="flex items-center justify-between gap-3 border-b pb-3 border-border/50">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
+                    <FileText className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-xs sm:text-sm font-bold text-foreground truncate" title={currentFile?.name}>
                       {currentFile?.name}
                     </h3>
-                    <p className="text-[11px] text-muted-foreground font-mono">
-                      Page {activePageNum} of {docPages}
-                      {isFiltered && ` (Selected ${currentIndex + 1} of ${navigablePages.length})`} • {paperSize} {isLandscape ? "Landscape" : "Portrait"} • {isColor ? "Colour Print" : "Black & White"}
+                    <p className="text-[10.5px] text-muted-foreground font-mono truncate">
+                      Page {activePageNum} of {docPages} &bull; {paperSize} {isLandscape ? "Landscape" : "Portrait"} &bull; {isColor ? "Colour Print" : "Black & White"}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div className="flex items-center gap-1.5 shrink-0">
                   {docPages > 1 && (
-                    <div className="flex items-center gap-1.5 bg-muted px-2.5 py-1 rounded-xl text-xs font-mono">
+                    <div className="flex items-center gap-1 bg-muted/80 dark:bg-muted/50 px-2 py-1 rounded-xl text-xs font-mono whitespace-nowrap shrink-0 border border-border/40">
                       <button
                         type="button"
                         disabled={!canGoPrev}
                         onClick={handlePrevPage}
-                        className="p-1 rounded-md hover:bg-background text-foreground disabled:opacity-30 transition-colors cursor-pointer"
+                        className="p-1 rounded-md hover:bg-background text-foreground disabled:opacity-25 transition-colors cursor-pointer"
                         title={isFiltered ? "Previous selected page" : "Previous page"}
+                        aria-label="Previous page"
                       >
-                        <ChevronLeft className="h-4 w-4" />
+                        <ChevronLeft className="h-3.5 w-3.5" />
                       </button>
-                      <span className="font-semibold text-foreground px-1">
+                      <span className="font-semibold text-foreground px-1 text-[11px] whitespace-nowrap">
                         {activePageNum} / {docPages}
                         {isFiltered && (
                           <span className="text-[10px] text-muted-foreground ml-1">
@@ -1233,19 +1205,22 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
                         type="button"
                         disabled={!canGoNext}
                         onClick={handleNextPage}
-                        className="p-1 rounded-md hover:bg-background text-foreground disabled:opacity-30 transition-colors cursor-pointer"
+                        className="p-1 rounded-md hover:bg-background text-foreground disabled:opacity-25 transition-colors cursor-pointer"
                         title={isFiltered ? "Next selected page" : "Next page"}
+                        aria-label="Next page"
                       >
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   )}
                   <button
                     type="button"
                     onClick={() => setIsZoomed(false)}
-                    className="p-1.5 rounded-lg bg-muted text-foreground/80 hover:bg-muted/80 transition-colors cursor-pointer"
+                    className="p-1.5 rounded-xl bg-muted/80 hover:bg-muted text-foreground/80 hover:text-foreground transition-colors cursor-pointer shrink-0"
+                    title="Close zoom preview"
+                    aria-label="Close zoom preview"
                   >
-                    <X className="h-5 w-5" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
               </div>

@@ -55,7 +55,6 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isGatewayReady, setIsGatewayReady] = useState<boolean | null>(null);
 
-  const { bwPages, colorPages, bwA3Pages, colorA3Pages } = calcFilesAmount(job.files);
 
   // Pre-load Razorpay checkout SDK
   useEffect(() => {
@@ -294,12 +293,17 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
+                    {job.files.length > 1 && (
+                      <span className="flex items-center justify-center h-4.5 w-4.5 rounded-md bg-muted/80 text-[10.5px] font-mono font-bold text-muted-foreground shrink-0 border border-border/60">
+                        {idx + 1}
+                      </span>
+                    )}
                     <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
                     <p className="text-xs font-semibold text-foreground truncate" title={f.name}>
                       {f.name}
                     </p>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 pl-5.5">
+                  <p className={cn("text-[11px] text-muted-foreground mt-0.5", job.files.length > 1 ? "pl-11" : "pl-5.5")}>
                     {details.join(" · ")}
                   </p>
                 </div>
@@ -321,35 +325,9 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             Total Amount Due
           </p>
           <p className="text-4xl font-bold font-mono text-primary mt-1">₹{job.amount}</p>
-          <div className="flex flex-wrap items-center gap-1.5 mt-2">
-            <span className="text-[11px] text-muted-foreground mr-1">
-              Job #{job.id} · {job.files.length} file{job.files.length !== 1 ? "s" : ""}
-            </span>
-            {bwPages > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/80 text-foreground/90 font-medium text-[10px] border border-border/60">
-                <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 shrink-0" />
-                <span>{bwPages} A4 B&amp;W</span>
-              </span>
-            )}
-            {colorPages > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium text-[10px] border border-rose-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-                <span>{colorPages} A4 Colour</span>
-              </span>
-            )}
-            {bwA3Pages > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium text-[10px] border border-blue-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                <span>{bwA3Pages} A3 B&amp;W</span>
-              </span>
-            )}
-            {colorA3Pages > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium text-[10px] border border-purple-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
-                <span>{colorA3Pages} A3 Colour</span>
-              </span>
-            )}
-          </div>
+          <p className="text-xs text-muted-foreground mt-1.5 font-medium">
+            {job.files.length} {job.files.length === 1 ? "file" : "files"} &bull; {job.totalPages} total {job.totalPages === 1 ? "page" : "pages"}
+          </p>
         </div>
 
         <div className="hidden sm:flex flex-col items-end gap-1">

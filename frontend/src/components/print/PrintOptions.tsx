@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { PrintFile, calcFilesAmount, parsePageRange, BW_RATE, COLOR_RATE, BW_A3_RATE, COLOR_A3_RATE, MIN_JOB_AMOUNT } from "@/lib/printStore";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowLeft, FileText, FileImage, File as FileIcon, Settings, Info, Minus, Plus, Sparkles, CircleDot } from "lucide-react";
+import { ArrowRight, ArrowLeft, FileText, FileImage, File as FileIcon, Settings, Info, Minus, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -24,6 +24,12 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
   const [globalDoubleSided, setGlobalDoubleSided] = useState(false);
 
   const { bwPages, colorPages, bwA3Pages, colorA3Pages, totalPages, totalAmount } = calcFilesAmount(files);
+
+  const removeFile = (idx: number) => {
+    if (files.length <= 1) return;
+    const updated = files.filter((_, i) => i !== idx);
+    onUpdateFiles(updated);
+  };
 
   const updateCopies = (index: number, delta: number) => {
     const newFiles = [...files];
@@ -176,40 +182,61 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
                     <p className="text-xs font-semibold text-foreground truncate">{f.name}</p>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
                       <span className="font-semibold text-foreground/80 uppercase">{paperSize}</span> &bull; {pages} pg{pages !== 1 ? 's' : ''} &bull;{" "}
-                      <span className="font-semibold text-foreground/80">₹{fileSubtotal}</span>
+                      <motion.span
+                        key={fileSubtotal}
+                        initial={{ scale: 0.85, opacity: 0.6 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ duration: 0.2 }}
+                        className="inline-block font-bold text-foreground/90"
+                      >
+                        ₹{fileSubtotal}
+                      </motion.span>
                     </p>
                   </div>
                 </div>
 
-                {/* Copies Stepper */}
-                <div className="flex items-center gap-1.5 shrink-0 bg-muted/40 rounded-xl px-2 py-1 border border-border/50">
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pr-0.5">Copies</span>
-                  <div className="flex items-center gap-1 bg-background rounded-lg p-0.5 border border-border/40 shadow-xs">
-                    <button
-                      type="button"
-                      onClick={() => updateCopies(idx, -1)}
-                      className="p-1 rounded hover:bg-muted text-muted-foreground disabled:opacity-40 transition-colors cursor-pointer"
-                      disabled={(f.settings?.copies || 1) <= 1}
-                      title="Decrease copies"
-                    >
-                      <Minus className="h-3 w-3" />
-                    </button>
-                    <span className="text-xs font-bold w-5 text-center font-mono">{f.settings?.copies || 1}</span>
-                    <button
-                      type="button"
-                      onClick={() => updateCopies(idx, 1)}
-                      className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
-                      title="Increase copies"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Copies Stepper */}
+                  <div className="flex items-center gap-1.5 bg-muted/40 rounded-xl px-2 py-1 border border-border/50">
+                    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pr-0.5">Copies</span>
+                    <div className="flex items-center gap-1 bg-background rounded-lg p-0.5 border border-border/40 shadow-xs">
+                      <button
+                        type="button"
+                        onClick={() => updateCopies(idx, -1)}
+                        className="p-1 rounded hover:bg-muted text-muted-foreground disabled:opacity-40 transition-colors cursor-pointer"
+                        disabled={(f.settings?.copies || 1) <= 1}
+                        title="Decrease copies"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="text-xs font-bold w-5 text-center font-mono">{f.settings?.copies || 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateCopies(idx, 1)}
+                        className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
+                        title="Increase copies"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Controls Row: Paper Size (A4/A3) + B&W/Colour + Duplex */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/40">
-                <div className="flex flex-wrap items-center gap-1.5">
+                  {/* Quick remove button if multi-file */}
+                  {files.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeFile(idx)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                      title="Remove this file"
+                      aria-label="Remove file"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>              {/* Controls Row: Paper Size (A4/A3) + B&W/Colour + Duplex */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-2 border-t border-border/40">
+                <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
                   {/* Paper Size Pill: A4 vs A3 */}
                   <div className="inline-flex items-center p-0.5 rounded-xl bg-muted/70 dark:bg-muted/40 border border-border/70 shrink-0">
                     <button
@@ -275,13 +302,13 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
                   </div>
                 </div>
 
-                {/* Duplex Toggle (Disabled for single-page documents) */}
+                {/* Duplex Toggle (Clean mobile touch target) */}
                 {(() => {
                   const isSinglePage = pages <= 1;
                   return (
                     <div
                       className={cn(
-                        "flex items-center gap-2 select-none transition-opacity",
+                        "flex items-center justify-between sm:justify-end gap-2 select-none transition-opacity py-0.5",
                         isSinglePage ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
                       )}
                       onClick={() => !isSinglePage && toggleDoubleSided(idx)}
@@ -301,7 +328,7 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
                         </div>
                       </div>
                       <div className={cn(
-                        "w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out",
+                        "w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0",
                         !isSinglePage && isDoubleSided ? "bg-primary" : "bg-muted-foreground/30"
                       )}>
                         <div className={cn(
@@ -318,47 +345,65 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
         })}
       </div>
 
-      {/* Live Total Cost Summary */}
-      <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-between">
-        <div className="space-y-1">
-          <p className="text-xs font-semibold text-foreground/80">
-            Total Pages: <span className="font-bold text-foreground">{totalPages}</span>
-          </p>
-          <div className="flex flex-wrap items-center gap-1.5 text-[10.5px]">
+      {/* Live Total Cost Summary — Enhanced Card */}
+      <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/8 via-primary/4 to-transparent border border-primary/15 shadow-xs space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Order Summary</span>
+            <p className="text-sm font-extrabold text-foreground">
+              {files.length} {files.length === 1 ? "File" : "Files"} &bull; {totalPages} {totalPages === 1 ? "Page" : "Pages"}
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">Estimated Total</span>
+            <motion.p
+              key={totalAmount}
+              initial={{ scale: 0.85, opacity: 0.7 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="font-black text-2xl text-primary tracking-tight"
+            >
+              ₹{totalAmount}
+            </motion.p>
+          </div>
+        </div>
+
+        {/* Breakdown tag chips */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-primary/10 text-[11px]">
+          <div className="flex flex-wrap items-center gap-1.5">
             {bwPages > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/80 text-foreground/90 font-medium border border-border/60">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-background/80 text-foreground font-semibold border border-border/60 shadow-2xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 shrink-0" />
                 <span>{bwPages} A4 B&amp;W</span>
               </span>
             )}
             {colorPages > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium border border-rose-500/20">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/25 shadow-2xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
                 <span>{colorPages} A4 Colour</span>
               </span>
             )}
             {bwA3Pages > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium border border-blue-500/20">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold border border-blue-500/25 shadow-2xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
                 <span>{bwA3Pages} A3 B&amp;W</span>
               </span>
             )}
             {colorA3Pages > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 font-medium border border-purple-500/20">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 font-semibold border border-purple-500/25 shadow-2xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
                 <span>{colorA3Pages} A3 Colour</span>
               </span>
             )}
           </div>
-        </div>
-        <div className="text-right shrink-0">
-          <p className="text-xs font-semibold text-foreground/80">Total Amount</p>
-          <p className="font-bold text-lg text-primary">₹{totalAmount}</p>
+          <span className="text-[10px] text-muted-foreground font-medium">
+            (B&amp;W: ₹{BW_RATE}/pg &bull; Colour: ₹{COLOR_RATE}/pg)
+          </span>
         </div>
       </div>
 
       {/* Navigation */}
-      <div className="pt-2 pb-2 flex gap-3">
+      <div className="pt-2 pb-2 flex gap-3 sticky bottom-0 bg-background/80 backdrop-blur-md -mx-4 px-4 sm:mx-0 sm:px-0 z-10">
         <Button
           type="button"
           variant="outline"
@@ -370,7 +415,7 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
         </Button>
         <Button
           onClick={onNext}
-          className="flex-1 rounded-xl h-12 text-sm bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+          className="flex-1 rounded-xl h-12 text-sm bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm font-bold"
         >
           Continue to Preview
           <ArrowRight className="ml-2 h-4 w-4" />
