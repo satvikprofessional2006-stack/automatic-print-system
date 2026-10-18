@@ -267,7 +267,7 @@ export function FileUpload({ files, onChange }: Props) {
                   )}
                   title="Switch to Black & White print"
                 >
-                  <span>📄 B&W</span>
+                  <span>B&W</span>
                   <span className="text-[10px] font-mono opacity-60 font-normal">₹{BW_RATE}</span>
                 </button>
                 <button
@@ -281,7 +281,7 @@ export function FileUpload({ files, onChange }: Props) {
                   )}
                   title="Switch to Colour print"
                 >
-                  <span>🎨 Colour</span>
+                  <span>Colour</span>
                   <span className={cn("text-[10px] font-mono font-normal", isColor ? "text-white/85" : "opacity-60")}>
                     ₹{COLOR_RATE}
                   </span>

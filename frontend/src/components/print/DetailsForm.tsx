@@ -290,13 +290,13 @@ export function DetailsForm({
               <div className="flex flex-wrap items-center justify-between pt-2 border-t border-primary/10 gap-2">
                 <div className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
                   {bwPages > 0 && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted text-foreground/90 font-medium text-[10px] border border-border/50">
-                      📄 {bwPages} B&amp;W (₹{bwAmount})
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted text-foreground/90 font-medium text-[10px] border border-border/50">
+                      <span>{bwPages} B&amp;W (₹{bwAmount})</span>
                     </span>
                   )}
                   {colorPages > 0 && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium text-[10px] border border-rose-500/20">
-                      🎨 {colorPages} Colour (₹{colorAmount})
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 font-medium text-[10px] border border-rose-500/20">
+                      <span>{colorPages} Colour (₹{colorAmount})</span>
                     </span>
                   )}
                 </div>
