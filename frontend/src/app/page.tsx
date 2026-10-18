@@ -10,19 +10,11 @@ export default function Page() {
   const [isZoomingIn, setIsZoomingIn] = useState(false);
 
   useEffect(() => {
-    // Check if intro has already been shown to this user
-    // "No repetition" rule: once shown, it stores in localStorage and never repeats
-    // Clean up old persistent localStorage key so existing mobile devices aren't permanently locked out of intro
-    try {
-      localStorage.removeItem("ru_portal_intro_shown");
-    } catch {}
-
+    // Intro animation plays every time the user visits or reloads the page
     const urlParams = new URLSearchParams(window.location.search);
-    const forceIntro = urlParams.get("intro") === "true";
     const forceSkip = urlParams.get("intro") === "false";
-    const hasSeenIntro = typeof window !== "undefined" ? sessionStorage.getItem("ru_portal_intro_shown") : null;
 
-    if (!forceSkip && (forceIntro || !hasSeenIntro)) {
+    if (!forceSkip) {
       setShowIntro(true);
       setIsZoomingIn(false);
     } else {
@@ -36,9 +28,6 @@ export default function Page() {
   }, []);
 
   const handleComplete = useCallback(() => {
-    try {
-      sessionStorage.setItem("ru_portal_intro_shown", "true");
-    } catch {}
     setShowIntro(false);
   }, []);
 
@@ -63,8 +52,8 @@ export default function Page() {
             : { scale: 0.96, opacity: 0 }
         }
         transition={{
-          duration: 0.4,
-          ease: [0.16, 1, 0.3, 1],
+          duration: 0.75,
+          ease: [0.22, 1, 0.36, 1],
         }}
       >
         <PrintFlow />
