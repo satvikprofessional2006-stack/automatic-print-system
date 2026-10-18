@@ -771,6 +771,12 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
                         </button>
                       </div>
                     ) : (
+                      <div className="text-[11px] text-muted-foreground font-mono">
+                        Page 1 of 1
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -780,36 +786,19 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
                             startRename(idxToEdit, files[idxToEdit].name);
                           }
                         }}
-                        className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-semibold cursor-pointer"
+                        className="h-8 px-3 rounded-xl bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 transition-all text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+                        title="Rename document"
                       >
-                        <Pencil className="h-3 w-3" />
-                        <span>Rename this file</span>
+                        <Pencil className="h-3.5 w-3.5 shrink-0" />
+                        <span>Rename</span>
                       </button>
-                    )}
 
-                    <div className="flex items-center gap-2">
-                      {docTotalPages > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const idxToEdit = peekIdx;
-                            closeQuickPeek();
-                            if (idxToEdit !== null) {
-                              startRename(idxToEdit, files[idxToEdit].name);
-                            }
-                          }}
-                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium cursor-pointer"
-                        >
-                          <Pencil className="h-3 w-3" />
-                          <span className="hidden sm:inline">Rename</span>
-                        </button>
-                      )}
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         onClick={closeQuickPeek}
-                        className="rounded-xl text-xs h-8 px-4 font-semibold cursor-pointer"
+                        className="rounded-xl text-xs h-8 px-4 font-semibold cursor-pointer hover:bg-muted/70"
                       >
                         Close
                       </Button>
