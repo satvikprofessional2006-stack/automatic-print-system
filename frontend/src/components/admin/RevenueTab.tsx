@@ -1279,6 +1279,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                   <TableHead className="font-semibold text-muted-foreground/80 w-32 px-4">Task ID</TableHead>
                   <TableHead className="font-semibold text-muted-foreground/80">Customer</TableHead>
                   <TableHead className="font-semibold text-muted-foreground/80 hidden sm:table-cell">Payment Ref</TableHead>
+                  <TableHead className="font-semibold text-muted-foreground/80 hidden sm:table-cell">UTR No.</TableHead>
                   <TableHead className="font-semibold text-muted-foreground/80 hidden md:table-cell">Files</TableHead>
                   <TableHead className="font-semibold text-muted-foreground/80">Status</TableHead>
                   <TableHead className="font-semibold text-muted-foreground/80">Amount</TableHead>
@@ -1289,7 +1290,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
               <TableBody>
                 {paginatedTransactions.length === 0 ? (
                   <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={8} className="h-44 text-center text-xs text-muted-foreground">
+                    <TableCell colSpan={9} className="h-44 text-center text-xs text-muted-foreground">
                       No transactions match the selected filters.
                     </TableCell>
                   </TableRow>
@@ -1370,6 +1371,33 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                             </div>
                           </TableCell>
 
+                          {/* UTR No. */}
+                          <TableCell className="hidden sm:table-cell">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-[11px] text-muted-foreground truncate max-w-[120px] select-all font-semibold text-foreground" title={tx.utrNo || ""}>
+                                {tx.utrNo || "—"}
+                              </span>
+                              {tx.utrNo && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(tx.utrNo!);
+                                    setCopiedId(tx.utrNo!);
+                                    setTimeout(() => setCopiedId(null), 1800);
+                                  }}
+                                  title="Copy UTR No."
+                                  className="p-1 rounded hover:bg-muted/70 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                                >
+                                  {copiedId === tx.utrNo ? (
+                                    <Check className="h-3 w-3 text-emerald-500" />
+                                  ) : (
+                                    <Copy className="h-3 w-3" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </TableCell>
+
                           {/* Files */}
                           <TableCell className="hidden md:table-cell">
                             <div className="flex items-center gap-1.5 text-xs text-foreground font-medium">
@@ -1433,7 +1461,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                         <AnimatePresence>
                           {isExpanded && (
                             <TableRow key={`${tx.id}-expanded`} className="hover:bg-transparent">
-                              <TableCell colSpan={8} className="p-0 border-none">
+                              <TableCell colSpan={9} className="p-0 border-none">
                                 <motion.div
                                   initial={{ height: 0, opacity: 0 }}
                                   animate={{ height: "auto", opacity: 1 }}
