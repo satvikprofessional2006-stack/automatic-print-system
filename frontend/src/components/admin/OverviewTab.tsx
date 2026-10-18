@@ -135,11 +135,11 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
     const cancelled = jobs.filter((j) => j.status === "cancelled").length;
 
     const totalRevenue = jobs
-      .filter((j) => j.status === "completed" || j.status === "paid" || j.status === "queued" || j.status === "printing")
+      .filter((j) => j.status === "completed" || j.status === "paid")
       .reduce((sum, j) => sum + (j.amount || (j.copies || 1) * (j.color ? 10 : 2)), 0);
 
     const totalPages = jobs
-      .filter((j) => j.status === "completed" || j.status === "paid" || j.status === "queued" || j.status === "printing")
+      .filter((j) => j.status === "completed" || j.status === "paid")
       .reduce((sum, j) => sum + (j.copies || 1), 0);
 
     const successRate = totalJobs > 0 ? ((completed / totalJobs) * 100).toFixed(1) : "100";

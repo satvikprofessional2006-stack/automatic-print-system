@@ -482,10 +482,12 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
 
   // Export CSV in Official University Register Logbook Format (Chronological Order: 1 -> 94)
   const handleExportCSV = () => {
-    if (fullyFilteredTransactions.length === 0) return;
+    // For register view, only export completed/paid transactions
+    const sourceList = activeSubView === "register" ? registerTransactions : fullyFilteredTransactions;
+    if (sourceList.length === 0) return;
 
     // Export chronologically: oldest print first (S. No. 1) up to newest print (S. No. 94)
-    const sortedForCsv = [...fullyFilteredTransactions].sort((a, b) => a.seqNumber - b.seqNumber);
+    const sortedForCsv = [...sourceList].sort((a, b) => a.seqNumber - b.seqNumber);
 
     const headers = [
       "S. No.",
@@ -539,13 +541,22 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
     document.body.removeChild(link);
   };
 
+  // Register Logbook: only show completed/paid (successful) transactions
+  // Failed, cancelled, refunded, queued jobs should NOT appear in the official register
+  const registerTransactions = useMemo(() => {
+    return fullyFilteredTransactions.filter(
+      (t) => t.status === "completed" || t.status === "paid"
+    );
+  }, [fullyFilteredTransactions]);
+
   // Sort order applied for UI list display
   const displayTransactions = useMemo(() => {
+    const sourceList = activeSubView === "register" ? registerTransactions : fullyFilteredTransactions;
     if (sortOrder === "asc") {
-      return [...fullyFilteredTransactions].sort((a, b) => a.seqNumber - b.seqNumber);
+      return [...sourceList].sort((a, b) => a.seqNumber - b.seqNumber);
     }
-    return [...fullyFilteredTransactions].sort((a, b) => b.seqNumber - a.seqNumber);
-  }, [fullyFilteredTransactions, sortOrder]);
+    return [...sourceList].sort((a, b) => b.seqNumber - a.seqNumber);
+  }, [fullyFilteredTransactions, registerTransactions, activeSubView, sortOrder]);
 
   // Pagination for transactions and register views
   const totalPages = Math.ceil(displayTransactions.length / itemsPerPage);
@@ -1488,8 +1499,8 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
           <div className="flex items-center justify-between px-4 py-2 border-t border-border/30 bg-card/20 shrink-0">
             <div className="text-[11px] font-medium text-muted-foreground">
               Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-              {Math.min(currentPage * itemsPerPage, fullyFilteredTransactions.length)} of{" "}
-              {fullyFilteredTransactions.length} {activeSubView === "register" ? "logbook entries" : "transactions"}
+              {Math.min(currentPage * itemsPerPage, displayTransactions.length)} of{" "}
+              {displayTransactions.length} {activeSubView === "register" ? "logbook entries" : "transactions"}
             </div>
             <div className="flex items-center gap-2">
               <Button
