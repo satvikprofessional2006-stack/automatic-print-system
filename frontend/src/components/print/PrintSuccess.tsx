@@ -16,12 +16,15 @@ import {
   Sparkles,
   Ban,
   AlertTriangle,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Props {
   job: PrintJob;
   onReset: () => void;
+  onOpenTasks?: () => void;
+  todayTasksCount?: number;
 }
 
 const PRINT_STAGES = [
@@ -32,7 +35,7 @@ const PRINT_STAGES = [
   "Ready for Collection!",
 ];
 
-export function PrintSuccess({ job, onReset }: Props) {
+export function PrintSuccess({ job, onReset, onOpenTasks, todayTasksCount = 0 }: Props) {
   const [stage, setStage] = useState(0);
   const [done, setDone] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -396,7 +399,7 @@ export function PrintSuccess({ job, onReset }: Props) {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="w-full pt-1"
+          className="w-full pt-1 space-y-2"
         >
           <Button
             type="button"
@@ -406,6 +409,18 @@ export function PrintSuccess({ job, onReset }: Props) {
             <RotateCcw className="h-4 w-4" />
             Print Another Document
           </Button>
+
+          {onOpenTasks && todayTasksCount > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onOpenTasks}
+              className="w-full h-10 rounded-xl gap-2 text-xs font-semibold border-border/80 text-foreground hover:bg-muted/70 cursor-pointer"
+            >
+              <Clock className="h-3.5 w-3.5 text-primary" />
+              <span>View All Tasks Today ({todayTasksCount})</span>
+            </Button>
+          )}
         </motion.div>
       )}
     </div>

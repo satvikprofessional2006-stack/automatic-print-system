@@ -8,9 +8,10 @@ import { PrintOptions } from "@/components/print/PrintOptions";
 import { PreviewStep } from "@/components/print/PreviewStep";
 import { PaymentStep } from "@/components/print/PaymentStep";
 import { PrintSuccess } from "@/components/print/PrintSuccess";
+import { StudentTasksDrawer, StudentTaskItem } from "@/components/print/StudentTasksDrawer";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserType, PrintFile, PrintJob, StudentAuth, calcFilesAmount } from "@/lib/printStore";
-import { Printer, ChevronRight, ArrowLeft, LogOut, CheckCircle2 } from "lucide-react";
+import { Printer, ChevronRight, ArrowLeft, LogOut, CheckCircle2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Step = "auth" | "details" | "options" | "preview" | "payment" | "success";
@@ -48,6 +49,30 @@ export function PrintFlow() {
   const [draftEnrollment, setDraftEnrollment] = useState("");
   const [draftFiles, setDraftFiles] = useState<PrintFile[]>([]);
 
+  // Today's student tasks state & drawer
+  const [tasks, setTasks] = useState<StudentTaskItem[]>([]);
+  const [isTasksDrawerOpen, setIsTasksDrawerOpen] = useState(false);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+
+  const fetchMyTasks = async (emailOverride?: string) => {
+    const targetEmail = emailOverride || studentAuth?.email;
+    if (!targetEmail) return;
+    try {
+      setLoadingTasks(true);
+      const res = await fetch(`/api/student/my-jobs?email=${encodeURIComponent(targetEmail)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.tasks)) {
+          setTasks(data.tasks);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to fetch student tasks:", e);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
+
   // Restore authenticated student session & active print job on initial page load
   useEffect(() => {
     try {
@@ -76,6 +101,7 @@ export function PrintFlow() {
           setDraftName(student.name || "");
           const savedEnrollment = localStorage.getItem(`ru_enrollment_${student.email}`) || "";
           setDraftEnrollment(savedEnrollment.trim().length >= 8 ? savedEnrollment.trim() : "");
+          fetchMyTasks(student.email);
           
           if (restoredJob) {
             setActiveJob(restoredJob);
@@ -111,6 +137,7 @@ export function PrintFlow() {
     setDraftName(student.name);
     const savedEnrollment = localStorage.getItem(`ru_enrollment_${student.email}`) || "";
     setDraftEnrollment(savedEnrollment.trim().length >= 8 ? savedEnrollment.trim() : "");
+    fetchMyTasks(student.email);
     go("details", 1);
   };
 
@@ -176,6 +203,7 @@ export function PrintFlow() {
     try {
       localStorage.setItem("ru_active_job", JSON.stringify(job));
     } catch {}
+    fetchMyTasks(studentAuth?.email || job.email);
     go("success", 1);
   };
 
@@ -229,8 +257,29 @@ export function PrintFlow() {
           </div>
         </div>
 
-        {/* Right side: user pill & theme toggle */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* Right side: My Tasks button, user pill & theme toggle */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
+          {studentAuth && (
+            <button
+              type="button"
+              onClick={() => {
+                fetchMyTasks();
+                setIsTasksDrawerOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-card/80 hover:bg-card border border-border/80 text-xs font-semibold text-foreground shadow-2xs hover:border-primary/50 transition-all cursor-pointer"
+              title="View Today's Print Tasks"
+            >
+              <Clock className="h-3.5 w-3.5 text-primary" />
+              <span className="hidden sm:inline">My Tasks</span>
+              <span className="sm:hidden">Tasks</span>
+              {tasks.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+                  {tasks.length}
+                </span>
+              )}
+            </button>
+          )}
+
           {studentAuth && (
             <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-card/70 border border-border/60 text-xs shadow-2xs">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -239,7 +288,7 @@ export function PrintFlow() {
               </span>
               <button
                 onClick={handleSignOut}
-                className="text-muted-foreground hover:text-foreground text-[10px] ml-1 p-0.5"
+                className="text-muted-foreground hover:text-foreground text-[10px] ml-1 p-0.5 cursor-pointer"
                 title="Sign out"
               >
                 <LogOut className="h-3 w-3" />
@@ -357,6 +406,11 @@ export function PrintFlow() {
                     <PrintSuccess
                       job={activeJob}
                       onReset={handleReset}
+                      onOpenTasks={() => {
+                        fetchMyTasks();
+                        setIsTasksDrawerOpen(true);
+                      }}
+                      todayTasksCount={tasks.length}
                     />
                   )}
                 </motion.div>
@@ -371,6 +425,16 @@ export function PrintFlow() {
 
         </div>
       </div>
+
+      {/* Student's Today's Tasks Drawer */}
+      <StudentTasksDrawer
+        isOpen={isTasksDrawerOpen}
+        onClose={() => setIsTasksDrawerOpen(false)}
+        tasks={tasks}
+        loading={loadingTasks}
+        onRefresh={() => fetchMyTasks()}
+        studentName={studentAuth?.name}
+      />
     </div>
   );
 }
