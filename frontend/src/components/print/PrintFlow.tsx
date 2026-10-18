@@ -16,7 +16,6 @@ import { cn } from "@/lib/utils";
 type Step = "auth" | "details" | "options" | "preview" | "payment" | "success";
 
 const STEPS: { id: Step; label: string }[] = [
-  { id: "auth", label: "Sign In" },
   { id: "details", label: "Upload & Info" },
   { id: "options", label: "Settings" },
   { id: "preview", label: "Preview" },
@@ -255,49 +254,51 @@ export function PrintFlow() {
       <div className="flex-1 flex items-start justify-center px-3 sm:px-4 pt-2 sm:pt-4 pb-28 sm:pb-12">
         <div className="w-full max-w-lg">
 
-          {/* Step progress bar */}
-          <div className="mb-5">
-            <div className="flex items-center justify-between mb-3">
-              {STEPS.map((s, i) => {
-                const isActive = s.id === step;
-                const isDone = i < stepIndex;
-                return (
-                  <React.Fragment key={s.id}>
-                    <div className="flex flex-col items-center gap-1.5">
-                      <div
-                        className={cn(
-                          "h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-300",
-                          isActive
-                            ? "bg-primary border-primary text-primary-foreground scale-110 shadow-xs"
-                            : isDone
-                            ? "bg-primary/20 border-primary text-primary"
-                            : "bg-muted/50 border-border/50 text-muted-foreground"
-                        )}
-                      >
-                        {isDone ? "✓" : i + 1}
+          {/* Step progress bar (shown during active printing flow) */}
+          {step !== "auth" && (
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-3">
+                {STEPS.map((s, i) => {
+                  const isActive = s.id === step;
+                  const isDone = i < stepIndex;
+                  return (
+                    <React.Fragment key={s.id}>
+                      <div className="flex flex-col items-center gap-1.5">
+                        <div
+                          className={cn(
+                            "h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-300",
+                            isActive
+                              ? "bg-primary border-primary text-primary-foreground scale-110 shadow-xs"
+                              : isDone
+                              ? "bg-primary/20 border-primary text-primary"
+                              : "bg-muted/50 border-border/50 text-muted-foreground"
+                          )}
+                        >
+                          {isDone ? "✓" : i + 1}
+                        </div>
+                        <span
+                          className={cn(
+                            "text-[10px] font-medium hidden sm:block transition-colors",
+                            isActive ? "text-primary font-semibold" : "text-muted-foreground"
+                          )}
+                        >
+                          {s.label}
+                        </span>
                       </div>
-                      <span
-                        className={cn(
-                          "text-[10px] font-medium hidden sm:block transition-colors",
-                          isActive ? "text-primary font-semibold" : "text-muted-foreground"
-                        )}
-                      >
-                        {s.label}
-                      </span>
-                    </div>
-                    {i < STEPS.length - 1 && (
-                      <div
-                        className={cn(
-                          "flex-1 h-0.5 mx-1 rounded-full transition-all duration-500",
-                          i < stepIndex ? "bg-primary" : "bg-border/50"
-                        )}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
+                      {i < STEPS.length - 1 && (
+                        <div
+                          className={cn(
+                            "flex-1 h-0.5 mx-1 rounded-full transition-all duration-500",
+                            i < stepIndex ? "bg-primary" : "bg-border/50"
+                          )}
+                        />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Card */}
           <div className="rounded-2xl bg-card/60 backdrop-blur-md border border-border/60 shadow-sm overflow-hidden mb-6">
