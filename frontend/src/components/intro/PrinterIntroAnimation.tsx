@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef } from "react";
 
 interface PrinterIntroProps {
   onZoomStart?: () => void;
@@ -27,8 +27,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const bgRef = useRef<HTMLDivElement | null>(null);
 
-  // Audio Context reference
-  const audioCtxRef = useRef<AudioContext | null>(null);
+
 
   const onZoomStartRef = useRef(onZoomStart);
   const onCompleteRef = useRef(onComplete);
@@ -40,71 +39,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     onCompleteRef.current = onComplete;
   }, [onZoomStart, onComplete]);
 
-  // Audio effects synthesizer (clean, high-tech Web Audio)
-  const playSfx = useCallback((type: "popup" | "shatter") => {
-    if (typeof window === "undefined") return;
-    try {
-      if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
-        const AudioCtx =
-          window.AudioContext ||
-          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        if (!AudioCtx) return;
-        audioCtxRef.current = new AudioCtx();
-      }
-      const actx = audioCtxRef.current;
-      if (!actx) return;
-      if (actx.state === "suspended") {
-        actx.resume().catch(() => {});
-      }
 
-      const now = actx.currentTime;
-
-      if (type === "popup") {
-        // Deep whoosh & pop-up chord
-        const osc = actx.createOscillator();
-        const gain = actx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(80, now);
-        osc.frequency.exponentialRampToValueAtTime(300, now + 0.45);
-        osc.frequency.exponentialRampToValueAtTime(130, now + 0.9);
-
-        gain.gain.setValueAtTime(0.01, now);
-        gain.gain.linearRampToValueAtTime(0.28, now + 0.25);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.95);
-
-        osc.connect(gain);
-        gain.connect(actx.destination);
-        osc.start(now);
-        osc.stop(now + 0.95);
-      } else if (type === "shatter") {
-        // Crisp high-tech glass/pixel shatter burst
-        const bufferSize = actx.sampleRate * 0.55;
-        const noiseBuffer = actx.createBuffer(1, bufferSize, actx.sampleRate);
-        const output = noiseBuffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-          output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (actx.sampleRate * 0.16));
-        }
-
-        const whiteNoise = actx.createBufferSource();
-        whiteNoise.buffer = noiseBuffer;
-
-        const filter = actx.createBiquadFilter();
-        filter.type = "bandpass";
-        filter.frequency.setValueAtTime(2600, now);
-        filter.frequency.exponentialRampToValueAtTime(700, now + 0.55);
-        filter.Q.setValueAtTime(3.5, now);
-
-        const gain = actx.createGain();
-        gain.gain.setValueAtTime(0.35, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
-
-        whiteNoise.connect(filter);
-        filter.connect(gain);
-        gain.connect(actx.destination);
-        whiteNoise.start(now);
-      }
-    } catch {}
-  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -212,8 +147,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     const easeInQuad = (x: number): number => x * x;
 
     const startTime = performance.now();
-    let hasPlayedPopupSfx = false;
-    let hasPlayedShatterSfx = false;
+
 
     // Animation Loop
     const render = (now: number) => {
@@ -225,11 +159,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
 
       ctx.clearRect(0, 0, width, height);
 
-      // Audio: popup trigger
-      if (!hasPlayedPopupSfx && elapsed > 0.05) {
-        hasPlayedPopupSfx = true;
-        playSfx("popup");
-      }
+
 
       // ─────────────────────────────────────────────────────────────
       // STAGE 1: Pop-up from back & Hover Showcase (0.0s to 1.55s)
@@ -298,10 +228,7 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
       // STAGE 2: Pixel Shatter & Seamless First Page Reveal (1.55s - 3.25s)
       // ─────────────────────────────────────────────────────────────
       else {
-        if (!hasPlayedShatterSfx) {
-          hasPlayedShatterSfx = true;
-          playSfx("shatter");
-        }
+
 
         const shatterTime = elapsed - 1.55;
 
@@ -383,11 +310,8 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", handleResize);
-      if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
-        audioCtxRef.current.close().catch(() => {});
-      }
     };
-  }, [playSfx]);
+  }, []);
 
   return (
     <div
