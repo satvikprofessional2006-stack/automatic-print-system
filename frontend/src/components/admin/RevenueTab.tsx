@@ -59,6 +59,7 @@ export interface Transaction {
   userType: string;
   course?: string;
   utrNo?: string;
+  registerSeqNumber?: number;
   pageSize?: string;
   colorPages?: number;
   bwPages?: number;
@@ -481,13 +482,32 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
   }, [dayWiseData]);
 
   // Export CSV in Official University Register Logbook Format (Chronological Order: 1 -> 94)
+  // Register Logbook: only show completed/paid (successful) transactions
+  // Failed, cancelled, refunded, queued jobs should NOT appear in the official register
+  const registerTransactions = useMemo(() => {
+    const list = fullyFilteredTransactions.filter(
+      (t) => t.status === "completed" || t.status === "paid"
+    );
+    // Sort chronologically ascending (oldest first) to assign continuous official register serial numbers 1..N
+    const chronological = [...list].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+    return chronological.map((t, index) => ({
+      ...t,
+      registerSeqNumber: index + 1,
+    }));
+  }, [fullyFilteredTransactions]);
+
+  // Export CSV in Official University Register Logbook Format (Chronological Order: 1 -> N)
   const handleExportCSV = () => {
-    // For register view, only export completed/paid transactions
-    const sourceList = activeSubView === "register" ? registerTransactions : fullyFilteredTransactions;
+    const isRegister = activeSubView === "register";
+    const sourceList = isRegister ? registerTransactions : fullyFilteredTransactions;
     if (sourceList.length === 0) return;
 
-    // Export chronologically: oldest print first (S. No. 1) up to newest print (S. No. 94)
-    const sortedForCsv = [...sourceList].sort((a, b) => a.seqNumber - b.seqNumber);
+    // Export chronologically: oldest print first (S. No. 1) up to newest print
+    const sortedForCsv = isRegister
+      ? [...sourceList].sort((a, b) => (a.registerSeqNumber || 0) - (b.registerSeqNumber || 0))
+      : [...sourceList].sort((a, b) => a.seqNumber - b.seqNumber);
 
     const headers = [
       "S. No.",
@@ -512,7 +532,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
       const hasBw = (t.bwPages || 0) > 0;
 
       return [
-        t.seqNumber || (idx + 1),
+        isRegister ? (t.registerSeqNumber || idx + 1) : (t.seqNumber || idx + 1),
         `"${dateFormatted}"`,
         `"${(t.name || "").replace(/"/g, '""')}"`,
         `"${t.course || "CSDS"}"`,
@@ -541,17 +561,19 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
     document.body.removeChild(link);
   };
 
-  // Register Logbook: only show completed/paid (successful) transactions
-  // Failed, cancelled, refunded, queued jobs should NOT appear in the official register
-  const registerTransactions = useMemo(() => {
-    return fullyFilteredTransactions.filter(
-      (t) => t.status === "completed" || t.status === "paid"
-    );
-  }, [fullyFilteredTransactions]);
-
   // Sort order applied for UI list display
   const displayTransactions = useMemo(() => {
-    const sourceList = activeSubView === "register" ? registerTransactions : fullyFilteredTransactions;
+    if (activeSubView === "register") {
+      if (sortOrder === "asc") {
+        return [...registerTransactions].sort(
+          (a, b) => (a.registerSeqNumber || 0) - (b.registerSeqNumber || 0)
+        );
+      }
+      return [...registerTransactions].sort(
+        (a, b) => (b.registerSeqNumber || 0) - (a.registerSeqNumber || 0)
+      );
+    }
+    const sourceList = fullyFilteredTransactions;
     if (sortOrder === "asc") {
       return [...sourceList].sort((a, b) => a.seqNumber - b.seqNumber);
     }
@@ -597,11 +619,11 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
             variant="outline"
             size="sm"
             onClick={handleExportCSV}
-            disabled={fullyFilteredTransactions.length === 0}
+            disabled={(activeSubView === "register" ? registerTransactions.length : fullyFilteredTransactions.length) === 0}
             className="h-9 gap-1.5 text-xs rounded-xl bg-card/60 hover:bg-card border-border/70 text-foreground cursor-pointer"
           >
             <Download className="h-3.5 w-3.5" />
-            Export CSV ({fullyFilteredTransactions.length})
+            Export CSV ({activeSubView === "register" ? registerTransactions.length : fullyFilteredTransactions.length})
           </Button>
           <Button
             variant="ghost"
@@ -797,7 +819,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
               <BookOpen className="h-3.5 w-3.5 text-amber-500" />
               Register Logbook
               <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 font-mono ml-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                {fullyFilteredTransactions.length}
+                {registerTransactions.length}
               </Badge>
             </button>
           </div>
@@ -1125,7 +1147,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                         >
                           {/* S. No. */}
                           <TableCell className="text-center font-mono text-xs font-semibold text-muted-foreground px-2">
-                            {tx.seqNumber}
+                            {tx.registerSeqNumber ?? tx.seqNumber}
                           </TableCell>
 
                           {/* Date (DD-MM-YY) */}
