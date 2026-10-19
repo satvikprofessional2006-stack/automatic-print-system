@@ -227,14 +227,16 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-bold text-foreground">
-                    {printer?.name || "Detecting Connected Printer..."}
+                    {printer?.isConnected ? (printer.name || "Default Printer") : "No Printer Connected"}
                   </h3>
-                  <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 font-semibold">
-                    Current Printer
-                  </Badge>
+                  {printer?.isConnected && (
+                    <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 font-semibold">
+                      Current Printer
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  CUPS Direct / IPP Spooler
+                  {printer?.isConnected ? "CUPS Direct / IPP Spooler" : "Connect printer via USB or Wi-Fi to start printing"}
                 </p>
               </div>
             </div>

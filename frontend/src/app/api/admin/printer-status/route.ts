@@ -96,18 +96,18 @@ export async function GET(req: Request) {
       }
     }
 
-    // If none are online, default to the system default printer or first configured printer
+    // If none are online, report cleanly as no printer connected
     if (!isConnected) {
-      chosenPrinterId = defaultPrinterId || allPrinters[0] || 'Canon_MF280_Series_2';
+      chosenPrinterId = '';
       state = 'offline';
-      statusText = 'Printer Disconnected / Offline';
+      statusText = 'No Printer Connected';
     }
 
-    const displayName = chosenPrinterId.replace(/_/g, ' ');
+    const displayName = chosenPrinterId ? chosenPrinterId.replace(/_/g, ' ') : 'No Printer Connected';
 
     // 3. Query marker/toner levels via IPP only if printer is responsive
     let supplies: PrinterSupply[] = [];
-    if (isConnected) {
+    if (isConnected && chosenPrinterId) {
       try {
         const ippOut = execSync(
           `ipptool -tv -T 2 ipp://localhost:631/printers/${chosenPrinterId} /usr/share/cups/ipptool/get-printer-attributes.test`,
@@ -153,19 +153,7 @@ export async function GET(req: Request) {
       } catch {}
     }
 
-    // If offline and no supplies queried, display status-appropriate info
-    if (supplies.length === 0) {
-      supplies = [
-        {
-          name: 'Cartridge / Toner Gauge',
-          level: isConnected ? 100 : 0,
-          color: '#000000',
-          type: 'toner',
-          isLow: !isConnected,
-        },
-      ];
-    }
-
+    // Only populate supplies if physically connected and reported
     cachedPrinter = {
       id: chosenPrinterId,
       name: displayName,
