@@ -26,7 +26,7 @@ import {
   ChevronUp,
   Printer,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatIndianDateTime, parseUtcDate } from "@/lib/utils";
 
 const STATUS_STYLES: Record<string, string> = {
   queued: "bg-blue-500/15 text-blue-800 dark:text-blue-200 border border-blue-500/30",
@@ -51,13 +51,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 function formatTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatIndianDateTime(iso);
 }
 
 function formatBytes(b: number) {
@@ -103,8 +97,8 @@ export function PrintJobsTable() {
           if (firstInGroup.userName !== job.userName) return false;
           
           // Check if the job's time is within 60 seconds of either the first or last job in the group
-          const timeDiffFirst = Math.abs(new Date(firstInGroup.createdAt).getTime() - new Date(job.createdAt).getTime());
-          const timeDiffLast = Math.abs(new Date(lastInGroup.createdAt).getTime() - new Date(job.createdAt).getTime());
+          const timeDiffFirst = Math.abs(parseUtcDate(firstInGroup.createdAt).getTime() - parseUtcDate(job.createdAt).getTime());
+          const timeDiffLast = Math.abs(parseUtcDate(lastInGroup.createdAt).getTime() - parseUtcDate(job.createdAt).getTime());
           
           return timeDiffFirst <= 60000 || timeDiffLast <= 60000;
         });

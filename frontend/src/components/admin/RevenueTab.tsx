@@ -119,6 +119,8 @@ const STATUS_BADGE_STYLES: Record<string, string> = {
   cancelled: "bg-zinc-500/15 text-zinc-700 dark:text-zinc-300 border border-zinc-500/30",
 };
 
+import { formatIndianDateTime, parseUtcDate } from "@/lib/utils";
+
 const STATUS_LABELS: Record<string, string> = {
   completed: "Paid & Done",
   paid: "Paid",
@@ -130,15 +132,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 function formatDateTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
+  return formatIndianDateTime(iso);
 }
 
 function formatDateLabel(dateKey: string) {
@@ -160,11 +154,16 @@ function getDayName(dateKey: string) {
   return d.toLocaleDateString("en-IN", { weekday: "short" });
 }
 
-function toLocalDateKey(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+function toLocalDateKey(d: any): string {
+  const dateObj = parseUtcDate(d);
+  // Get date key in Indian Standard Time (IST)
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(dateObj); // Returns "YYYY-MM-DD"
+  return parts;
 }
 
 type PeriodFilter = "all" | "today" | "yesterday" | "7days" | "30days" | "this_month" | "custom";
@@ -224,10 +223,10 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
           if (firstInGroup.userName !== job.userName) return false;
 
           const timeDiffFirst = Math.abs(
-            new Date(firstInGroup.createdAt).getTime() - new Date(job.createdAt).getTime()
+            parseUtcDate(firstInGroup.createdAt).getTime() - parseUtcDate(job.createdAt).getTime()
           );
           const timeDiffLast = Math.abs(
-            new Date(lastInGroup.createdAt).getTime() - new Date(job.createdAt).getTime()
+            parseUtcDate(lastInGroup.createdAt).getTime() - parseUtcDate(job.createdAt).getTime()
           );
 
           return timeDiffFirst <= 60000 || timeDiffLast <= 60000;
@@ -284,7 +283,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
         else if (group.some((j: any) => j.status === "queued")) overallStatus = "queued";
         else if (group.every((j: any) => j.status === "cancelled")) overallStatus = "cancelled";
 
-        const dateObj = new Date(first.createdAt);
+        const dateObj = parseUtcDate(first.createdAt);
         const dateKey = toLocalDateKey(dateObj);
 
         return {

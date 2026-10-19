@@ -77,6 +77,7 @@ export async function GET(req: Request) {
       if (matched) {
         return {
           ...job,
+          createdAt: isoCreated,
           payment_id: matched.id,
           utr_no:
             matched.acquirer_data?.rrn ||
@@ -85,7 +86,10 @@ export async function GET(req: Request) {
         };
       }
 
-      return job;
+      return {
+        ...job,
+        createdAt: isoCreated,
+      };
     });
     
     return NextResponse.json({ jobs: enrichedJobs, printerLastSeen });

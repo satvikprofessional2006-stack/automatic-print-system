@@ -105,8 +105,8 @@ export function StudentTasksDrawer({
 
   const formatTime = (isoString: string) => {
     try {
-      const d = new Date(isoString);
-      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const { formatIndianTimeOnly } = require("@/lib/utils");
+      return formatIndianTimeOnly(isoString);
     } catch {
       return "";
     }
