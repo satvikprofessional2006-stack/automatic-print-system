@@ -38,9 +38,12 @@ import {
   X,
   Copy,
   Check,
+  ArrowRight,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BW_RATE, COLOR_RATE } from "@/lib/printStore";
+import { ExportReportModal } from "./ExportReportModal";
 
 export interface TransactionFile {
   originalId: string;
@@ -187,6 +190,8 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
   const [currentPage, setCurrentPage] = useState(1);
   const [activeSubView, setActiveSubView] = useState<"daywise" | "transactions" | "register">(initialSubView);
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [hideZeroRevenueDays, setHideZeroRevenueDays] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const itemsPerPage = 12;
 
   useEffect(() => {
@@ -447,7 +452,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
   }, [fullyFilteredTransactions, transactions]);
 
   // Day-wise Summary Aggregation
-  const dayWiseData: DayWiseSummary[] = useMemo(() => {
+  const rawDayWiseData: DayWiseSummary[] = useMemo(() => {
     const map = new Map<string, DayWiseSummary>();
 
     // Aggregate from dateFilteredTransactions
@@ -478,9 +483,44 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
     return Array.from(map.values()).sort((a, b) => b.dateKey.localeCompare(a.dateKey));
   }, [dateFilteredTransactions]);
 
+  const activeDaysCount = useMemo(() => {
+    return rawDayWiseData.filter((d) => d.totalRevenue > 0).length;
+  }, [rawDayWiseData]);
+
+  const dayWiseData: DayWiseSummary[] = useMemo(() => {
+    let list = rawDayWiseData;
+
+    if (hideZeroRevenueDays) {
+      list = list.filter((d) => d.totalRevenue > 0);
+    }
+
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      list = list.filter((d) =>
+        d.formattedDate.toLowerCase().includes(q) ||
+        d.dayName.toLowerCase().includes(q) ||
+        d.dateKey.includes(q)
+      );
+    }
+
+    return list;
+  }, [rawDayWiseData, hideZeroRevenueDays, search]);
+
   const maxDailyRevenue = useMemo(() => {
-    return Math.max(...dayWiseData.map((d) => d.totalRevenue), 1);
-  }, [dayWiseData]);
+    return Math.max(...rawDayWiseData.map((d) => d.totalRevenue), 1);
+  }, [rawDayWiseData]);
+
+  const txPaidCount = useMemo(() => {
+    return dateFilteredTransactions.filter(
+      (t) => t.status === "completed" || t.status === "paid"
+    ).length;
+  }, [dateFilteredTransactions]);
+
+  const txCancelledCount = useMemo(() => {
+    return dateFilteredTransactions.filter(
+      (t) => t.status === "cancelled" || t.status === "failed"
+    ).length;
+  }, [dateFilteredTransactions]);
 
   // Export CSV in Official University Register Logbook Format (Chronological Order: 1 -> 94)
   // Register Logbook: only show completed/paid (successful) transactions
@@ -595,6 +635,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
     setCustomEndDate("");
     setStatusFilter("ALL");
     setSearch("");
+    setHideZeroRevenueDays(false);
     setCurrentPage(1);
   };
 
@@ -619,12 +660,12 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
           <Button
             variant="outline"
             size="sm"
-            onClick={handleExportCSV}
-            disabled={(activeSubView === "register" ? registerTransactions.length : fullyFilteredTransactions.length) === 0}
-            className="h-9 gap-1.5 text-xs rounded-xl bg-card/60 hover:bg-card border-border/70 text-foreground cursor-pointer"
+            onClick={() => setIsExportModalOpen(true)}
+            disabled={transactions.length === 0}
+            className="h-9 gap-1.5 text-xs rounded-xl bg-card/60 hover:bg-card border-border/70 text-foreground cursor-pointer shadow-2xs"
           >
             <Download className="h-3.5 w-3.5" />
-            Export CSV ({activeSubView === "register" ? registerTransactions.length : fullyFilteredTransactions.length})
+            Export CSV
           </Button>
           <Button
             variant="ghost"
@@ -642,7 +683,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
       {/* KPI Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
         {/* Total Revenue */}
-        <Card className="border border-border/40 bg-gradient-to-br from-emerald-500/10 via-card/50 to-card/30 backdrop-blur-md rounded-2xl shadow-xs">
+        <Card className="border border-border/60 bg-gradient-to-br from-emerald-500/10 via-card to-card dark:via-card/50 dark:to-card/30 backdrop-blur-md rounded-2xl shadow-2xs hover:shadow-xs transition-all">
           <CardContent className="p-4 flex items-center gap-3.5">
             <div className="p-2.5 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
               <IndianRupee className="h-5 w-5" />
@@ -662,10 +703,21 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
         </Card>
 
         {/* Today's Revenue */}
-        <Card className="border border-border/40 bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
+        <Card className="border border-border/60 bg-card dark:bg-card/40 backdrop-blur-md rounded-2xl shadow-2xs hover:shadow-xs transition-all">
           <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
-              <TrendingUp className="h-5 w-5" />
+            <div
+              className={cn(
+                "p-2.5 rounded-xl shrink-0",
+                stats.todayRevenue > 0
+                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              {stats.todayRevenue > 0 ? (
+                <TrendingUp className="h-5 w-5" />
+              ) : (
+                <Clock className="h-5 w-5" />
+              )}
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider truncate">
@@ -675,14 +727,14 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                 ₹{stats.todayRevenue.toLocaleString("en-IN")}
               </p>
               <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                All-day collection
+                {stats.todayRevenue > 0 ? "All-day collection (IST)" : "No prints today yet (IST)"}
               </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Total Pages Billed */}
-        <Card className="border border-border/40 bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
+        <Card className="border border-border/60 bg-card dark:bg-card/40 backdrop-blur-md rounded-2xl shadow-2xs hover:shadow-xs transition-all">
           <CardContent className="p-4 flex items-center gap-3.5">
             <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
               <Layers className="h-5 w-5" />
@@ -707,7 +759,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
         </Card>
 
         {/* Avg Order Value */}
-        <Card className="border border-border/40 bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
+        <Card className="border border-border/60 bg-card dark:bg-card/40 backdrop-blur-md rounded-2xl shadow-2xs hover:shadow-xs transition-all">
           <CardContent className="p-4 flex items-center gap-3.5">
             <div className="p-2.5 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 shrink-0">
               <CreditCard className="h-5 w-5" />
@@ -727,9 +779,117 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
         </Card>
       </div>
 
+      {/* ── Level 1: Primary View Mode Switcher ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+        <div className="inline-flex p-1 rounded-2xl bg-muted/40 border border-border/40 backdrop-blur-md shadow-2xs self-start">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveSubView("daywise");
+              setCurrentPage(1);
+            }}
+            className={cn(
+              "relative flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer select-none",
+              activeSubView === "daywise"
+                ? "text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {activeSubView === "daywise" && (
+              <motion.div
+                layoutId="revenueSubViewPill"
+                className="absolute inset-0 bg-primary rounded-xl shadow-xs"
+                transition={{ type: "spring", bounce: 0.15, duration: 0.3 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-1.5">
+              <BarChart3 className="h-3.5 w-3.5" />
+              Day-wise Summary
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
+                activeSubView === "daywise" ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+              )}>
+                {dayWiseData.length}
+              </span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveSubView("transactions");
+              setCurrentPage(1);
+            }}
+            className={cn(
+              "relative flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer select-none",
+              activeSubView === "transactions"
+                ? "text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {activeSubView === "transactions" && (
+              <motion.div
+                layoutId="revenueSubViewPill"
+                className="absolute inset-0 bg-primary rounded-xl shadow-xs"
+                transition={{ type: "spring", bounce: 0.15, duration: 0.3 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-1.5">
+              <FileText className="h-3.5 w-3.5" />
+              Transactions List
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
+                activeSubView === "transactions" ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
+              )}>
+                {fullyFilteredTransactions.length}
+              </span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveSubView("register");
+              setCurrentPage(1);
+            }}
+            className={cn(
+              "relative flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer select-none",
+              activeSubView === "register"
+                ? "text-white"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {activeSubView === "register" && (
+              <motion.div
+                layoutId="revenueSubViewPill"
+                className="absolute inset-0 bg-amber-600 rounded-xl shadow-xs"
+                transition={{ type: "spring", bounce: 0.15, duration: 0.3 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-1.5">
+              <BookOpen className="h-3.5 w-3.5" />
+              Register Logbook
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold",
+                activeSubView === "register" ? "bg-white/25 text-white" : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+              )}>
+                {registerTransactions.length}
+              </span>
+            </span>
+          </button>
+        </div>
+
+        {/* View mode contextual subtitle / description */}
+        <p className="text-xs text-muted-foreground hidden sm:block">
+          {activeSubView === "daywise" && "Daily revenue totals, success rates & volume distribution"}
+          {activeSubView === "transactions" && "Granular order-level breakdown with file & print options"}
+          {activeSubView === "register" && "Official continuous logbook (S. No. 1 → N) for university records"}
+        </p>
+      </div>
+
       {/* Filter and Control Bar */}
       <div className="rounded-2xl bg-card/50 backdrop-blur-md p-3.5 shadow-sm border border-border/40 space-y-3 shrink-0">
-        {/* Row 1: Period quick filters + View switcher */}
+        {/* Row 1: Period quick filters + Day-wise Active Days filter */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Preset Buttons */}
           <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl overflow-x-auto select-none shrink-0">
@@ -776,85 +936,93 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
             })}
           </div>
 
-          {/* Subview Toggle: Day-Wise vs All Transactions vs Register Logbook */}
-          <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-xl shrink-0 self-start lg:self-auto">
-            <button
-              onClick={() => setActiveSubView("daywise")}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
-                activeSubView === "daywise"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <BarChart3 className="h-3.5 w-3.5 text-primary" />
-              Day-wise Summary
-              <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 font-mono ml-1">
-                {dayWiseData.length}
-              </Badge>
-            </button>
-            <button
-              onClick={() => setActiveSubView("transactions")}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
-                activeSubView === "transactions"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <FileText className="h-3.5 w-3.5 text-primary" />
-              Transactions List
-              <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 font-mono ml-1">
-                {fullyFilteredTransactions.length}
-              </Badge>
-            </button>
-            <button
-              onClick={() => setActiveSubView("register")}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
-                activeSubView === "register"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <BookOpen className="h-3.5 w-3.5 text-amber-500" />
-              Register Logbook
-              <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 font-mono ml-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                {registerTransactions.length}
-              </Badge>
-            </button>
-          </div>
+          {/* Quick toggle in Day-wise mode: Segmented Pill Toggle for All Days vs Active Only */}
+          {activeSubView === "daywise" && (
+            <div className="inline-flex p-0.5 rounded-xl bg-muted/40 border border-border/40 backdrop-blur-md self-start lg:self-auto shrink-0 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setHideZeroRevenueDays(false)}
+                className={cn(
+                  "relative px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer select-none",
+                  !hideZeroRevenueDays
+                    ? "text-foreground bg-background shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                All Days ({rawDayWiseData.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setHideZeroRevenueDays(true)}
+                className={cn(
+                  "relative flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer select-none",
+                  hideZeroRevenueDays
+                    ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Zap className="h-3 w-3 text-emerald-500 fill-emerald-500/20" />
+                Active Only ({activeDaysCount})
+              </button>
+            </div>
+          )}
+
+          {/* Quick toggle in Transactions mode: Segmented Pill Toggle for Paid vs All vs Cancelled */}
+          {activeSubView === "transactions" && (
+            <div className="inline-flex p-0.5 rounded-xl bg-muted/40 border border-border/40 backdrop-blur-md self-start lg:self-auto shrink-0 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter("paid_only");
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "relative flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer select-none",
+                  statusFilter === "paid_only"
+                    ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                Paid & Done ({txPaidCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter("ALL");
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "relative px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer select-none",
+                  statusFilter === "ALL"
+                    ? "text-foreground bg-background shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                All ({dateFilteredTransactions.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter("cancelled");
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "relative px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer select-none",
+                  statusFilter === "cancelled"
+                    ? "text-foreground bg-background shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Cancelled ({txCancelledCount})
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Row 2: One-Day Filter (when not custom) OR Custom Range Pickers (when custom), Status Filter, Search */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 pt-1 border-t border-border/30">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 pt-1 border-t border-border/60">
           <div className="flex flex-wrap items-center gap-2">
-            {/* When NOT selecting custom dates: keep the one day filter visible */}
-            {period !== "custom" && (
-              <div className="flex items-center gap-1.5 bg-muted/30 border border-border/40 rounded-xl px-2.5 py-1 text-xs">
-                <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="text-muted-foreground font-medium text-[11px]">Filter Specific Day:</span>
-                <input
-                  type="date"
-                  value={selectedSingleDay}
-                  onChange={(e) => {
-                    setSelectedSingleDay(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="bg-transparent border-none text-foreground font-mono text-xs focus:outline-none cursor-pointer"
-                />
-                {selectedSingleDay && (
-                  <button
-                    onClick={() => setSelectedSingleDay("")}
-                    className="text-muted-foreground hover:text-foreground p-0.5 rounded cursor-pointer"
-                    title="Clear date"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-            )}
-
             {/* When selecting custom dates: show ONLY the Custom Range inputs */}
             {period === "custom" && (
               <div className="flex items-center gap-1.5 bg-muted/40 border border-primary/30 rounded-xl px-2.5 py-1 text-xs animate-in fade-in">
@@ -894,27 +1062,29 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
               </div>
             )}
 
-            {/* Status Dropdown Filter */}
-            <div className="flex items-center gap-1 bg-muted/30 border border-border/40 rounded-xl px-2 py-1 text-xs">
-              <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-transparent border-none text-foreground text-xs focus:outline-none cursor-pointer font-medium"
-              >
-                <option value="ALL" className="bg-popover text-foreground">All Statuses</option>
-                <option value="paid_only" className="bg-popover text-foreground">Paid / Done Only</option>
-                <option value="pending_payment" className="bg-popover text-foreground">Pending Payment</option>
-                <option value="completed" className="bg-popover text-foreground">Completed</option>
-                <option value="printing" className="bg-popover text-foreground">Printing</option>
-                <option value="queued" className="bg-popover text-foreground">In Queue</option>
-                <option value="failed" className="bg-popover text-foreground">Failed</option>
-                <option value="cancelled" className="bg-popover text-foreground">Cancelled</option>
-              </select>
-            </div>
+            {/* Status Dropdown Filter - Only applicable in Transactions mode */}
+            {activeSubView === "transactions" && (
+              <div className="flex items-center gap-1 bg-muted/30 border border-border/40 rounded-xl px-2 py-1 text-xs">
+                <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-transparent border-none text-foreground text-xs focus:outline-none cursor-pointer font-medium"
+                >
+                  <option value="ALL" className="bg-popover text-foreground">All Statuses</option>
+                  <option value="paid_only" className="bg-popover text-foreground">Paid / Done Only</option>
+                  <option value="pending_payment" className="bg-popover text-foreground">Pending Payment</option>
+                  <option value="completed" className="bg-popover text-foreground">Completed</option>
+                  <option value="printing" className="bg-popover text-foreground">Printing</option>
+                  <option value="queued" className="bg-popover text-foreground">In Queue</option>
+                  <option value="failed" className="bg-popover text-foreground">Failed</option>
+                  <option value="cancelled" className="bg-popover text-foreground">Cancelled</option>
+                </select>
+              </div>
+            )}
 
             {/* Sort Order Toggle */}
             <button
@@ -945,14 +1115,24 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
           <div className="relative flex-1 md:max-w-xs">
             <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-muted-foreground/70 pointer-events-none" />
             <Input
-              placeholder="Search customer, ID, file…"
+              placeholder={activeSubView === "daywise" ? "Search date, day name…" : "Search customer, ID, file…"}
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-9 h-8 text-xs bg-muted/30 border-border/40 rounded-xl focus-visible:ring-1 focus-visible:ring-primary/40"
+              className="pl-9 pr-7 h-8 text-xs bg-muted/30 border-border/40 rounded-xl focus-visible:ring-1 focus-visible:ring-primary/40"
             />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                title="Clear search"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -1007,7 +1187,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                       <TableRow
                         key={day.dateKey}
                         className={cn(
-                          "cursor-pointer hover:bg-muted/40 transition-colors h-14",
+                          "group cursor-pointer hover:bg-muted/40 transition-colors h-14 border-b border-border/80 dark:border-border/60",
                           isSelected && "bg-primary/5 dark:bg-primary/10 border-l-4 border-l-primary"
                         )}
                         onClick={() => {
@@ -1022,69 +1202,110 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                         }}
                       >
                         {/* Date */}
-                        <TableCell className="font-semibold text-foreground">
+                        <TableCell className="font-semibold text-foreground py-3">
                           <div className="flex items-center gap-2">
-                            <div className="flex h-7 w-7 rounded-lg bg-primary/10 items-center justify-center text-primary">
-                              <Calendar className="h-3.5 w-3.5" />
-                            </div>
-                            <span className="font-mono text-xs">{day.formattedDate}</span>
+                            <span className="font-mono text-xs font-bold text-foreground">
+                              {day.formattedDate}
+                            </span>
+                            {day.totalRevenue >= 50 && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                <span className="h-1 w-1 rounded-full bg-emerald-500" />
+                                Peak Day
+                              </span>
+                            )}
                           </div>
                         </TableCell>
 
                         {/* Day Name */}
-                        <TableCell className="text-xs text-muted-foreground font-medium">
-                          {day.dayName}
+                        <TableCell className="text-xs text-muted-foreground font-medium py-3">
+                          <span
+                            className={cn(
+                              "px-2 py-0.5 rounded-md text-[11px] font-semibold border",
+                              day.dayName === "Sun" || day.dayName === "Sat"
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                                : "bg-muted/40 text-muted-foreground border-border/40"
+                            )}
+                          >
+                            {day.dayName}
+                          </span>
                         </TableCell>
 
                         {/* Total Transactions */}
-                        <TableCell className="text-center font-mono text-xs font-semibold">
+                        <TableCell className="text-center font-mono text-xs font-semibold text-foreground py-3">
                           {day.transactionCount}
                         </TableCell>
 
                         {/* Successful Orders */}
-                        <TableCell className="text-center">
-                          <span className="inline-flex items-center gap-1 font-mono text-xs text-emerald-600 dark:text-emerald-400 font-bold">
-                            <CheckCircle2 className="h-3 w-3" />
-                            {day.successfulOrders}
-                          </span>
+                        <TableCell className="text-center py-3">
+                          {day.successfulOrders > 0 ? (
+                            <span className="inline-flex items-center gap-1 font-mono text-xs text-emerald-600 dark:text-emerald-400 font-bold">
+                              <CheckCircle2 className="h-3 w-3" />
+                              {day.successfulOrders}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground/60">
+                              <XCircle className="h-3 w-3" />
+                              0
+                            </span>
+                          )}
                         </TableCell>
 
                         {/* Pages Printed */}
-                        <TableCell className="text-center font-mono text-xs text-muted-foreground">
+                        <TableCell className="text-center font-mono text-xs text-muted-foreground py-3">
                           {day.pagesCount} pg
                         </TableCell>
 
                         {/* Daily Revenue with Bar */}
-                        <TableCell>
+                        <TableCell className="py-3">
                           <div className="flex flex-col gap-1 w-36 sm:w-44">
-                            <span className="font-extrabold font-mono text-emerald-600 dark:text-emerald-400 text-sm">
-                              ₹{day.totalRevenue.toLocaleString("en-IN")}
-                            </span>
-                            <div className="h-1.5 w-full bg-muted/60 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                                style={{ width: `${Math.max(revenuePercent, 4)}%` }}
-                              />
-                            </div>
+                            {day.totalRevenue > 0 ? (
+                              <>
+                                <div className="flex items-center justify-between">
+                                  <span className="font-extrabold font-mono text-emerald-600 dark:text-emerald-400 text-sm">
+                                    ₹{day.totalRevenue.toLocaleString("en-IN")}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground font-mono">
+                                    {Math.round(revenuePercent)}%
+                                  </span>
+                                </div>
+                                <div className="h-1.5 w-full bg-muted/60 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                                    style={{ width: `${Math.min(Math.max(revenuePercent, 6), 100)}%` }}
+                                  />
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center justify-between">
+                                  <span className="font-mono text-muted-foreground/60 text-sm font-medium">
+                                    ₹0
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground/50">
+                                    0 paid
+                                  </span>
+                                </div>
+                                <div className="h-1.5 w-full bg-muted/30 rounded-full overflow-hidden" />
+                              </>
+                            )}
                           </div>
                         </TableCell>
 
                         {/* Action Drilldown */}
-                        <TableCell className="text-right pr-4">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-[11px] px-2.5 rounded-lg border-border/70 hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (period === "custom") setPeriod("all");
-                              setSelectedSingleDay(day.dateKey);
-                              setActiveSubView("transactions");
-                              setCurrentPage(1);
-                            }}
-                          >
-                            View Transactions
-                          </Button>
+                        <TableCell className="text-right pr-4 py-3">
+                          <div className="inline-flex items-center justify-end">
+                            {day.totalRevenue > 0 ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-foreground bg-muted/30 group-hover:bg-primary group-hover:text-primary-foreground border border-border/50 group-hover:border-primary/50 transition-all shadow-2xs">
+                                <span>View {day.successfulOrders} {day.successfulOrders === 1 ? "Order" : "Orders"}</span>
+                                <ArrowRight className="h-3 w-3 opacity-60 group-hover:opacity-100 transition-transform group-hover:translate-x-0.5" />
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground/60 group-hover:text-foreground transition-colors pr-1">
+                                <span>{day.transactionCount} {day.transactionCount === 1 ? "attempt" : "attempts"}</span>
+                                <ArrowRight className="h-3 w-3 opacity-40 group-hover:opacity-80 transition-transform group-hover:translate-x-0.5" />
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -1143,7 +1364,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                     return (
                       <React.Fragment key={tx.id}>
                         <TableRow
-                          className="cursor-pointer hover:bg-muted/40 transition-colors h-14"
+                          className="cursor-pointer hover:bg-muted/40 transition-colors h-14 border-b border-border/80 dark:border-border/60"
                           onClick={() => setExpandedId(isExpanded ? null : tx.id)}
                         >
                           {/* S. No. */}
@@ -1324,13 +1545,17 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                     return (
                       <React.Fragment key={tx.id}>
                         <TableRow
-                          className="cursor-pointer hover:bg-muted/40 transition-colors h-16"
+                          className={cn(
+                            "cursor-pointer hover:bg-muted/40 transition-all h-16 border-b border-border/80 dark:border-border/60",
+                            isExpanded && "bg-muted/20",
+                            (tx.status === "cancelled" || tx.status === "failed") && "opacity-65 hover:opacity-100 transition-opacity"
+                          )}
                           onClick={() => setExpandedId(isExpanded ? null : tx.id)}
                         >
                           {/* Task ID (RU-xxxx) */}
                           <TableCell className="px-4">
                             <div className="flex items-center gap-1.5">
-                              <span className="font-mono text-xs font-bold text-primary bg-primary/10 border border-primary/25 px-2.5 py-1 rounded-lg select-all">
+                              <span className="font-mono text-xs font-semibold text-foreground bg-muted/60 dark:bg-muted/40 border border-border/60 px-2.5 py-1 rounded-lg select-all">
                                 {tx.internalId}
                               </span>
                               <button
@@ -1355,7 +1580,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                           {/* Customer */}
                           <TableCell>
                             <div className="flex items-center gap-2.5">
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/70 text-foreground border border-border/50 text-xs font-bold">
                                 {(tx.name || "S")[0].toUpperCase()}
                               </div>
                               <div className="flex flex-col min-w-0">
@@ -1454,12 +1679,25 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                           {/* Amount */}
                           <TableCell>
                             <div className="flex flex-col">
-                              <span className="font-extrabold font-mono text-foreground text-sm">
-                                ₹{tx.amount}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground font-medium">
-                                UPI / GPay
-                              </span>
+                              {tx.amount > 0 ? (
+                                <>
+                                  <span className="font-extrabold font-mono text-emerald-600 dark:text-emerald-400 text-sm">
+                                    ₹{tx.amount}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground font-medium">
+                                    UPI / GPay
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="font-mono text-muted-foreground/60 text-sm font-medium">
+                                    ₹0
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground/50">
+                                    Unpaid
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </TableCell>
 
@@ -1547,7 +1785,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
 
         {/* Pagination bar for transactions and register views */}
         {(activeSubView === "transactions" || activeSubView === "register") && (
-          <div className="flex items-center justify-between px-4 py-2 border-t border-border/30 bg-card/20 shrink-0">
+          <div className="flex items-center justify-between px-4 py-2 border-t border-border/60 bg-card/20 shrink-0">
             <div className="text-[11px] font-medium text-muted-foreground">
               Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
               {Math.min(currentPage * itemsPerPage, displayTransactions.length)} of{" "}
@@ -1576,6 +1814,14 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
           </div>
         )}
       </div>
+
+      {/* Export Report Configuration Modal */}
+      <ExportReportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        allTransactions={transactions}
+        initialFormat={activeSubView === "register" ? "register" : "audit"}
+      />
     </div>
   );
 }
