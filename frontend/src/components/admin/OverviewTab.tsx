@@ -24,8 +24,9 @@ import {
   Power,
   XCircle,
   Ban,
+  Calendar,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, toLocalDateKey, getTodayDateKey } from "@/lib/utils";
 
 interface Supply {
   name: string;
@@ -54,6 +55,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
   const [loadingPrinter, setLoadingPrinter] = useState(false);
   const [jobs, setJobs] = useState<any[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
+  const [period, setPeriod] = useState<"today" | "all">("today");
 
   // Fetch dynamically detected connected printer
   const fetchPrinterStatus = async () => {
@@ -125,20 +127,26 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
     }
   };
 
-  // Aggregate stats from jobs
+  // Aggregate stats from jobs (respecting Today vs All-Time filter)
   const metrics = useMemo(() => {
-    const totalJobs = jobs.length;
-    const completed = jobs.filter((j) => j.status === "completed").length;
-    const awaitingRelease = jobs.filter((j) => j.status === "paid").length;
-    const queued = jobs.filter((j) => j.status === "queued" || j.status === "printing").length;
-    const failed = jobs.filter((j) => j.status === "failed").length;
-    const cancelled = jobs.filter((j) => j.status === "cancelled").length;
+    const todayKey = getTodayDateKey();
+    const filteredJobs =
+      period === "today"
+        ? jobs.filter((j) => toLocalDateKey(j.createdAt) === todayKey)
+        : jobs;
 
-    const totalRevenue = jobs
+    const totalJobs = filteredJobs.length;
+    const completed = filteredJobs.filter((j) => j.status === "completed").length;
+    const awaitingRelease = filteredJobs.filter((j) => j.status === "paid").length;
+    const queued = filteredJobs.filter((j) => j.status === "queued" || j.status === "printing").length;
+    const failed = filteredJobs.filter((j) => j.status === "failed").length;
+    const cancelled = filteredJobs.filter((j) => j.status === "cancelled").length;
+
+    const totalRevenue = filteredJobs
       .filter((j) => j.status === "completed" || j.status === "paid")
       .reduce((sum, j) => sum + (j.amount || (j.copies || 1) * (j.color ? 10 : 2)), 0);
 
-    const totalPages = jobs
+    const totalPages = filteredJobs
       .filter((j) => j.status === "completed" || j.status === "paid")
       .reduce((sum, j) => sum + (j.copies || 1), 0);
 
@@ -155,7 +163,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
       totalPages,
       successRate,
     };
-  }, [jobs]);
+  }, [jobs, period]);
 
   const recentJobs = useMemo(() => {
     return jobs.slice(0, 6);
@@ -330,7 +338,68 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
         </CardContent>
       </Card>
 
-      {/* ── Section 2: Core Metrics (6 Clean Borderless Cards) ── */}
+      {/* ── Section 2: Core Metrics (Today vs All Time) ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0 pt-1">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Activity className="h-3.5 w-3.5 text-primary" />
+            Print Metrics
+          </span>
+          <span className="text-[11px] text-muted-foreground/70 hidden sm:inline">
+            • {period === "today" ? "Today's live stats (IST)" : "Cumulative all-time stats"}
+          </span>
+        </div>
+
+        {/* Toggle Pill: Today vs All Time */}
+        <div className="inline-flex p-0.5 rounded-xl bg-muted/40 border border-border/40 backdrop-blur-md self-start sm:self-auto shadow-2xs">
+          <button
+            type="button"
+            onClick={() => setPeriod("today")}
+            className={cn(
+              "relative px-3 py-1 text-xs font-semibold rounded-lg transition-all duration-200 cursor-pointer select-none",
+              period === "today"
+                ? "text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {period === "today" && (
+              <motion.div
+                layoutId="overview-period-pill"
+                className="absolute inset-0 bg-primary rounded-lg shadow-xs"
+                transition={{ type: "spring", bounce: 0.15, duration: 0.3 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-1.5">
+              <Calendar className="h-3 w-3" />
+              Today
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPeriod("all")}
+            className={cn(
+              "relative px-3 py-1 text-xs font-semibold rounded-lg transition-all duration-200 cursor-pointer select-none",
+              period === "all"
+                ? "text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {period === "all" && (
+              <motion.div
+                layoutId="overview-period-pill"
+                className="absolute inset-0 bg-primary rounded-lg shadow-xs"
+                transition={{ type: "spring", bounce: 0.15, duration: 0.3 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-1.5">
+              <Clock className="h-3 w-3" />
+              All Time
+            </span>
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 shrink-0">
         {/* Total Jobs */}
         <Card className="border-none bg-card/40 backdrop-blur-md rounded-2xl shadow-xs">
@@ -340,7 +409,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
             </div>
             <div className="min-w-0">
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
-                Total Jobs
+                {period === "today" ? "Today's Jobs" : "Total Jobs"}
               </p>
               <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
                 {metrics.totalJobs}
@@ -463,7 +532,7 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
             </div>
             <div className="min-w-0">
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider truncate">
-                Revenue
+                {period === "today" ? "Today's Revenue" : "Revenue"}
               </p>
               <p className="text-xl font-extrabold font-mono text-foreground tracking-tight mt-0.5">
                 ₹{metrics.totalRevenue.toLocaleString("en-IN")}

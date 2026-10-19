@@ -47,3 +47,28 @@ export function formatIndianTimeOnly(isoOrDate: any): string {
   });
 }
 
+/**
+ * Returns "YYYY-MM-DD" in Indian Standard Time (IST, UTC+5:30)
+ */
+export function toLocalDateKey(d: any): string {
+  const dateObj = parseUtcDate(d);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(dateObj);
+}
+
+/**
+ * Returns today's "YYYY-MM-DD" key in Indian Standard Time (IST, UTC+5:30)
+ */
+export function getTodayDateKey(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
