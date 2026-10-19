@@ -33,130 +33,141 @@ export async function GET(req: Request) {
       });
     }
 
-    // 1. Detect default / connected printer dynamically from system
-    let printerId = '';
+    // 1. Detect all registered CUPS printers
+    let defaultPrinterId = '';
     try {
       const defRes = execSync('lpstat -d', { timeout: 1500 }).toString();
       if (defRes.includes('destination: ')) {
-        printerId = defRes.split('destination: ')[1].trim();
+        defaultPrinterId = defRes.split('destination: ')[1].trim();
       }
     } catch {}
 
-    if (!printerId) {
+    let allPrinters: string[] = [];
+    try {
+      const pRes = execSync('lpstat -p', { timeout: 1500 }).toString();
+      allPrinters = (pRes.match(/printer\s+([^\s]+)/gi) || []).map((p) =>
+        p.replace(/printer\s+/i, '').trim()
+      );
+    } catch {}
+
+    if (defaultPrinterId && !allPrinters.includes(defaultPrinterId)) {
+      allPrinters.unshift(defaultPrinterId);
+    }
+
+    if (allPrinters.length === 0) {
+      allPrinters = [process.env.PRINTER_NAME || 'Canon_MF280_Series_2'];
+    }
+
+    // 2. Check each printer to find if ANY printer is genuinely connected & online
+    let chosenPrinterId = defaultPrinterId || allPrinters[0];
+    let isConnected = false;
+    let state: ConnectedPrinterInfo['state'] = 'offline';
+    let statusText = 'No Printer Connected (Offline)';
+
+    for (const pid of allPrinters) {
+      let statOut = '';
       try {
-        const pRes = execSync('lpstat -p', { timeout: 1500 }).toString();
-        const match = pRes.match(/printer\s+([^\s]+)/i);
-        if (match) printerId = match[1];
-      } catch {}
-    }
+        statOut = execSync(`lpstat -l -p ${pid}`, { timeout: 1500 }).toString();
+      } catch (e: any) {
+        statOut = e.stdout ? e.stdout.toString() : '';
+      }
 
-    if (!printerId) {
-      printerId = process.env.PRINTER_NAME || 'Canon_MF280_Series_2';
-    }
+      const isOffline =
+        statOut.includes('offline-report') ||
+        statOut.includes('Unable to locate') ||
+        statOut.includes('Looking for printer') ||
+        statOut.includes('connecting-to-device') ||
+        statOut.toLowerCase().includes('disabled') ||
+        !statOut.trim();
 
-    let displayName = printerId.replace(/_/g, ' ');
+      const isPrinting = statOut.toLowerCase().includes('now printing') && !isOffline;
 
-    // 2. Determine actual live connection status
-    let statOut = '';
-    try {
-      statOut = execSync(`lpstat -l -p ${printerId}`, { timeout: 1500 }).toString();
-    } catch (e: any) {
-      statOut = e.stdout ? e.stdout.toString() : '';
-    }
-
-    const isOffline =
-      statOut.includes('offline-report') ||
-      statOut.includes('Unable to locate') ||
-      statOut.includes('Looking for printer') ||
-      statOut.includes('connecting-to-device') ||
-      statOut.toLowerCase().includes('disabled');
-
-    const isPrinting = statOut.toLowerCase().includes('now printing') && !isOffline;
-
-    let state: ConnectedPrinterInfo['state'] = 'idle';
-    let statusText = 'Connected & Online';
-    let isConnected = true;
-
-    if (isOffline) {
-      state = 'offline';
-      statusText = 'Printer Disconnected / Offline';
-      isConnected = false;
-    } else if (isPrinting) {
-      state = 'printing';
-      statusText = 'Printing Active';
-      isConnected = true;
-    } else {
-      state = 'idle';
-      statusText = 'Connected & Ready';
-      isConnected = true;
-    }
-
-    // 3. Query marker/toner levels via IPP
-    let supplies: PrinterSupply[] = [];
-    try {
-      const ippOut = execSync(
-        `ipptool -tv -T 2 ipp://localhost:631/printers/${printerId} /usr/share/cups/ipptool/get-printer-attributes.test`,
-        { timeout: 3500 }
-      ).toString();
-
-      const getAttr = (attr: string) => {
-        const m = ippOut.match(new RegExp(attr + '\\s+\\([^)]+\\)\\s+=\\s+(.+)', 'i'));
-        return m ? m[1].trim() : null;
-      };
-
-      const names = (getAttr('marker-names') || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const levels = (getAttr('marker-levels') || '')
-        .split(',')
-        .map((s) => parseInt(s.trim(), 10))
-        .filter((n) => !isNaN(n));
-      const colors = (getAttr('marker-colors') || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const types = (getAttr('marker-types') || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      supplies = names.map((name, i) => {
-        let cleanName = name;
-        if (cleanName.endsWith('Magenta To')) cleanName = 'Canon NPG-88 Magenta Toner';
-        if (cleanName.endsWith('Yellow Ton')) cleanName = 'Canon NPG-88 Yellow Toner';
-
-        const lvl = levels[i] !== undefined ? Math.max(0, Math.min(100, levels[i])) : 100;
-        return {
-          name: cleanName,
-          level: lvl,
-          color: colors[i] || '#000000',
-          type: types[i] || 'toner',
-          isLow: lvl <= 15,
-        };
-      });
-    } catch {
-      // Retain previous cached supplies if available
-      if (cachedPrinter && cachedPrinter.id === printerId && cachedPrinter.supplies.length > 0) {
-        supplies = cachedPrinter.supplies;
+      if (!isOffline) {
+        chosenPrinterId = pid;
+        isConnected = true;
+        if (isPrinting) {
+          state = 'printing';
+          statusText = 'Printing Active';
+        } else {
+          state = 'idle';
+          statusText = 'Connected & Ready';
+        }
+        break; // Found an active, connected printer
       }
     }
 
-    // If supplies array is empty
+    // If none are online, default to the system default printer or first configured printer
+    if (!isConnected) {
+      chosenPrinterId = defaultPrinterId || allPrinters[0] || 'Canon_MF280_Series_2';
+      state = 'offline';
+      statusText = 'Printer Disconnected / Offline';
+    }
+
+    const displayName = chosenPrinterId.replace(/_/g, ' ');
+
+    // 3. Query marker/toner levels via IPP only if printer is responsive
+    let supplies: PrinterSupply[] = [];
+    if (isConnected) {
+      try {
+        const ippOut = execSync(
+          `ipptool -tv -T 2 ipp://localhost:631/printers/${chosenPrinterId} /usr/share/cups/ipptool/get-printer-attributes.test`,
+          { timeout: 3500 }
+        ).toString();
+
+        const getAttr = (attr: string) => {
+          const m = ippOut.match(new RegExp(attr + '\\s+\\([^)]+\\)\\s+=\\s+(.+)', 'i'));
+          return m ? m[1].trim() : null;
+        };
+
+        const names = (getAttr('marker-names') || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const levels = (getAttr('marker-levels') || '')
+          .split(',')
+          .map((s) => parseInt(s.trim(), 10))
+          .filter((n) => !isNaN(n));
+        const colors = (getAttr('marker-colors') || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const types = (getAttr('marker-types') || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+        supplies = names.map((name, i) => {
+          let cleanName = name;
+          if (cleanName.endsWith('Magenta To')) cleanName = 'Canon NPG-88 Magenta Toner';
+          if (cleanName.endsWith('Yellow Ton')) cleanName = 'Canon NPG-88 Yellow Toner';
+
+          const lvl = levels[i] !== undefined ? Math.max(0, Math.min(100, levels[i])) : 100;
+          return {
+            name: cleanName,
+            level: lvl,
+            color: colors[i] || '#000000',
+            type: types[i] || 'toner',
+            isLow: lvl <= 15,
+          };
+        });
+      } catch {}
+    }
+
+    // If offline and no supplies queried, display status-appropriate info
     if (supplies.length === 0) {
       supplies = [
         {
-          name: 'Canon Cartridge 072 Black Toner',
-          level: 15,
+          name: 'Cartridge / Toner Gauge',
+          level: isConnected ? 100 : 0,
           color: '#000000',
           type: 'toner',
-          isLow: true,
+          isLow: !isConnected,
         },
       ];
     }
 
     cachedPrinter = {
-      id: printerId,
+      id: chosenPrinterId,
       name: displayName,
       state,
       statusText,
