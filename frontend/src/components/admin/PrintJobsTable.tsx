@@ -117,8 +117,9 @@ export function PrintJobsTable() {
         const first = group[0];
         const isAdmin = (first.userName || '').toLowerCase().includes('admin');
         const totalCopies = group.reduce((sum: number, j: any) => sum + (j.copies || 1), 0);
-        const explicitAmount = group.reduce((sum: number, j: any) => sum + (j.amount || 0), 0);
-        const calculatedAmount = group.reduce(
+        const activeFiles = group.filter((j: any) => j.status !== 'cancelled' && j.status !== 'failed');
+        const explicitAmount = activeFiles.reduce((sum: number, j: any) => sum + (j.amount || 0), 0);
+        const calculatedAmount = activeFiles.reduce(
           (sum: number, j: any) => sum + (j.copies || 1) * (j.color ? 10 : 2),
           0
         );

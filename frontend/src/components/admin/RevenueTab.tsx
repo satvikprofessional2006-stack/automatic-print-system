@@ -265,12 +265,13 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
         const course = extractCourseFromJob(first);
         const utrNo = getUtrNumber(first);
 
-        // Calculate amount: if provided in DB use it, otherwise apply B&W (₹2) and Colour (₹10) rates
-        const explicitAmount = group.reduce(
+        // Calculate amount: only include non-cancelled and non-failed files in billable amount
+        const activeFiles = group.filter((j: any) => j.status !== 'cancelled' && j.status !== 'failed');
+        const explicitAmount = activeFiles.reduce(
           (sum: number, j: any) => sum + (j.amount || 0),
           0
         );
-        const calculatedAmount = group.reduce(
+        const calculatedAmount = activeFiles.reduce(
           (sum: number, j: any) => sum + (j.copies || 1) * (j.color ? 10 : 2),
           0
         );
@@ -281,6 +282,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
         if (group.some((j: any) => j.status === "failed")) overallStatus = "failed";
         else if (group.some((j: any) => j.status === "printing")) overallStatus = "printing";
         else if (group.some((j: any) => j.status === "queued")) overallStatus = "queued";
+        else if (group.some((j: any) => j.status === "paid")) overallStatus = "paid";
         else if (group.every((j: any) => j.status === "cancelled")) overallStatus = "cancelled";
 
         const dateObj = parseUtcDate(first.createdAt);
