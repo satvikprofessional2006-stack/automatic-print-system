@@ -58,7 +58,8 @@ def print_job(filepath, copies, double_sided=False, color=False, layout="portrai
         layout_str = str(layout).capitalize()
         range_str = f"pages {page_range}" if page_range and page_range != "all" else "all pages"
         n_up_str = f", {pages_per_sheet}-Up" if pages_per_sheet > 1 else ""
-        print(f"[MOCK] Simulating {paper_size} {color_str} ({layout_str}, {range_str}{n_up_str}) print for {filepath} ({copies} copies)")
+        duplex_str = f", 2-Sided ({'Short-Edge' if str(layout).lower() == 'landscape' else 'Long-Edge'})" if double_sided else ""
+        print(f"[MOCK] Simulating {paper_size} {color_str} ({layout_str}{duplex_str}, {range_str}{n_up_str}) print for {filepath} ({copies} copies)")
         time.sleep(3)  # Simulate print time
         return True
     
@@ -78,8 +79,14 @@ def print_job(filepath, copies, double_sided=False, color=False, layout="portrai
 
         # 2. Using lpr command for macOS/Linux
         cmd = ["lpr", "-#", str(copies)]
+        # Duplex / Two-Sided handling
         if double_sided:
-            cmd.extend(["-o", "sides=two-sided-long-edge"])
+            if str(layout).lower() == "landscape":
+                # For landscape documents, flip on short edge so back side is right-side up
+                cmd.extend(["-o", "sides=two-sided-short-edge"])
+            else:
+                # For portrait documents, flip on long edge (standard book format)
+                cmd.extend(["-o", "sides=two-sided-long-edge"])
         
         # Color mode handling for CUPS / standard drivers
         if color:

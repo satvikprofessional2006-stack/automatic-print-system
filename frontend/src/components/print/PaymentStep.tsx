@@ -16,6 +16,7 @@ import {
   FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Loader } from "@/components/ui/Loader";
 
 declare global {
   interface Window {
@@ -75,6 +76,9 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
         formData.append("paperSize", pf.settings?.paperSize || "A4");
         formData.append("pageRange", pf.settings?.pageRange || "all");
         formData.append("userName", job.name);
+        if (job.email) {
+          formData.append("userEmail", job.email);
+        }
         if (paymentId) {
           formData.append("paymentId", paymentId);
         }
@@ -401,7 +405,7 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             >
               {payState === "creating_order" ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader size="xs" className="mr-1 text-white" />
                   <span>Connecting to Gateway…</span>
                 </>
               ) : (
@@ -445,13 +449,11 @@ export function PaymentStep({ job, onBack, onPaid }: Props) {
             exit={{ opacity: 0 }}
             className="flex flex-col items-center gap-4 py-8"
           >
-            <Loader2 className="h-10 w-10 text-primary animate-spin" />
-            <div className="text-center space-y-1">
-              <p className="font-semibold text-sm text-foreground">Verifying Payment…</p>
-              <p className="text-xs text-muted-foreground">
-                Confirming transaction receipt and preparing your print job. Please wait.
-              </p>
-            </div>
+            <Loader
+              size="lg"
+              text="Verifying Payment…"
+              subtext="Confirming transaction receipt and preparing your print job. Please wait."
+            />
           </motion.div>
         )}
 

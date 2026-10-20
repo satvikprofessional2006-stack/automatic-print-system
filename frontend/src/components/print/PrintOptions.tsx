@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, ArrowLeft, FileText, FileImage, File as FileIcon, Settings, Info, Minus, Plus, X, Pencil, Eye, Check, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { renderPdfPageToDataUrl } from "@/lib/pdfRenderer";
 import { cn } from "@/lib/utils";
+import { Loader } from "@/components/ui/Loader";
 
 interface Props {
   files: PrintFile[];
@@ -193,6 +194,14 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
     const newFiles = [...files];
     const currentSettings = newFiles[index].settings || { color: false, copies: 1, layout: 'portrait', pages: 1, doubleSided: false };
     const newCopies = Math.max(1, currentSettings.copies + delta);
+    newFiles[index].settings = { ...currentSettings, copies: newCopies };
+    onUpdateFiles(newFiles);
+  };
+
+  const setCopiesExact = (index: number, copies: number) => {
+    const newFiles = [...files];
+    const currentSettings = newFiles[index].settings || { color: false, copies: 1, layout: 'portrait', pages: 1, doubleSided: false };
+    const newCopies = Math.max(1, Math.min(999, copies));
     newFiles[index].settings = { ...currentSettings, copies: newCopies };
     onUpdateFiles(newFiles);
   };
@@ -424,7 +433,23 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
                       >
                         <Minus className="h-3 w-3" />
                       </button>
-                      <span className="text-xs font-bold w-5 text-center font-mono">{f.settings?.copies || 1}</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={f.settings?.copies || 1}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/[^0-9]/g, "");
+                          const val = parseInt(raw, 10);
+                          setCopiesExact(idx, isNaN(val) ? 1 : val);
+                        }}
+                        onBlur={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          setCopiesExact(idx, !isNaN(val) && val >= 1 ? val : 1);
+                        }}
+                        className="w-7 text-center text-xs font-bold font-mono bg-transparent border border-transparent hover:border-border/50 focus:border-primary/50 focus:bg-muted/30 rounded py-0.5 outline-none transition-colors"
+                        title="Click to type number of copies"
+                      />
                       <button
                         type="button"
                         onClick={() => updateCopies(idx, 1)}
@@ -699,11 +724,8 @@ export function PrintOptions({ files, onUpdateFiles, onBack, onNext }: Props) {
                   {/* Peek Document Body */}
                   <div className="relative min-h-[300px] max-h-[62vh] flex items-center justify-center overflow-hidden rounded-xl bg-zinc-950/60 p-2 border border-border/50">
                     {isPeekLoading ? (
-                      <div className="flex flex-col items-center justify-center gap-2.5 p-8 text-center">
-                        <Loader2 className="h-7 w-7 text-primary animate-spin" />
-                        <p className="text-xs text-muted-foreground font-mono">
-                          Rendering page {peekPage}...
-                        </p>
+                      <div className="flex flex-col items-center justify-center p-8 text-center">
+                        <Loader size="md" subtext={`Rendering page ${peekPage}...`} />
                       </div>
                     ) : peekPreviewUrl ? (
                       isImage || peekPreviewUrl.startsWith("data:image/") ? (

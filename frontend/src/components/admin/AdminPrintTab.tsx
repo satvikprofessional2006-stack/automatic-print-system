@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Loader } from "@/components/ui/Loader";
 import {
   PrintFile,
   parsePageRange,
@@ -48,6 +49,11 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
   const [submitSuccess, setSubmitSuccess] = useState<boolean>(false);
   const [submittedCount, setSubmittedCount] = useState<number>(0);
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [copiesInput, setCopiesInput] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCopiesInput(null);
+  }, [activeFileIndex]);
 
   const currentFile = files[activeFileIndex] || files[0];
   const currentSettings = currentFile?.settings || {
@@ -301,7 +307,7 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
   const renderSlotContent = (pageNum: number | null, slotIndex: number) => {
     if (pageNum === null) {
       return (
-        <div className="w-full h-full min-h-0 border border-dashed border-zinc-300 rounded flex flex-col items-center justify-center p-1 text-center bg-zinc-50/40">
+        <div className="w-full h-full min-h-0 border border-dashed border-zinc-300 rounded-none flex flex-col items-center justify-center p-1 text-center bg-zinc-50/40">
           <span className="text-[8px] font-mono font-medium text-zinc-400 uppercase tracking-wider">
             Empty
           </span>
@@ -314,17 +320,26 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
       ? previewUrls[activeFileIndex]
       : pdfPageUrls[`${activeFileIndex}-${pageNum}`];
 
+    const isSingle = pagesPerSheet === 1;
+
     return (
-      <div className="relative w-full h-full min-h-0 bg-white rounded border border-zinc-200/90 shadow-2xs overflow-hidden flex items-center justify-center p-1 group">
+      <div
+        className={cn(
+          "relative w-full h-full min-h-0 overflow-hidden flex items-center justify-center group",
+          isSingle
+            ? "bg-transparent p-0 border-none shadow-none"
+            : "bg-white rounded-none border border-zinc-200/80 shadow-2xs p-1"
+        )}
+      >
         {imgUrl ? (
           <img
             src={imgUrl}
             alt={`Page ${pageNum}`}
-            className="max-w-full max-h-full object-contain pointer-events-none select-none"
+            className="w-full h-full object-contain pointer-events-none select-none"
           />
         ) : (
           <div className="flex flex-col items-center justify-center gap-1 p-1 text-center">
-            <FileText className="h-4 w-4 text-primary/60 animate-pulse" />
+            <Loader size="xs" />
             <span className="text-[8px] font-mono text-zinc-500">
               {isImage ? "Image" : `Page ${pageNum}`}
             </span>
@@ -373,7 +388,7 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
             >
               {isUploading ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  <Loader size="xs" className="mr-1.5" />
                   Spooling to Printer…
                 </>
               ) : (
@@ -471,8 +486,8 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
       ) : (
         /* ── Two-Column Layout (Controls + Live Preview) ── */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0">
-          {/* Left Column: File Tabs & Print Options (7 cols) */}
-          <div className="lg:col-span-7 flex flex-col gap-4">
+          {/* Left Column: File Tabs & Print Options (6 cols) */}
+          <div className="lg:col-span-6 flex flex-col gap-4">
             {/* File Switcher Bar */}
             <div className="flex items-center justify-between gap-2 p-1.5 bg-muted/60 dark:bg-muted/30 rounded-2xl border border-border/60">
               <button
@@ -702,26 +717,58 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
                     <button
                       type="button"
                       disabled={(currentSettings.copies || 1) <= 1}
-                      onClick={() =>
+                      onClick={() => {
+                        setCopiesInput(null);
                         updateCurrentSettings({
                           copies: Math.max(1, (currentSettings.copies || 1) - 1),
-                        })
-                      }
+                        });
+                      }}
                       className="p-1 rounded hover:bg-muted text-muted-foreground disabled:opacity-30 cursor-pointer"
+                      title="Decrease copies"
                     >
                       <Minus className="h-3 w-3" />
                     </button>
-                    <span className="text-xs font-bold font-mono px-2">
-                      {currentSettings.copies || 1}
-                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={copiesInput !== null ? copiesInput : (currentSettings.copies || 1)}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, "");
+                        setCopiesInput(raw);
+                        const val = parseInt(raw, 10);
+                        if (!isNaN(val) && val > 0) {
+                          updateCurrentSettings({
+                            copies: Math.min(999, val),
+                          });
+                        }
+                      }}
+                      onBlur={() => {
+                        if (copiesInput !== null) {
+                          const val = parseInt(copiesInput, 10);
+                          const finalCopies = !isNaN(val) && val >= 1 ? Math.min(999, val) : 1;
+                          updateCurrentSettings({ copies: finalCopies });
+                          setCopiesInput(null);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.currentTarget.blur();
+                        }
+                      }}
+                      className="w-12 text-center text-xs font-bold font-mono bg-transparent border border-transparent hover:border-border/60 focus:border-primary/60 focus:bg-muted/30 rounded py-0.5 outline-none transition-colors"
+                      title="Click to type number of copies"
+                    />
                     <button
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
+                        setCopiesInput(null);
                         updateCurrentSettings({
                           copies: (currentSettings.copies || 1) + 1,
-                        })
-                      }
+                        });
+                      }}
                       className="p-1 rounded hover:bg-muted text-muted-foreground cursor-pointer"
+                      title="Increase copies"
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -846,8 +893,8 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
             </div>
           </div>
 
-          {/* Right Column: Live Sheet Preview Canvas (5 cols) */}
-          <div className="lg:col-span-5 flex flex-col gap-3">
+          {/* Right Column: Live Sheet Preview Canvas (6 cols) */}
+          <div className="lg:col-span-6 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-foreground">Live Sheet Preview</span>
@@ -857,30 +904,35 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
                   </span>
                 )}
               </div>
-              <span className="text-[10px] text-muted-foreground font-mono">
-                {paperSize} ({isA3 ? "297×420mm" : "210×297mm"})
+              <span
+                className={cn(
+                  "text-[10px] font-mono transition-colors",
+                  isA3 ? "text-primary font-bold" : "text-muted-foreground"
+                )}
+              >
+                {paperSize} ({isA3 ? "297×420mm · 2× A4" : "210×297mm"})
               </span>
             </div>
 
             {/* Paper Mockup Container */}
-            <div className="flex-1 min-h-[380px] rounded-2xl bg-muted/40 border border-border/60 flex flex-col items-center justify-center p-4 relative overflow-hidden select-none">
-              <motion.div
-                layout
-                transition={{ type: "spring", stiffness: 350, damping: 28 }}
+            <div className="flex-1 min-h-[540px] xl:min-h-[620px] rounded-2xl bg-muted/40 border border-border/60 flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden select-none">
+              <div
                 className={cn(
-                  "relative bg-white text-zinc-900 rounded-lg shadow-xl shadow-black/20 ring-1 ring-black/10 overflow-hidden flex flex-col justify-between transition-all select-none",
-                  isLandscape
-                    ? "w-[260px] sm:w-[310px] h-[184px] sm:h-[220px]"
-                    : "w-[185px] sm:w-[220px] h-[262px] sm:h-[311px]"
+                  "relative bg-white text-zinc-900 rounded-none shadow-xl shadow-black/20 ring-1 ring-black/10 overflow-hidden flex flex-col justify-between select-none",
+                  isA3
+                    ? (isLandscape
+                        ? "w-[360px] sm:w-[440px] xl:w-[520px] 2xl:w-[560px] h-[254px] sm:h-[311px] xl:h-[368px] 2xl:h-[396px]"
+                        : "w-[260px] sm:w-[325px] xl:w-[380px] 2xl:w-[410px] h-[368px] sm:h-[460px] xl:h-[537px] 2xl:h-[580px]")
+                    : (isLandscape
+                        ? "w-[300px] sm:w-[370px] xl:w-[440px] 2xl:w-[480px] h-[212px] sm:h-[262px] xl:h-[311px] 2xl:h-[339px]"
+                        : "w-[215px] sm:w-[270px] xl:w-[320px] 2xl:w-[350px] h-[304px] sm:h-[382px] xl:h-[452px] 2xl:h-[495px]")
                 )}
               >
-                {/* Paper Safe Margin */}
-                <div className="absolute inset-1.5 border border-dashed border-zinc-300 pointer-events-none rounded-xs z-10" />
-
                 {/* Mockup Preview Area (Tiled N-Up Sheet Grid) */}
                 <div
                   className={cn(
-                    "relative w-full h-full overflow-hidden p-2.5 bg-white transition-all",
+                    "relative w-full h-full overflow-hidden transition-all flex items-center justify-center",
+                    pagesPerSheet === 1 ? "p-0 bg-white" : "p-2 bg-zinc-100/50",
                     !isColor && "grayscale contrast-[1.06] brightness-[0.98]"
                   )}
                 >
@@ -909,7 +961,7 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
                     </div>
                   )}
                 </div>
-              </motion.div>
+              </div>
 
               {/* Sheet Stepper */}
               {(totalSheets > 1 || docPages > 1) && (
@@ -972,7 +1024,7 @@ export function AdminPrintTab({ onJobSubmitted }: AdminPrintTabProps) {
               >
                 {isUploading ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                    <Loader size="xs" className="mr-1.5" />
                     Spooling…
                   </>
                 ) : (

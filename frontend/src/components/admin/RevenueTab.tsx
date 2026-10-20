@@ -40,8 +40,13 @@ import {
   Check,
   ArrowRight,
   Zap,
+  Palette,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Loader } from "@/components/ui/Loader";
+
+let cachedTransactions: Transaction[] = [];
+let cachedRevenueLoadedOnce = false;
 import { BW_RATE, COLOR_RATE } from "@/lib/printStore";
 import { ExportReportModal } from "./ExportReportModal";
 
@@ -52,6 +57,10 @@ export interface TransactionFile {
   status: string;
   color?: boolean;
   paperSize?: string;
+  duplex?: boolean;
+  layout?: string;
+  pagesPerSheet?: number;
+  pageRange?: string;
 }
 
 export interface Transaction {
@@ -64,7 +73,9 @@ export interface Transaction {
   utrNo?: string;
   registerSeqNumber?: number;
   pageSize?: string;
+  colorPrints?: number;
   colorPages?: number;
+  bwPrints?: number;
   bwPages?: number;
   createdAt: string;
   dateKey: string; // YYYY-MM-DD
@@ -77,17 +88,26 @@ export interface Transaction {
 }
 
 function extractCourseFromJob(job: any): string {
-  if (job.course) return String(job.course).toUpperCase();
-  if (job.department) return String(job.department).toUpperCase();
-  const email = (job.userEmail || job.email || '').toLowerCase();
+  const email = (job.userEmail || job.email || '').toLowerCase().trim();
   if (email.includes('@')) {
     const [local, domain] = email.split('@');
     if (!/\d/.test(local)) return 'FACULTY';
-    const subdomains = domain.split('.');
-    if (subdomains.length >= 4) {
-      return subdomains[0].toUpperCase();
+    const match = domain.match(/^([^.]+)\.rishihood/);
+    if (match && match[1]) {
+      const code = match[1].toUpperCase();
+      return code === 'NEWTON' ? 'NST' : code;
     }
   }
+
+  if (job.course) {
+    const c = String(job.course).toUpperCase();
+    return c === 'NEWTON' ? 'NST' : c;
+  }
+  if (job.department) {
+    const d = String(job.department).toUpperCase();
+    return d === 'NEWTON' ? 'NST' : d;
+  }
+
   const nameLower = (job.userName || '').toLowerCase();
   if (nameLower.includes('faculty') || nameLower.includes('prof') || nameLower.includes('dr.')) {
     return 'FACULTY';
@@ -177,7 +197,8 @@ interface RevenueTabProps {
 
 export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {}) {
   const { user, logout } = useAuth();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>(cachedTransactions);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState<boolean>(cachedRevenueLoadedOnce);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [period, setPeriod] = useState<PeriodFilter>("all");
@@ -249,21 +270,43 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
         const first = group[0];
         const seqNumber = totalOrdersCount - groupIdx;
         const internalId = `RU-${String(seqNumber).padStart(4, "0")}`;
-        const totalCopies = group.reduce(
-          (sum: number, j: any) => sum + (j.copies || 1),
-          0
-        );
+        // Calculate billable and active files (exclude cancelled/failed files)
+        const activeFiles = group.filter((j: any) => j.status !== 'cancelled' && j.status !== 'failed');
+        const filesForPageCount = activeFiles.length > 0 ? activeFiles : group;
 
-        let colorPages = 0;
-        let bwPages = 0;
-        group.forEach((j: any) => {
+        let colorPrints = 0;
+        let colorSheets = 0;
+        let bwPrints = 0;
+        let bwSheets = 0;
+
+        filesForPageCount.forEach((j: any) => {
           const copies = j.copies || 1;
+          const isDuplex = Boolean(j.doubleSided || j.double_sided || j.duplex);
+          const rawPages = j.pages || j.totalPages || j.numPages || 1;
+
+          let printedSides = copies * rawPages;
+          let physicalSheets = copies * rawPages;
+
+          if (isDuplex) {
+            if (rawPages <= 1) {
+              printedSides = copies * 2;
+              physicalSheets = copies * 1;
+            } else {
+              printedSides = copies * rawPages;
+              physicalSheets = copies * Math.ceil(rawPages / 2);
+            }
+          }
+
           if (j.color) {
-            colorPages += copies;
+            colorPrints += printedSides;
+            colorSheets += physicalSheets;
           } else {
-            bwPages += copies;
+            bwPrints += printedSides;
+            bwSheets += physicalSheets;
           }
         });
+
+        const totalSheets = colorSheets + bwSheets;
 
         const hasA3 = group.some((j: any) => (j.paper_size || j.paperSize) === "A3");
         const pageSize = hasA3 ? "A3" : "A4";
@@ -271,15 +314,18 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
         const utrNo = getUtrNumber(first);
 
         // Calculate amount: only include non-cancelled and non-failed files in billable amount
-        const activeFiles = group.filter((j: any) => j.status !== 'cancelled' && j.status !== 'failed');
         const explicitAmount = activeFiles.reduce(
           (sum: number, j: any) => sum + (j.amount || 0),
           0
         );
-        const calculatedAmount = activeFiles.reduce(
-          (sum: number, j: any) => sum + (j.copies || 1) * (j.color ? 10 : 2),
-          0
-        );
+        const calculatedAmount = activeFiles.reduce((sum: number, j: any) => {
+          const copies = j.copies || 1;
+          const isDuplex = Boolean(j.doubleSided || j.double_sided || j.duplex);
+          const rawPages = j.pages || j.totalPages || j.numPages || 1;
+          const printedSides = copies * (isDuplex && rawPages <= 1 ? 2 : rawPages);
+          const rate = (j.paper_size || j.paperSize) === "A3" ? (j.color ? 20 : 5) : (j.color ? 10 : 2);
+          return sum + printedSides * rate;
+        }, 0);
         const isAdmin = (first.userName || '').toLowerCase().includes('admin');
         const amount = isAdmin ? 0 : (explicitAmount > 0 ? explicitAmount : calculatedAmount);
 
@@ -302,12 +348,14 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
           course,
           utrNo,
           pageSize,
-          colorPages,
-          bwPages,
+          colorPrints,
+          colorPages: colorSheets,
+          bwPrints,
+          bwPages: bwSheets,
           createdAt: first.createdAt,
           dateKey,
           amount,
-          totalPages: totalCopies,
+          totalPages: totalSheets,
           status: overallStatus,
           paymentMethod: "UPI / GPay",
           originalJobs: group,
@@ -317,16 +365,24 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
             copies: j.copies || 1,
             status: j.status,
             color: j.color || false,
-            paperSize: j.paper_size || j.paperSize || "A4",
+            paperSize: (j.paper_size || j.paperSize || "A4").toUpperCase(),
+            duplex: j.duplex !== undefined ? j.duplex : Boolean(j.doubleSided || j.double_sided),
+            layout: (j.layout || "portrait").toLowerCase(),
+            pagesPerSheet: j.pages_per_sheet || j.pagesPerSheet || 1,
+            pageRange: j.page_range || j.pageRange || "all",
           })),
         };
       });
 
+      cachedTransactions = normalized;
+      cachedRevenueLoadedOnce = true;
       setTransactions(normalized);
+      setHasLoadedOnce(true);
     } catch (err) {
       console.error("Error loading revenue data:", err);
     } finally {
       setLoading(false);
+      setHasLoadedOnce(true);
     }
   };
 
@@ -506,10 +562,6 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
     return list;
   }, [rawDayWiseData, hideZeroRevenueDays, search]);
 
-  const maxDailyRevenue = useMemo(() => {
-    return Math.max(...rawDayWiseData.map((d) => d.totalRevenue), 1);
-  }, [rawDayWiseData]);
-
   const txPaidCount = useMemo(() => {
     return dateFilteredTransactions.filter(
       (t) => t.status === "completed" || t.status === "paid"
@@ -569,8 +621,8 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
       const d = new Date(t.createdAt);
       const dateFormatted = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getFullYear()).slice(-2)}`;
       
-      const hasColor = (t.colorPages || 0) > 0;
-      const hasBw = (t.bwPages || 0) > 0;
+      const hasColor = (t.colorPrints || t.colorPages || 0) > 0;
+      const hasBw = (t.bwPrints || t.bwPages || 0) > 0;
 
       return [
         isRegister ? (t.registerSeqNumber || idx + 1) : (t.seqNumber || idx + 1),
@@ -579,10 +631,10 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
         `"${t.course || "CSDS"}"`,
         `"${t.utrNo || ""}"`,
         `"${t.pageSize || "A4"}"`,
-        hasColor ? 1 : '"-"',
-        hasColor ? t.colorPages : '"-"',
-        hasBw ? 1 : '"-"',
-        hasBw ? t.bwPages : '"-"',
+        hasColor ? (t.colorPrints ?? 0) : '"-"',
+        hasColor ? (t.colorPages ?? 0) : '"-"',
+        hasBw ? (t.bwPrints ?? 0) : '"-"',
+        hasBw ? (t.bwPages ?? 0) : '"-"',
         t.totalPages,
         `"₹${t.amount}"`,
       ];
@@ -638,6 +690,14 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
     setHideZeroRevenueDays(false);
     setCurrentPage(1);
   };
+
+  if (!hasLoadedOnce) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[420px] p-8">
+        <Loader size="lg" text="Loading revenue metrics..." subtext="Syncing register and transaction data" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full space-y-4 min-h-0">
@@ -1181,7 +1241,6 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                 ) : (
                   dayWiseData.map((day) => {
                     const isSelected = selectedSingleDay === day.dateKey;
-                    const revenuePercent = maxDailyRevenue > 0 ? (day.totalRevenue / maxDailyRevenue) * 100 : 0;
 
                     return (
                       <TableRow
@@ -1255,40 +1314,17 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                           {day.pagesCount} pg
                         </TableCell>
 
-                        {/* Daily Revenue with Bar */}
+                        {/* Daily Revenue */}
                         <TableCell className="py-3">
-                          <div className="flex flex-col gap-1 w-36 sm:w-44">
-                            {day.totalRevenue > 0 ? (
-                              <>
-                                <div className="flex items-center justify-between">
-                                  <span className="font-extrabold font-mono text-emerald-600 dark:text-emerald-400 text-sm">
-                                    ₹{day.totalRevenue.toLocaleString("en-IN")}
-                                  </span>
-                                  <span className="text-[10px] text-muted-foreground font-mono">
-                                    {Math.round(revenuePercent)}%
-                                  </span>
-                                </div>
-                                <div className="h-1.5 w-full bg-muted/60 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                                    style={{ width: `${Math.min(Math.max(revenuePercent, 6), 100)}%` }}
-                                  />
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="flex items-center justify-between">
-                                  <span className="font-mono text-muted-foreground/60 text-sm font-medium">
-                                    ₹0
-                                  </span>
-                                  <span className="text-[10px] text-muted-foreground/50">
-                                    0 paid
-                                  </span>
-                                </div>
-                                <div className="h-1.5 w-full bg-muted/30 rounded-full overflow-hidden" />
-                              </>
-                            )}
-                          </div>
+                          {day.totalRevenue > 0 ? (
+                            <span className="font-extrabold font-mono text-emerald-600 dark:text-emerald-400 text-sm">
+                              ₹{day.totalRevenue.toLocaleString("en-IN")}
+                            </span>
+                          ) : (
+                            <span className="font-mono text-muted-foreground/50 text-sm font-medium">
+                              ₹0
+                            </span>
+                          )}
                         </TableCell>
 
                         {/* Action Drilldown */}
@@ -1357,8 +1393,8 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                   paginatedTransactions.map((tx) => {
                     const d = new Date(tx.createdAt);
                     const dateFormatted = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getFullYear()).slice(-2)}`;
-                    const hasColor = (tx.colorPages || 0) > 0;
-                    const hasBw = (tx.bwPages || 0) > 0;
+                    const hasColor = (tx.colorPrints || tx.colorPages || 0) > 0;
+                    const hasBw = (tx.bwPrints || tx.bwPages || 0) > 0;
                     const isExpanded = expandedId === tx.id;
 
                     return (
@@ -1426,7 +1462,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                           {/* Colour Print */}
                           <TableCell className="text-center font-mono text-xs">
                             {hasColor ? (
-                              <span className="font-bold text-rose-600 dark:text-rose-400">1</span>
+                              <span className="font-bold text-rose-600 dark:text-rose-400">{tx.colorPrints}</span>
                             ) : (
                               <span className="text-muted-foreground/60">—</span>
                             )}
@@ -1435,7 +1471,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                           {/* Colour Page */}
                           <TableCell className="text-center font-mono text-xs">
                             {hasColor ? (
-                              <span className="font-bold text-rose-600 dark:text-rose-400">{tx.colorPages}</span>
+                              <span className="font-medium text-foreground">{tx.colorPages}</span>
                             ) : (
                               <span className="text-muted-foreground/60">—</span>
                             )}
@@ -1444,7 +1480,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                           {/* B&W Print */}
                           <TableCell className="text-center font-mono text-xs">
                             {hasBw ? (
-                              <span className="font-bold text-foreground">1</span>
+                              <span className="font-bold text-foreground">{tx.bwPrints}</span>
                             ) : (
                               <span className="text-muted-foreground/60">—</span>
                             )}
@@ -1453,7 +1489,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                           {/* B&W Page */}
                           <TableCell className="text-center font-mono text-xs">
                             {hasBw ? (
-                              <span className="font-bold text-foreground">{tx.bwPages}</span>
+                              <span className="font-medium text-foreground">{tx.bwPages}</span>
                             ) : (
                               <span className="text-muted-foreground/60">—</span>
                             )}
@@ -1743,29 +1779,81 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
                                     {tx.files.map((file, fIdx) => (
                                       <div
                                         key={fIdx}
-                                        className="flex items-center justify-between gap-3 rounded-xl bg-card/60 border border-border/40 px-3.5 py-2 text-xs"
+                                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-card/60 border border-border/40 px-3.5 py-2.5 text-xs"
                                       >
-                                        <div className="flex items-center gap-2.5 min-w-0">
-                                          <FileText className="h-4 w-4 text-primary shrink-0" />
-                                          <span className="font-medium text-foreground truncate">
-                                            {file.name}
-                                          </span>
-                                          {file.color ? (
-                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shrink-0">
-                                              Colour
+                                        <div className="flex flex-col gap-1.5 min-w-0">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <FileText className="h-4 w-4 text-primary shrink-0" />
+                                            <span className="font-semibold text-foreground truncate" title={file.name}>
+                                              {file.name}
                                             </span>
-                                          ) : (
-                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-muted text-foreground/70 border border-border/50 shrink-0">
-                                              B&amp;W
+                                          </div>
+
+                                          {/* Specifications */}
+                                          {/* Specifications: Clean dot-separated metadata line (Option 1) */}
+                                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground pt-0.5">
+                                            {/* Paper Size */}
+                                            <span className="font-mono font-medium text-foreground">
+                                              {file.paperSize || "A4"}
                                             </span>
-                                          )}
-                                          <span className="text-[11px] text-muted-foreground font-mono shrink-0">
-                                            ({file.copies} {file.copies === 1 ? "page/copy" : "pages/copies"})
-                                          </span>
+
+                                            <span className="text-muted-foreground/35 select-none font-bold">·</span>
+
+                                            {/* Color Mode */}
+                                            {file.color ? (
+                                              <span className="font-semibold text-rose-600 dark:text-rose-400">
+                                                Colour
+                                              </span>
+                                            ) : (
+                                              <span>B&amp;W</span>
+                                            )}
+
+                                            <span className="text-muted-foreground/35 select-none font-bold">·</span>
+
+                                            {/* Duplex / Two-Sided */}
+                                            {file.duplex ? (
+                                              <span className="font-semibold text-primary">
+                                                2-Sided (Duplex)
+                                              </span>
+                                            ) : (
+                                              <span>1-Sided</span>
+                                            )}
+
+                                            <span className="text-muted-foreground/35 select-none font-bold">·</span>
+
+                                            {/* Orientation */}
+                                            <span className="capitalize">
+                                              {file.layout === "landscape" ? "Landscape" : "Portrait"}
+                                            </span>
+
+                                            <span className="text-muted-foreground/35 select-none font-bold">·</span>
+
+                                            {/* Copies */}
+                                            <span className={cn(file.copies > 1 && "font-semibold text-foreground font-mono")}>
+                                              {file.copies} {file.copies === 1 ? "copy" : "copies"}
+                                            </span>
+
+                                            <span className="text-muted-foreground/35 select-none font-bold">·</span>
+
+                                            {/* Pages per sheet */}
+                                            <span className={cn((file.pagesPerSheet || 1) > 1 && "font-semibold text-purple-600 dark:text-purple-400")}>
+                                              {file.pagesPerSheet || 1}-Up
+                                            </span>
+
+                                            <span className="text-muted-foreground/35 select-none font-bold">·</span>
+
+                                            {/* Page Range */}
+                                            <span className={cn(file.pageRange && file.pageRange !== "all" && "font-semibold text-amber-600 dark:text-amber-400 font-mono")}>
+                                              {file.pageRange && file.pageRange !== "all" ? `Pages: ${file.pageRange}` : "All pages"}
+                                            </span>
+                                          </div>
                                         </div>
-                                        <Badge variant="outline" className="text-[10px] capitalize">
-                                          {file.status}
-                                        </Badge>
+
+                                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                                          <Badge variant="outline" className="text-[10px] capitalize">
+                                            {file.status}
+                                          </Badge>
+                                        </div>
                                       </div>
                                     ))}
                                   </div>

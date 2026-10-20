@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 
 export interface User {
   id: string;
@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Standard username & password login for admin
-  const login = async (
+  const login = useCallback(async (
     username: string,
     password: string
   ): Promise<{ success: boolean; error?: string }> => {
@@ -73,10 +73,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       return { success: false, error: "Connection error." };
     }
-  };
+  }, []);
 
   // Google OAuth login for admin (verifies domain & admin privileges)
-  const loginWithGoogle = async (
+  const loginWithGoogle = useCallback(async (
     credential?: string,
     demoEmail?: string
   ): Promise<{ success: boolean; error?: string }> => {
@@ -111,12 +111,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       return { success: false, error: "Connection error with authentication server." };
     }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem(SESSION_KEY);
     setUser(null);
-  };
+  }, []);
 
   return (
     <AuthContext.Provider

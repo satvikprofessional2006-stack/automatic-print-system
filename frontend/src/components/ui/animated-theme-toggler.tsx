@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Moon, Sun } from "lucide-react";
-import { flushSync } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
@@ -57,7 +56,7 @@ function getThemeTransitionClipPaths(
     case "circle":
       return [
         `circle(0% at ${point(cx, cy)})`,
-        `circle(${toRadius(maxRadius)} at ${point(cx, cy)})`,
+        `circle(${toRadius(maxRadius * 1.05)} at ${point(cx, cy)})`,
       ];
     case "square": {
       const halfW = Math.max(cx, viewportWidth - cx);
@@ -216,9 +215,11 @@ export const AnimatedThemeToggler = ({
 
     const applyTheme = () => {
       const newTheme = !isDark;
-      // Always toggle the class synchronously so the View Transitions API
-      // snapshots the new theme inside the startViewTransition callback.
-      document.documentElement.classList.toggle("dark");
+      if (newTheme) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
       if (isControlled) {
         onThemeChange?.(newTheme ? "dark" : "light");
       } else {
@@ -250,7 +251,10 @@ export const AnimatedThemeToggler = ({
     // Pin the collapsed clip-path via CSS so Firefox does not paint the new
     // theme unclipped between snapshot and the ready.then() JS animation.
     root.style.setProperty("--magicui-theme-vt-clip-from", clipPath[0]);
+
+    let cleanupTimer: ReturnType<typeof setTimeout> | null = null;
     const cleanup = () => {
+      if (cleanupTimer) clearTimeout(cleanupTimer);
       isTransitioningRef.current = false;
       delete root.dataset.magicuiThemeVt;
       root.style.removeProperty("--magicui-theme-toggle-vt-duration");
@@ -258,9 +262,12 @@ export const AnimatedThemeToggler = ({
     };
 
     isTransitioningRef.current = true;
+    cleanupTimer = setTimeout(cleanup, duration + 100);
+
     const transition = document.startViewTransition(() => {
-      flushSync(applyTheme);
+      applyTheme();
     });
+
     if (typeof transition?.finished?.finally === "function") {
       transition.finished.finally(cleanup).catch(() => {});
     } else {
@@ -277,8 +284,7 @@ export const AnimatedThemeToggler = ({
             },
             {
               duration,
-              // Star: linear avoids easing overshoot that fights polygon interpolation at t→1; VT group duration is synced above.
-              easing: shape === "star" ? "linear" : "ease-in-out",
+              easing: shape === "star" ? "linear" : "cubic-bezier(0.16, 1, 0.3, 1)",
               fill: "forwards",
               pseudoElement: "::view-transition-new(root)",
             },

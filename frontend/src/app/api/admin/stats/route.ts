@@ -3,10 +3,12 @@ export const dynamic = 'force-dynamic';
 
 import { createClient } from '@supabase/supabase-js';
 
+import { isAuthorizedAdmin } from '@/lib/adminAuth';
+
 export async function GET(req: Request) {
   try {
     const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.ADMIN_PASSWORD || 'admin'}`) {
+    if (!isAuthorizedAdmin(authHeader)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

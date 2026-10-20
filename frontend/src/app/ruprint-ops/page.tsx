@@ -12,6 +12,7 @@ import { RevenueTab } from "@/components/admin/RevenueTab";
 import { AdminPrintTab } from "@/components/admin/AdminPrintTab";
 import { OverviewTab } from "@/components/admin/OverviewTab";
 import { QrStandeeModal } from "@/components/admin/QrStandeeModal";
+import { Loader } from "@/components/ui/Loader";
 import { Info } from "lucide-react";
 
 function AdminDashboardContent() {
@@ -30,10 +31,7 @@ function AdminDashboardContent() {
   if (isLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <span className="h-7 w-7 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-          <p className="text-xs text-muted-foreground font-medium">Loading…</p>
-        </div>
+        <Loader size="md" text="Authenticating..." subtext="Checking admin security session" />
       </div>
     );
   }

@@ -32,6 +32,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Loader } from "@/components/ui/Loader";
 
 interface Props {
   files: PrintFile[];
@@ -565,11 +566,9 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
       </div>
 
       {/* ── Live Sheet Canvas Preview ── */}
-      <div className="relative flex flex-col items-center justify-center p-4 sm:p-7 rounded-2xl bg-muted/40 dark:bg-muted/20 border border-border/60 overflow-hidden min-h-[360px] select-none">
+      <div className="relative flex flex-col items-center justify-center p-4 sm:p-7 rounded-2xl bg-muted/40 dark:bg-muted/20 border border-border/60 overflow-hidden min-h-[460px] sm:min-h-[530px] select-none">
         {/* Ambient Grid Background */}
         <div className="absolute inset-0 opacity-[0.04] dark:opacity-[0.07] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px]" />
-
-
 
         {/* Floating Page Navigation Buttons beside the Sheet */}
         {navigablePages.length > 1 && (
@@ -595,6 +594,13 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
           </>
         )}
 
+        {/* Top-Left Sheet Dimensions Watermark (Inside preview block, outside sheet image) */}
+        <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-background/80 text-foreground/80 text-[10px] font-medium shadow-xs backdrop-blur border border-border/60 select-none pointer-events-none transition-all">
+          <span className="font-bold text-foreground font-mono">{paperSize}</span>
+          <span className="text-muted-foreground/60">•</span>
+          <span className="font-mono text-[9px] text-muted-foreground">{isA3 ? "297 × 420 mm" : "210 × 297 mm"}</span>
+        </div>
+
         {/* Top-Right Zoom / Inspect Button */}
         <button
           type="button"
@@ -606,223 +612,218 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
           <span>Zoom</span>
         </button>
 
-
-        {/* Paper Sheet Mockup with Framer Motion Layout Animation */}
-        <motion.div
-          layout
-          transition={{ type: "spring", stiffness: 350, damping: 28 }}
-          className={cn(
-            "relative bg-white text-zinc-900 rounded-lg shadow-2xl shadow-black/25 ring-1 ring-black/10 overflow-hidden flex flex-col justify-between transition-all select-none",
-            isLandscape
-              ? "w-[290px] sm:w-[370px] h-[205px] sm:h-[262px]" // A4 Landscape ratio ~ 1.414:1
-              : "w-[210px] sm:w-[250px] h-[297px] sm:h-[353px]" // A4 Portrait ratio ~ 1:1.414
-          )}
-        >
-          {/* Printable Area Safe Margin Outline (faint dashed border) */}
-          <div className="absolute inset-1.5 sm:inset-2 border border-dashed border-zinc-300 pointer-events-none rounded-xs z-10" />
-
-          {/* Paper Size Indicator Badge (top right of sheet) */}
-          <div className="absolute top-2 right-2 z-20 flex items-center gap-1 bg-black/75 backdrop-blur-md text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-full shadow-xs pointer-events-none">
-            <span>{paperSize}</span>
-            <span className="opacity-70 text-[8px]">{isA3 ? "297×420mm" : "210×297mm"}</span>
-          </div>
-
-          {/* Excluded Page Watermark Overlay */}
-          {docPages > 1 && !isCurrentPageIncluded && (
-            <div className="absolute inset-0 bg-white/75 dark:bg-black/60 z-15 backdrop-blur-[1px] flex flex-col items-center justify-center p-3 text-center pointer-events-none">
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20">
-                Page {activePageNum} Excluded
-              </span>
-              <p className="text-[10px] text-zinc-500 mt-1">This page will not be printed.</p>
-            </div>
-          )}
-
-          {/* Paper Content Preview with Grayscale simulation for B&W */}
+        {/* Sheet Preview Stage Area */}
+        <div className="flex-1 w-full flex items-center justify-center pb-28 sm:pb-32 pt-9 min-h-0">
+          {/* Paper Sheet Mockup (Smooth responsive scaling between A4 and A3 without clipping) */}
           <div
             className={cn(
-              "relative w-full h-full flex items-center justify-center overflow-hidden bg-white p-2 sm:p-2.5 transition-all duration-300",
-              !isColor && "grayscale contrast-[1.06] brightness-[0.98]"
+              "relative bg-white text-zinc-900 rounded-none shadow-2xl shadow-black/25 ring-1 ring-black/10 overflow-hidden flex flex-col justify-between select-none max-w-[92%] transition-all duration-300 ease-out",
+              isA3
+                ? (isLandscape
+                    ? "w-[300px] sm:w-[370px] md:w-[410px] h-[212px] sm:h-[262px] md:h-[290px]"
+                    : "w-[205px] sm:w-[255px] md:w-[275px] h-[290px] sm:h-[360px] md:h-[388px]")
+                : (isLandscape
+                    ? "w-[275px] sm:w-[340px] md:w-[375px] h-[194px] sm:h-[240px] md:h-[265px]"
+                    : "w-[190px] sm:w-[235px] md:w-[255px] h-[269px] sm:h-[332px] md:h-[360px]")
             )}
           >
-            {isImage && currentUrl ? (
-              <img
-                src={currentUrl}
-                alt="Document Preview"
-                className="max-w-full max-h-full object-contain rounded transition-all duration-300"
-              />
-            ) : isPdf ? (
-              activeSingleUrl ? (
-                activeSingleUrl.startsWith("data:image/") ? (
-                  <img
-                    key={`single-pdf-img-${activeFileIndex}-${activePageNum}`}
-                    src={activeSingleUrl}
-                    alt={`Page ${activePageNum} Preview`}
-                    className="max-w-full max-h-full object-contain rounded shadow-xs select-none pointer-events-none transition-all duration-300"
-                  />
+            {/* Excluded Page Watermark Overlay */}
+            {docPages > 1 && !isCurrentPageIncluded && (
+              <div className="absolute inset-0 bg-white/75 dark:bg-black/60 z-15 backdrop-blur-[1px] flex flex-col items-center justify-center p-3 text-center pointer-events-none">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-1 rounded border border-amber-500/20">
+                  Page {activePageNum} Excluded
+                </span>
+                <p className="text-[10px] text-zinc-500 mt-1">This page will not be printed.</p>
+              </div>
+            )}
+
+            {/* Paper Content Preview with Grayscale simulation for B&W */}
+            <div
+              className={cn(
+                "relative w-full h-full flex items-center justify-center overflow-hidden bg-white p-0 transition-all duration-300",
+                !isColor && "grayscale contrast-[1.06] brightness-[0.98]"
+              )}
+            >
+              {isImage && currentUrl ? (
+                <img
+                  src={currentUrl}
+                  alt="Document Preview"
+                  className="w-full h-full object-contain select-none pointer-events-none transition-all duration-300"
+                />
+              ) : isPdf ? (
+                activeSingleUrl ? (
+                  activeSingleUrl.startsWith("data:image/") ? (
+                    <img
+                      key={`single-pdf-img-${activeFileIndex}-${activePageNum}`}
+                      src={activeSingleUrl}
+                      alt={`Page ${activePageNum} Preview`}
+                      className="w-full h-full object-contain select-none pointer-events-none transition-all duration-300"
+                    />
+                  ) : (
+                    <iframe
+                      key={`single-pdf-${activeFileIndex}-${activePageNum}`}
+                      src={`${activeSingleUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
+                      title={`Page ${activePageNum} Preview`}
+                      className="w-full h-full border-none pointer-events-none bg-white"
+                    />
+                  )
                 ) : (
-                  <iframe
-                    key={`single-pdf-${activeFileIndex}-${activePageNum}`}
-                    src={`${activeSingleUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
-                    title={`Page ${activePageNum} Preview`}
-                    className="w-full h-full border-none pointer-events-none rounded bg-white"
-                  />
+                  <div className="flex flex-col items-center justify-center p-4 text-center">
+                    <Loader size="md" subtext={`Rendering page ${activePageNum}...`} />
+                  </div>
                 )
               ) : (
                 <div className="flex flex-col items-center justify-center gap-2 p-4 text-center">
-                  <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  <p className="text-[11px] text-zinc-500 font-mono">
-                    Rendering page {activePageNum}...
+                  <div className="p-3 rounded-full bg-primary/10">
+                    <FileText className="h-8 w-8 text-primary" />
+                  </div>
+                  <p className="text-xs font-semibold text-zinc-800 line-clamp-2">
+                    {currentFile?.name}
+                  </p>
+                  <p className="text-[10px] text-zinc-500 font-mono">
+                    Page {activePageNum} of {docPages}
                   </p>
                 </div>
-              )
-            ) : (
-              <div className="flex flex-col items-center justify-center gap-2 p-4 text-center">
-                <div className="p-3 rounded-full bg-primary/10">
-                  <FileText className="h-8 w-8 text-primary" />
-                </div>
-                <p className="text-xs font-semibold text-zinc-800 line-clamp-2">
-                  {currentFile?.name}
-                </p>
-                <p className="text-[10px] text-zinc-500 font-mono">
-                  Page {activePageNum} of {docPages}
-                </p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </motion.div>
+        </div>
 
-        {/* Multi-page stepper with scope toggle, direct jump and scrub slider */}
-        {docPages > 1 && (
-          <div className="flex flex-col items-center gap-2 mt-3 z-10 w-full max-w-xs sm:max-w-sm px-2">
-            {/* Scope Toggle Pill (when custom or odd/even is active) */}
-            {parsedRange.valid && parsedRange.count < docPages && (
-              <div className="flex items-center gap-1 p-0.5 rounded-xl bg-background/90 border border-border/70 text-[11px] shadow-2xs">
+        {/* Static Bottom Controls & Status Bar (Locked at bottom so it never moves when paper size changes) */}
+        <div className="absolute bottom-3 inset-x-0 z-20 flex flex-col items-center gap-1.5 px-3 pointer-events-auto">
+          {/* Multi-page stepper with scope toggle, direct jump and scrub slider */}
+          {docPages > 1 && (
+            <div className="flex flex-col items-center gap-1.5 w-full max-w-xs sm:max-w-sm px-2">
+              {/* Scope Toggle Pill (when custom or odd/even is active) */}
+              {parsedRange.valid && parsedRange.count < docPages && (
+                <div className="flex items-center gap-1 p-0.5 rounded-xl bg-background/90 border border-border/70 text-[11px] shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPreviewScope("selected");
+                      if (!parsedRange.pages.includes(activePageNum)) {
+                        setActivePageNum(parsedRange.pages[0]);
+                      }
+                    }}
+                    className={cn(
+                      "px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1",
+                      previewScope === "selected"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Check className="h-3 w-3" />
+                    <span>Selected ({parsedRange.count})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewScope("all")}
+                    className={cn(
+                      "px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1",
+                      previewScope === "all"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <span>All ({docPages})</span>
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between w-full bg-background/85 backdrop-blur px-3 py-1.5 rounded-full border border-border/60 text-xs shadow-2xs">
                 <button
                   type="button"
-                  onClick={() => {
-                    setPreviewScope("selected");
-                    if (!parsedRange.pages.includes(activePageNum)) {
-                      setActivePageNum(parsedRange.pages[0]);
-                    }
-                  }}
-                  className={cn(
-                    "px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1",
-                    previewScope === "selected"
-                      ? "bg-primary text-primary-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
+                  disabled={!canGoPrev}
+                  onClick={handlePrevPage}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/70 hover:bg-muted text-foreground/80 hover:text-foreground disabled:opacity-25 disabled:pointer-events-none transition-colors font-medium text-[11px] cursor-pointer"
+                  title="Previous page"
                 >
-                  <Check className="h-3 w-3" />
-                  <span>Selected ({parsedRange.count})</span>
+                  <ChevronLeft className="h-3.5 w-3.5" /> Prev
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewScope("all")}
-                  className={cn(
-                    "px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1",
-                    previewScope === "all"
-                      ? "bg-primary text-primary-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <span>All ({docPages})</span>
-                </button>
-              </div>
-            )}
 
-            <div className="flex items-center justify-between w-full bg-background/85 backdrop-blur px-3 py-1.5 rounded-full border border-border/60 text-xs shadow-2xs">
-              <button
-                type="button"
-                disabled={!canGoPrev}
-                onClick={handlePrevPage}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/70 hover:bg-muted text-foreground/80 hover:text-foreground disabled:opacity-25 disabled:pointer-events-none transition-colors font-medium text-[11px] cursor-pointer"
-                title="Previous page"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" /> Prev
-              </button>
-
-              <div className="flex items-center gap-1.5 font-mono text-[11px] font-semibold text-foreground">
-                <span>Page</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={docPages}
-                  value={pageJumpInput !== "" ? pageJumpInput : activePageNum}
-                  onFocus={() => setPageJumpInput(String(activePageNum))}
-                  onChange={(e) => setPageJumpInput(e.target.value)}
-                  onBlur={() => {
-                    const num = parseInt(pageJumpInput, 10);
-                    if (!isNaN(num)) {
-                      setActivePageNum(Math.max(1, Math.min(docPages, num)));
-                    }
-                    setPageJumpInput("");
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+                <div className="flex items-center gap-1.5 font-mono text-[11px] font-semibold text-foreground">
+                  <span>Page</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={docPages}
+                    value={pageJumpInput !== "" ? pageJumpInput : activePageNum}
+                    onFocus={() => setPageJumpInput(String(activePageNum))}
+                    onChange={(e) => setPageJumpInput(e.target.value)}
+                    onBlur={() => {
                       const num = parseInt(pageJumpInput, 10);
                       if (!isNaN(num)) {
                         setActivePageNum(Math.max(1, Math.min(docPages, num)));
                       }
                       setPageJumpInput("");
-                      (e.target as HTMLInputElement).blur();
-                    }
-                  }}
-                  className="w-12 h-6 px-1 text-center font-bold font-mono text-xs rounded bg-muted/60 border border-border/70 focus:outline-none focus:ring-1 focus:ring-primary"
-                  title="Type page number and press Enter"
-                />
-                <span className="text-muted-foreground font-normal">
-                  {isFiltered ? `(${currentIndex + 1} of ${navigablePages.length})` : `of ${docPages}`}
-                </span>
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        const num = parseInt(pageJumpInput, 10);
+                        if (!isNaN(num)) {
+                          setActivePageNum(Math.max(1, Math.min(docPages, num)));
+                        }
+                        setPageJumpInput("");
+                        (e.target as HTMLInputElement).blur();
+                      }
+                    }}
+                    className="w-12 h-6 px-1 text-center font-bold font-mono text-xs rounded bg-muted/60 border border-border/70 focus:outline-none focus:ring-1 focus:ring-primary"
+                    title="Type page number and press Enter"
+                  />
+                  <span className="text-muted-foreground font-normal">
+                    {isFiltered ? `(${currentIndex + 1} of ${navigablePages.length})` : `of ${docPages}`}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!canGoNext}
+                  onClick={handleNextPage}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/70 hover:bg-muted text-foreground/80 hover:text-foreground disabled:opacity-25 disabled:pointer-events-none transition-colors font-medium text-[11px] cursor-pointer"
+                  title="Next page"
+                >
+                  Next <ChevronRight className="h-3.5 w-3.5" />
+                </button>
               </div>
 
-              <button
-                type="button"
-                disabled={!canGoNext}
-                onClick={handleNextPage}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted/70 hover:bg-muted text-foreground/80 hover:text-foreground disabled:opacity-25 disabled:pointer-events-none transition-colors font-medium text-[11px] cursor-pointer"
-                title="Next page"
-              >
-                Next <ChevronRight className="h-3.5 w-3.5" />
-              </button>
+              {/* Scrub Slider for fast navigation */}
+              {navigablePages.length > 2 && (
+                <div className="flex items-center gap-2 w-full px-2">
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    {navigablePages[0]}
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={navigablePages.length - 1}
+                    value={currentIndex}
+                    onChange={(e) => setActivePageNum(navigablePages[Number(e.target.value)])}
+                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                    title={`Jump to page ${activePageNum}`}
+                  />
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    {navigablePages[navigablePages.length - 1]}
+                  </span>
+                </div>
+              )}
             </div>
+          )}
 
-            {/* Scrub Slider for fast navigation */}
-            {navigablePages.length > 2 && (
-              <div className="flex items-center gap-2 w-full px-2">
-                <span className="text-[10px] text-muted-foreground font-mono">
-                  {navigablePages[0]}
-                </span>
-                <input
-                  type="range"
-                  min={0}
-                  max={navigablePages.length - 1}
-                  value={currentIndex}
-                  onChange={(e) => setActivePageNum(navigablePages[Number(e.target.value)])}
-                  className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                  title={`Jump to page ${activePageNum}`}
-                />
-                <span className="text-[10px] text-muted-foreground font-mono">
-                  {navigablePages[navigablePages.length - 1]}
-                </span>
-              </div>
-            )}
+          {/* Active Document Status */}
+          <div className="flex flex-col items-center gap-1">
+            <p className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5">
+              <span>Paper:</span>
+              <strong className="text-foreground uppercase">{paperSize}</strong>
+              <span>•</span>
+              <span>Orientation:</span>
+              <strong className="text-foreground capitalize">{currentSettings.layout || "portrait"}</strong>
+              <span>•</span>
+              <span>Printing:</span>
+              <strong className="text-foreground">
+                {parsedRange.count} page{parsedRange.count !== 1 ? "s" : ""}
+              </strong>
+            </p>
           </div>
-        )}
-
-        {/* Active Document Status */}
-        <div className="flex flex-col items-center gap-1 mt-2.5 z-10">
-          <p className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5">
-            <span>Paper:</span>
-            <strong className="text-foreground uppercase">{paperSize}</strong>
-            <span>•</span>
-            <span>Orientation:</span>
-            <strong className="text-foreground capitalize">{currentSettings.layout || "portrait"}</strong>
-            <span>•</span>
-            <span>Printing:</span>
-            <strong className="text-foreground">
-              {parsedRange.count} page{parsedRange.count !== 1 ? "s" : ""}
-            </strong>
-          </p>
         </div>
       </div>
 
@@ -1242,7 +1243,7 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
                   <img
                     src={currentUrl}
                     alt={currentFile?.name}
-                    className="max-h-[65vh] max-w-full object-contain rounded shadow-md"
+                    className="max-h-[65vh] max-w-full object-contain rounded-none shadow-md"
                   />
                 ) : isPdf && activeSingleUrl ? (
                   activeSingleUrl.startsWith("data:image/") ? (
@@ -1250,22 +1251,19 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
                       key={`zoom-pdf-img-${activeFileIndex}-${activePageNum}`}
                       src={activeSingleUrl}
                       alt={currentFile?.name}
-                      className="max-h-[72vh] max-w-full object-contain rounded shadow-lg bg-white"
+                      className="max-h-[72vh] max-w-full object-contain rounded-none shadow-lg bg-white"
                     />
                   ) : (
                     <iframe
                       key={`zoom-pdf-${activeFileIndex}-${activePageNum}`}
                       src={`${activeSingleUrl}#toolbar=1&navpanes=0&view=Fit`}
                       title="PDF Zoom Preview"
-                      className="w-full h-[65vh] rounded border-none bg-white"
+                      className="w-full h-[65vh] rounded-none border-none bg-white"
                     />
                   )
                 ) : (
-                  <div className="flex flex-col items-center justify-center gap-2 p-8 text-center">
-                    <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    <p className="text-xs text-muted-foreground font-mono">
-                      Loading page {activePageNum}...
-                    </p>
+                  <div className="flex flex-col items-center justify-center p-8 text-center">
+                    <Loader size="lg" subtext={`Loading page ${activePageNum}...`} />
                   </div>
                 )}
               </div>

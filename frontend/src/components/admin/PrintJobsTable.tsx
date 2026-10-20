@@ -25,8 +25,16 @@ import {
   ChevronDown,
   ChevronUp,
   Printer,
+  Palette,
+  Layers,
+  Copy,
 } from "lucide-react";
 import { cn, formatIndianDateTime, parseUtcDate } from "@/lib/utils";
+import { Loader } from "@/components/ui/Loader";
+
+let cachedJobs: any[] = [];
+let cachedPrinterLastSeen: string | null = null;
+let cachedJobsLoadedOnce = false;
 
 const STATUS_STYLES: Record<string, string> = {
   queued: "bg-blue-500/15 text-blue-800 dark:text-blue-200 border border-blue-500/30",
@@ -62,8 +70,9 @@ function formatBytes(b: number) {
 
 export function PrintJobsTable() {
   const { user, logout } = useAuth();
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [printerLastSeen, setPrinterLastSeen] = useState<string | null>(null);
+  const [jobs, setJobs] = useState<any[]>(cachedJobs);
+  const [printerLastSeen, setPrinterLastSeen] = useState<string | null>(cachedPrinterLastSeen);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState<boolean>(cachedJobsLoadedOnce);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -116,8 +125,9 @@ export function PrintJobsTable() {
         const taskDisplayId = `RU-${String(serial).padStart(4, "0")}`;
         const first = group[0];
         const isAdmin = (first.userName || '').toLowerCase().includes('admin');
-        const totalCopies = group.reduce((sum: number, j: any) => sum + (j.copies || 1), 0);
         const activeFiles = group.filter((j: any) => j.status !== 'cancelled' && j.status !== 'failed');
+        const filesForCount = activeFiles.length > 0 ? activeFiles : group;
+        const totalCopies = filesForCount.reduce((sum: number, j: any) => sum + (j.copies || 1), 0);
         const explicitAmount = activeFiles.reduce((sum: number, j: any) => sum + (j.amount || 0), 0);
         const calculatedAmount = activeFiles.reduce(
           (sum: number, j: any) => sum + (j.copies || 1) * (j.color ? 10 : 2),
@@ -150,15 +160,21 @@ export function PrintJobsTable() {
             status: j.status,
             color: j.color || false,
             pagesPerSheet: j.pages_per_sheet || j.pagesPerSheet || 1,
-            paperSize: j.paper_size || j.paperSize || "A4",
-            duplex: j.duplex,
+            paperSize: (j.paper_size || j.paperSize || "A4").toUpperCase(),
+            duplex: j.duplex !== undefined ? j.duplex : Boolean(j.doubleSided || j.double_sided),
             copies: j.copies || 1,
+            layout: (j.layout || "portrait").toLowerCase(),
+            pageRange: j.page_range || j.pageRange || "all",
           }))
         };
       });
 
+      cachedJobs = normalized;
+      cachedPrinterLastSeen = data.printerLastSeen || null;
+      cachedJobsLoadedOnce = true;
       setJobs(normalized);
       setPrinterLastSeen(data.printerLastSeen || null);
+      setHasLoadedOnce(true);
     } catch (err: any) {
       // In dev mode with Next.js Turbopack, transient network aborts/HMR reloads can throw TypeError: Failed to fetch.
       // Silently catch so it doesn't pop up an error modal over the admin dashboard.
@@ -297,6 +313,14 @@ export function PrintJobsTable() {
   const paginatedJobs = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const isPrinterConnected = printerLastSeen ? (new Date().getTime() - new Date(printerLastSeen + 'Z').getTime() < 15000) : false;
+
+  if (!hasLoadedOnce) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[420px] p-8">
+        <Loader size="lg" text="Loading print queue..." subtext="Syncing recent student and admin tasks" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full space-y-4 min-h-0">
@@ -599,37 +623,73 @@ export function PrintJobsTable() {
                                 {job.files.map((f: any, i: number) => (
                                   <div
                                     key={i}
-                                    className="flex items-center justify-between gap-3 rounded-xl bg-card/60 border border-border/50 px-3.5 py-2.5"
+                                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-card/60 border border-border/50 px-3.5 py-2.5"
                                   >
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                      <FileText className="h-4 w-4 text-primary shrink-0" />
-                                      <p className="text-xs font-semibold text-foreground truncate">
-                                        {f.name}
-                                      </p>
-                                      {f.color ? (
-                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shrink-0">
-                                          Colour
+                                    <div className="flex flex-col gap-1.5 min-w-0">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <FileText className="h-4 w-4 text-primary shrink-0" />
+                                        <p className="text-xs font-semibold text-foreground truncate" title={f.name}>
+                                          {f.name}
+                                        </p>
+                                      </div>
+
+                                      {/* Specifications: Clean dot-separated metadata line (Option 1) */}
+                                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground pt-0.5">
+                                        {/* Paper Size */}
+                                        <span className="font-mono font-medium text-foreground">
+                                          {f.paperSize || "A4"}
                                         </span>
-                                      ) : (
-                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-muted text-foreground/70 border border-border/50 shrink-0">
-                                          B&amp;W
+
+                                        <span className="text-muted-foreground/35 select-none font-bold">·</span>
+
+                                        {/* Color Mode */}
+                                        {f.color ? (
+                                          <span className="font-semibold text-rose-600 dark:text-rose-400">
+                                            Colour
+                                          </span>
+                                        ) : (
+                                          <span>B&amp;W</span>
+                                        )}
+
+                                        <span className="text-muted-foreground/35 select-none font-bold">·</span>
+
+                                        {/* Duplex / Two-Sided */}
+                                        {f.duplex ? (
+                                          <span className="font-semibold text-primary">
+                                            2-Sided (Duplex)
+                                          </span>
+                                        ) : (
+                                          <span>1-Sided</span>
+                                        )}
+
+                                        <span className="text-muted-foreground/35 select-none font-bold">·</span>
+
+                                        {/* Orientation */}
+                                        <span className="capitalize">
+                                          {f.layout === "landscape" ? "Landscape" : "Portrait"}
                                         </span>
-                                      )}
-                                      {f.pagesPerSheet > 1 && (
-                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
-                                          {f.pagesPerSheet}-Up
+
+                                        <span className="text-muted-foreground/35 select-none font-bold">·</span>
+
+                                        {/* Copies */}
+                                        <span className={cn(f.copies > 1 && "font-semibold text-foreground font-mono")}>
+                                          {f.copies} {f.copies === 1 ? "copy" : "copies"}
                                         </span>
-                                      )}
-                                      {f.paperSize === "A3" && (
-                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 shrink-0">
-                                          A3
+
+                                        <span className="text-muted-foreground/35 select-none font-bold">·</span>
+
+                                        {/* Pages per sheet */}
+                                        <span className={cn(f.pagesPerSheet > 1 && "font-semibold text-purple-600 dark:text-purple-400")}>
+                                          {f.pagesPerSheet || 1}-Up
                                         </span>
-                                      )}
-                                      {f.copies > 1 && (
-                                        <span className="text-[10px] text-muted-foreground font-mono font-bold shrink-0">
-                                          ×{f.copies}
+
+                                        <span className="text-muted-foreground/35 select-none font-bold">·</span>
+
+                                        {/* Page Range */}
+                                        <span className={cn(f.pageRange && f.pageRange !== "all" && "font-semibold text-amber-600 dark:text-amber-400 font-mono")}>
+                                          {f.pageRange && f.pageRange !== "all" ? `Pages: ${f.pageRange}` : "All pages"}
                                         </span>
-                                      )}
+                                      </div>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
                                       {f.status === 'paid' && (

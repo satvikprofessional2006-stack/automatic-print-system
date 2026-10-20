@@ -18,7 +18,7 @@ interface ThemeToggleProps {
 export function ThemeToggle({
   className,
   variant = "circle",
-  duration = 450,
+  duration = 380,
 }: ThemeToggleProps) {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);

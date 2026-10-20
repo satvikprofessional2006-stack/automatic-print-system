@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Upload, X, FileText, FileImage, File as FileIcon, Loader2 } from "lucide-react";
 import { PrintFile, BW_RATE, COLOR_RATE } from "@/lib/printStore";
 import { cn } from "@/lib/utils";
+import { Loader } from "@/components/ui/Loader";
 
 interface Props {
   files: PrintFile[];
@@ -179,7 +180,7 @@ export function FileUpload({ files, onChange }: Props) {
           )}
         >
           {isProcessing ? (
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader size="sm" />
           ) : (
             <Upload className={cn("h-6 w-6 transition-colors", dragging ? "text-primary" : "text-muted-foreground")} />
           )}

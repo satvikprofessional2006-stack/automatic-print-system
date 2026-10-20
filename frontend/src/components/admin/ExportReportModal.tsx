@@ -41,7 +41,6 @@ export function ExportReportModal({
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
   const [customStartDate, setCustomStartDate] = useState<string>("");
   const [customEndDate, setCustomEndDate] = useState<string>("");
-  const [paidOnly, setPaidOnly] = useState<boolean>(true);
   const [isExporting, setIsExporting] = useState<boolean>(false);
 
   const resetFilters = React.useCallback(() => {
@@ -49,7 +48,6 @@ export function ExportReportModal({
     setDatePreset("all");
     setCustomStartDate("");
     setCustomEndDate("");
-    setPaidOnly(true);
     setIsExporting(false);
   }, [initialFormat]);
 
@@ -75,9 +73,6 @@ export function ExportReportModal({
       // Register Logbook is by definition strictly completed, paid print jobs
       if (reportFormat === "register") {
         if (t.status !== "completed" && t.status !== "paid") return false;
-      } else {
-        // Transactions audit can optionally include or exclude cancelled attempts
-        if (paidOnly && t.status !== "completed" && t.status !== "paid") return false;
       }
 
       if (datePreset === "today") return t.dateKey === todayKey;
@@ -93,7 +88,7 @@ export function ExportReportModal({
       }
       return true;
     });
-  }, [allTransactions, datePreset, customStartDate, customEndDate, paidOnly, reportFormat]);
+  }, [allTransactions, datePreset, customStartDate, customEndDate, reportFormat]);
 
   const totalRevenue = useMemo(() => {
     return filtered.reduce((acc, t) => {
@@ -134,8 +129,8 @@ export function ExportReportModal({
           const dateFormatted = `${String(d.getDate()).padStart(2, "0")}-${String(
             d.getMonth() + 1
           ).padStart(2, "0")}-${String(d.getFullYear()).slice(-2)}`;
-          const hasColor = (t.colorPages || 0) > 0;
-          const hasBw = (t.bwPages || 0) > 0;
+          const hasColor = (t.colorPrints || t.colorPages || 0) > 0;
+          const hasBw = (t.bwPrints || t.bwPages || 0) > 0;
 
           return [
             t.registerSeqNumber || idx + 1,
@@ -144,10 +139,10 @@ export function ExportReportModal({
             `"${t.course || "CSDS"}"`,
             `"${t.utrNo || ""}"`,
             `"${t.pageSize || "A4"}"`,
-            hasColor ? 1 : '"-"',
-            hasColor ? t.colorPages || 0 : '"-"',
-            hasBw ? 1 : '"-"',
-            hasBw ? t.bwPages || 0 : '"-"',
+            hasColor ? (t.colorPrints ?? 0) : '"-"',
+            hasColor ? (t.colorPages ?? 0) : '"-"',
+            hasBw ? (t.bwPrints ?? 0) : '"-"',
+            hasBw ? (t.bwPages ?? 0) : '"-"',
             t.totalPages || 0,
             `"₹${t.amount || 0}"`,
           ];
@@ -341,40 +336,7 @@ export function ExportReportModal({
             )}
           </div>
 
-          {/* 3. Scope Segmented Toggle (Only for Transactions Audit) */}
-          {reportFormat === "audit" && (
-            <div className="space-y-1.5 animate-in fade-in-50 duration-150">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Records Included
-              </span>
-              <div className="grid grid-cols-2 p-1 bg-muted/40 rounded-xl border border-border/50">
-                <button
-                  type="button"
-                  onClick={() => setPaidOnly(true)}
-                  className={cn(
-                    "py-1.5 px-2.5 rounded-lg text-xs font-medium transition-all cursor-pointer select-none text-center",
-                    paidOnly
-                      ? "bg-foreground text-background font-semibold shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Paid Orders Only
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaidOnly(false)}
-                  className={cn(
-                    "py-1.5 px-2.5 rounded-lg text-xs font-medium transition-all cursor-pointer select-none text-center",
-                    !paidOnly
-                      ? "bg-foreground text-background font-semibold shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  All Attempts (Incl. Cancelled)
-                </button>
-              </div>
-            </div>
-          )}
+
         </div>
 
         {/* Footer */}

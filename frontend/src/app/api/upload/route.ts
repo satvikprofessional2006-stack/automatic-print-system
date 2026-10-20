@@ -21,6 +21,7 @@ export async function POST(req: Request) {
     const pagesPerSheetStr = formData.get('pagesPerSheet') as string;
     const pagesPerSheet = parseInt(pagesPerSheetStr || '1', 10);
     const userName = (formData.get('userName') as string) || null;
+    const userEmail = (formData.get('userEmail') as string) || (formData.get('email') as string) || null;
     const paymentId = (formData.get('paymentId') as string) || null;
     const utrNo = (formData.get('utrNo') as string) || null;
     
@@ -159,6 +160,7 @@ export async function POST(req: Request) {
             paymentId,
             utrNo,
             userName,
+            userEmail,
             uploadedAt: new Date().toISOString(),
           });
           await supabase

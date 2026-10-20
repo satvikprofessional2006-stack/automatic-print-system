@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GoogleAuthStep } from "@/components/print/GoogleAuthStep";
 import { DetailsForm } from "@/components/print/DetailsForm";
@@ -11,7 +11,7 @@ import { PrintSuccess } from "@/components/print/PrintSuccess";
 import { StudentTasksDrawer, StudentTaskItem } from "@/components/print/StudentTasksDrawer";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserType, PrintFile, PrintJob, StudentAuth, calcFilesAmount } from "@/lib/printStore";
-import { Printer, ChevronRight, ArrowLeft, LogOut, CheckCircle2, Clock } from "lucide-react";
+import { Printer, ChevronRight, ArrowLeft, LogOut, CheckCircle2, Clock, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Step = "auth" | "details" | "options" | "preview" | "payment" | "success";
@@ -54,6 +54,23 @@ export function PrintFlow() {
   const [isTasksDrawerOpen, setIsTasksDrawerOpen] = useState(false);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [recoveringPayment, setRecoveringPayment] = useState(false);
+
+  // 5-tap secret shortcut to Admin Console
+  const logoClicksRef = useRef<{ count: number; lastTime: number }>({ count: 0, lastTime: 0 });
+  const handleLogoSecretTap = () => {
+    const now = Date.now();
+    if (now - logoClicksRef.current.lastTime < 2500) {
+      logoClicksRef.current.count += 1;
+    } else {
+      logoClicksRef.current.count = 1;
+    }
+    logoClicksRef.current.lastTime = now;
+
+    if (logoClicksRef.current.count >= 5) {
+      logoClicksRef.current.count = 0;
+      window.location.href = "/ruprint-ops";
+    }
+  };
 
   const fetchMyTasks = async (nameOverride?: string, emailOverride?: string) => {
     const targetName = nameOverride || studentAuth?.name || draftName;
@@ -109,6 +126,7 @@ export function PrintFlow() {
                     formData.append("paperSize", cf.settings?.paperSize || "A4");
                     formData.append("pageRange", cf.settings?.pageRange || "all");
                     formData.append("userName", cached.name);
+                    if (cached.email) formData.append("userEmail", cached.email);
                     if (checkData.paymentId) formData.append("paymentId", checkData.paymentId);
                     if (checkData.utrNo) formData.append("utrNo", checkData.utrNo);
 
@@ -336,7 +354,11 @@ export function PrintFlow() {
             </button>
           )}
           
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div 
+            onClick={handleLogoSecretTap}
+            className="flex items-center gap-2 sm:gap-3 cursor-pointer select-none active:scale-95 transition-transform"
+            title="RU Print Portal"
+          >
             <img
               src="/Rishihood_University_idxo_lfgcw_2.png"
               alt="RU"
@@ -351,8 +373,20 @@ export function PrintFlow() {
           </div>
         </div>
 
-        {/* Right side: My Tasks button, user pill & theme toggle */}
+        {/* Right side: Admin Console badge, My Tasks button, user pill & theme toggle */}
         <div className="flex items-center gap-1.5 sm:gap-2.5">
+          {studentAuth?.isAdmin && (
+            <a
+              href="/ruprint-ops"
+              className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 border border-primary/40 text-xs font-semibold text-primary transition-all cursor-pointer shadow-xs"
+              title="Open Admin Console"
+            >
+              <Shield className="h-3.5 w-3.5 text-primary" />
+              <span className="hidden sm:inline">Admin Console</span>
+              <span className="sm:hidden">Admin</span>
+            </a>
+          )}
+
           {studentAuth && (
             <button
               type="button"
@@ -537,6 +571,7 @@ export function PrintFlow() {
         loading={loadingTasks}
         onRefresh={() => fetchMyTasks()}
         studentName={studentAuth?.name}
+        isAdmin={Boolean(studentAuth?.isAdmin)}
       />
     </div>
   );

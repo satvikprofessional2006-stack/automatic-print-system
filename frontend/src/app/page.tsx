@@ -52,8 +52,8 @@ export default function Page() {
             : { scale: 0.96, opacity: 0 }
         }
         transition={{
-          duration: 0.75,
-          ease: [0.22, 1, 0.36, 1],
+          duration: 0.6,
+          ease: [0.16, 1, 0.3, 1],
         }}
       >
         <PrintFlow />

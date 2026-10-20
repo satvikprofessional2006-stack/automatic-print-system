@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { cn, toLocalDateKey, getTodayDateKey } from "@/lib/utils";
 
+import { Loader } from "@/components/ui/Loader";
+
 interface Supply {
   name: string;
   level: number;
@@ -49,12 +51,17 @@ interface OverviewTabProps {
   onNavigate: (tabId: string, subView?: "daywise" | "transactions" | "register") => void;
 }
 
+let cachedOverviewPrinter: ConnectedPrinterInfo | null = null;
+let cachedOverviewJobs: any[] = [];
+let cachedOverviewLoadedOnce = false;
+
 export function OverviewTab({ onNavigate }: OverviewTabProps) {
   const { user, logout } = useAuth();
-  const [printer, setPrinter] = useState<ConnectedPrinterInfo | null>(null);
+  const [printer, setPrinter] = useState<ConnectedPrinterInfo | null>(cachedOverviewPrinter);
   const [loadingPrinter, setLoadingPrinter] = useState(false);
-  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobs, setJobs] = useState<any[]>(cachedOverviewJobs);
   const [loadingJobs, setLoadingJobs] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState<boolean>(cachedOverviewLoadedOnce);
   const [period, setPeriod] = useState<"today" | "all">("today");
 
   // Fetch dynamically detected connected printer
@@ -67,7 +74,9 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
       });
       if (res.ok) {
         const data = await res.json();
-        setPrinter(data.connectedPrinter || null);
+        const p = data.connectedPrinter || null;
+        cachedOverviewPrinter = p;
+        setPrinter(p);
       }
     } catch (e) {
       console.error("Failed to fetch printer status:", e);
@@ -90,11 +99,15 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
       }
       if (res.ok) {
         const data = await res.json();
-        setJobs(data.jobs || []);
+        const j = data.jobs || [];
+        cachedOverviewJobs = j;
+        setJobs(j);
       }
     } catch (e) {
       console.error("Failed to fetch jobs for overview:", e);
     } finally {
+      cachedOverviewLoadedOnce = true;
+      setHasLoadedOnce(true);
       setLoadingJobs(false);
     }
   };
@@ -186,6 +199,14 @@ export function OverviewTab({ onNavigate }: OverviewTabProps) {
     if (cleanHex.includes("ffff00") || cleanHex.includes("yellow")) return "border-amber-500/30 bg-amber-500/5";
     return "border-zinc-500/30 bg-zinc-500/5";
   };
+
+  if (!hasLoadedOnce) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[420px] p-8">
+        <Loader size="lg" text="Loading dashboard overview..." subtext="Connecting to printer and live telemetry" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full space-y-5 overflow-y-auto pr-1 pb-8 min-h-0">

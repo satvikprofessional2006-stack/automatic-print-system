@@ -43,9 +43,22 @@ export async function GET(req: Request) {
       return NextResponse.json({ tasks: [] });
     }
 
+    // Filter jobs: only jobs created within the last 24 hours (or still active in queue)
+    const cutoffMs = Date.now() - 24 * 60 * 60 * 1000;
+    const validJobs = rawJobs.filter((job) => {
+      const jobTime = new Date(job.createdAt).getTime();
+      const isWithin24Hours = jobTime >= cutoffMs;
+      const isStillPending = ['paid', 'queued', 'printing'].includes(job.status);
+      return isWithin24Hours || isStillPending;
+    });
+
+    if (validJobs.length === 0) {
+      return NextResponse.json({ tasks: [] });
+    }
+
     // Group jobs that belong to the same print order (within 60 seconds of each other)
     const groups: any[][] = [];
-    for (const job of rawJobs) {
+    for (const job of validJobs) {
       const existingIdx = groups.findIndex((grp) => {
         const first = grp[0];
         const last = grp[grp.length - 1];

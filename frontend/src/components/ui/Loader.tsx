@@ -1,171 +1,86 @@
 import React from "react";
-import styled from "styled-components";
+import { cn } from "@/lib/utils";
 
 interface LoaderProps {
   className?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
+  text?: string;
+  subtext?: string;
 }
 
-export const Loader: React.FC<LoaderProps> = ({ className, size = "md" }) => {
-  const scaleMap = {
-    sm: "scale-[0.35] w-12 h-12",
-    md: "scale-[0.55] w-16 h-16",
-    lg: "scale-100 w-24 h-24",
-  };
-
-  return (
-    <StyledWrapper className={`flex items-center justify-center shrink-0 ${scaleMap[size]} ${className || ""}`}>
-      <div className="loader">
-        <div className="loader-square" />
-        <div className="loader-square" />
-        <div className="loader-square" />
-        <div className="loader-square" />
-        <div className="loader-square" />
-        <div className="loader-square" />
-        <div className="loader-square" />
-      </div>
-    </StyledWrapper>
-  );
+const sizeConfig = {
+  xs: { size: "h-3.5 w-3.5", stroke: 2.8, dot: "h-1 w-1" },
+  sm: { size: "h-5 w-5", stroke: 2.6, dot: "h-1.5 w-1.5" },
+  md: { size: "h-7 w-7", stroke: 2.2, dot: "h-2 w-2" },
+  lg: { size: "h-10 w-10", stroke: 2, dot: "h-2.5 w-2.5" },
+  xl: { size: "h-14 w-14", stroke: 1.8, dot: "h-3.5 w-3.5" },
 };
 
-const StyledWrapper = styled.div`
-  @keyframes square-animation {
-    0% {
-      left: 0;
-      top: 0;
-    }
+export const Loader: React.FC<LoaderProps> = ({
+  className,
+  size = "md",
+  text,
+  subtext,
+}) => {
+  const cfg = sizeConfig[size] || sizeConfig.md;
 
-    10.5% {
-      left: 0;
-      top: 0;
-    }
+  return (
+    <div className={cn("flex flex-col items-center justify-center gap-2", className)}>
+      <div className={cn("relative flex items-center justify-center shrink-0", cfg.size)}>
+        {/* Subtle glowing ambient backdrop */}
+        <div className="absolute inset-0 rounded-full bg-primary/10 blur-xs pointer-events-none" />
 
-    12.5% {
-      left: 32px;
-      top: 0;
-    }
+        {/* Minimalist Circular SVG Loader */}
+        <svg
+          className="w-full h-full animate-spin text-primary"
+          viewBox="0 0 32 32"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {/* Background track circle */}
+          <circle
+            cx="16"
+            cy="16"
+            r="13"
+            stroke="currentColor"
+            strokeWidth={cfg.stroke}
+            className="opacity-15"
+          />
+          {/* Animated active spinning arc with smooth rounded cap */}
+          <circle
+            cx="16"
+            cy="16"
+            r="13"
+            stroke="currentColor"
+            strokeWidth={cfg.stroke}
+            strokeDasharray="81.68"
+            strokeDashoffset="54.45"
+            strokeLinecap="round"
+          />
+        </svg>
 
-    23% {
-      left: 32px;
-      top: 0;
-    }
+        {/* Subtle minimalist breathing core dot */}
+        <div
+          className={cn(
+            "absolute rounded-full bg-primary/80 animate-pulse pointer-events-none",
+            cfg.dot
+          )}
+        />
+      </div>
 
-    25% {
-      left: 64px;
-      top: 0;
-    }
-
-    35.5% {
-      left: 64px;
-      top: 0;
-    }
-
-    37.5% {
-      left: 64px;
-      top: 32px;
-    }
-
-    48% {
-      left: 64px;
-      top: 32px;
-    }
-
-    50% {
-      left: 32px;
-      top: 32px;
-    }
-
-    60.5% {
-      left: 32px;
-      top: 32px;
-    }
-
-    62.5% {
-      left: 32px;
-      top: 64px;
-    }
-
-    73% {
-      left: 32px;
-      top: 64px;
-    }
-
-    75% {
-      left: 0;
-      top: 64px;
-    }
-
-    85.5% {
-      left: 0;
-      top: 64px;
-    }
-
-    87.5% {
-      left: 0;
-      top: 32px;
-    }
-
-    98% {
-      left: 0;
-      top: 32px;
-    }
-
-    100% {
-      left: 0;
-      top: 0;
-    }
-  }
-
-  .loader {
-    position: relative;
-    width: 96px;
-    height: 96px;
-    transform: rotate(45deg);
-  }
-
-  .loader-square {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 28px;
-    height: 28px;
-    margin: 2px;
-    border-radius: 4px;
-    background: hsl(var(--primary));
-    animation: square-animation 10s ease-in-out infinite both;
-  }
-
-  .loader-square:nth-of-type(0) {
-    animation-delay: 0s;
-  }
-
-  .loader-square:nth-of-type(1) {
-    animation-delay: -1.4285714286s;
-  }
-
-  .loader-square:nth-of-type(2) {
-    animation-delay: -2.8571428571s;
-  }
-
-  .loader-square:nth-of-type(3) {
-    animation-delay: -4.2857142857s;
-  }
-
-  .loader-square:nth-of-type(4) {
-    animation-delay: -5.7142857143s;
-  }
-
-  .loader-square:nth-of-type(5) {
-    animation-delay: -7.1428571429s;
-  }
-
-  .loader-square:nth-of-type(6) {
-    animation-delay: -8.5714285714s;
-  }
-
-  .loader-square:nth-of-type(7) {
-    animation-delay: -10s;
-  }
-`;
+      {/* Optional minimalist text */}
+      {text && (
+        <span className="text-xs font-medium text-foreground tracking-tight select-none">
+          {text}
+        </span>
+      )}
+      {subtext && (
+        <span className="text-[10px] font-mono text-muted-foreground select-none">
+          {subtext}
+        </span>
+      )}
+    </div>
+  );
+};
 
 export default Loader;

@@ -13,7 +13,7 @@ interface Props {
 export function GoogleAuthStep({ onSuccess }: Props) {
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [testEmail] = useState<string>("satvik.25110@csds.rishihood.edu.in");
+  const [testEmail] = useState<string>("satvik.k25110@csds.rishihood.edu.in");
   const [testName] = useState<string>("Satvik Kesarwani");
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
@@ -42,6 +42,7 @@ export function GoogleAuthStep({ onSuccess }: Props) {
         : "";
 
       const userType: "student" | "faculty" = data.user.userType || (/\d/.test(data.user.email.split('@')[0]) ? "student" : "faculty");
+      const isAdmin = Boolean(data.user.isAdmin);
       const student: StudentAuth = {
         name: data.user.name,
         email: data.user.email,
@@ -49,7 +50,25 @@ export function GoogleAuthStep({ onSuccess }: Props) {
         department: data.user.department,
         enrollmentNo: userType === "faculty" ? "FACULTY" : savedEnrollment,
         userType,
+        isAdmin,
       };
+
+      // If user is recognized as admin, also sync admin session & route to admin console
+      if (isAdmin && typeof window !== "undefined") {
+        const adminSession = {
+          id: "admin-" + data.user.email,
+          name: data.user.name || "Admin",
+          email: data.user.email,
+          picture: data.user.picture,
+          role: "admin",
+          password: data.adminToken || "ruprint2026",
+        };
+        localStorage.setItem("ruprint_session", JSON.stringify(adminSession));
+        localStorage.setItem("ru_student_session", JSON.stringify(student));
+        // Redirect directly to the secret admin portal!
+        window.location.href = "/ruprint-ops";
+        return;
+      }
 
       // Save student session in localStorage
       if (typeof window !== "undefined") {
@@ -89,6 +108,7 @@ export function GoogleAuthStep({ onSuccess }: Props) {
         : "";
 
       const userType: "student" | "faculty" = data.user.userType || (/\d/.test(data.user.email.split('@')[0]) ? "student" : "faculty");
+      const isAdmin = Boolean(data.user.isAdmin);
       const student: StudentAuth = {
         name: data.user.name,
         email: data.user.email,
@@ -96,7 +116,23 @@ export function GoogleAuthStep({ onSuccess }: Props) {
         department: data.user.department,
         enrollmentNo: userType === "faculty" ? "FACULTY" : savedEnrollment,
         userType,
+        isAdmin,
       };
+
+      if (isAdmin && typeof window !== "undefined") {
+        const adminSession = {
+          id: "admin-" + data.user.email,
+          name: data.user.name || "Admin",
+          email: data.user.email,
+          picture: data.user.picture,
+          role: "admin",
+          password: data.adminToken || "ruprint2026",
+        };
+        localStorage.setItem("ruprint_session", JSON.stringify(adminSession));
+        localStorage.setItem("ru_student_session", JSON.stringify(student));
+        window.location.href = "/ruprint-ops";
+        return;
+      }
 
       if (typeof window !== "undefined") {
         localStorage.setItem("ru_student_session", JSON.stringify(student));

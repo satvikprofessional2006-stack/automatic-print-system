@@ -29,6 +29,7 @@ export interface StudentAuth {
   enrollmentNo?: string;
   department?: string;
   userType?: "student" | "faculty";
+  isAdmin?: boolean;
 }
 
 export interface PrintJob {
