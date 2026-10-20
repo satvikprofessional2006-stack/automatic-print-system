@@ -33,23 +33,20 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
   }, [handleSkip]);
 
   useEffect(() => {
-    // 0.62s: Pen stroke finishes → shield blooms in
-    const tBloom = setTimeout(() => setPhase("blooming"), 620);
-    // 1.20s: Begin live portal handoff
+    const tBloom = setTimeout(() => setPhase("blooming"), 700);
     const tZoom = setTimeout(() => {
       if (!hasTriggeredZoom.current) {
         hasTriggeredZoom.current = true;
         onZoomStart?.();
       }
       setPhase("exit");
-    }, 1200);
-    // 1.50s: Unmount
+    }, 1300);
     const tFinish = setTimeout(() => {
       if (!hasCompleted.current) {
         hasCompleted.current = true;
         onComplete();
       }
-    }, 1500);
+    }, 1600);
     return () => {
       clearTimeout(tBloom);
       clearTimeout(tZoom);
@@ -61,93 +58,92 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
     <AnimatePresence>
       {phase !== "exit" ? (
         <motion.div
-          key="kinetic-ribbon-overlay"
+          key="intro-overlay"
           initial={{ opacity: 1 }}
           exit={{
             opacity: 0,
             scale: 1.04,
-            transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] },
+            transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
           }}
           onClick={handleSkip}
           className="fixed inset-0 z-50 flex items-center justify-center bg-[#000000] select-none cursor-pointer overflow-hidden"
         >
-          {/* Deep cinematic crimson ambient glow, blooms with the shield */}
+          {/* Ambient crimson glow — blooms with shield */}
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
             <motion.div
-              initial={{ scale: 0.7, opacity: 0 }}
+              initial={{ scale: 0.6, opacity: 0 }}
               animate={
                 phase === "blooming"
-                  ? { scale: [1, 1.3, 1.1], opacity: [0.18, 0.28, 0.15] }
-                  : { scale: 0.7, opacity: 0 }
+                  ? { scale: 1.2, opacity: 0.22 }
+                  : { scale: 0.6, opacity: 0 }
               }
-              transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
-              className="w-[500px] h-[500px] rounded-full bg-[#CC0033] blur-[110px] transform-gpu"
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              className="w-[480px] h-[480px] rounded-full bg-[#CC0033] blur-[100px] transform-gpu"
             />
           </div>
 
-          {/* Brand Identity Stage */}
-          <div className="relative z-10 flex flex-col items-center">
-            {/* Emblem + Drawing Canvas */}
-            <div className="relative w-40 h-40 sm:w-48 sm:h-48 mb-5">
+          {/* Brand stage */}
+          <div className="relative z-10 flex flex-col items-center gap-5">
 
-              {/* Shield emblem — blooms underneath as the pen finishes */}
+            {/* Emblem area */}
+            <div className="relative w-44 h-44 sm:w-52 sm:h-52">
+
+              {/* Shield — blooms after stroke completes */}
               <motion.div
                 className="absolute inset-0"
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.88 }}
                 animate={
                   phase === "blooming"
                     ? { opacity: 1, scale: 1 }
-                    : { opacity: 0, scale: 0.9 }
+                    : { opacity: 0, scale: 0.88 }
                 }
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
               >
                 <img
                   src="/Rishihood_University_idxo_lfgcw_2.png"
                   alt="Rishihood University"
-                  className="w-full h-full object-contain drop-shadow-[0_16px_40px_rgba(204,0,51,0.45)] select-none pointer-events-none"
+                  className="w-full h-full object-contain drop-shadow-[0_12px_36px_rgba(204,0,51,0.5)] pointer-events-none"
                 />
               </motion.div>
 
-              {/* Bloom ring ripple */}
+              {/* Bloom ring */}
               {phase === "blooming" && (
                 <motion.div
-                  initial={{ scale: 0.8, opacity: 0.6 }}
-                  animate={{ scale: 1.5, opacity: 0 }}
-                  transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute inset-0 rounded-full border border-[#CC0033]/30 pointer-events-none"
+                  initial={{ scale: 0.85, opacity: 0.5 }}
+                  animate={{ scale: 1.6, opacity: 0 }}
+                  transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                  className="absolute inset-0 rounded-full border border-[#CC0033]/40 pointer-events-none"
                 />
               )}
 
               {/*
-                ═══════════════════════════════════════════════════════
-                SVG Kinetic Pen Draw — traces the EXACT skeleton of
-                the Rishihood cursive 'r' calligraphy letter.
-
-                Skeleton path derived from pixel analysis of the logo:
-                  • Upstroke: pen starts bottom-center (~111,245)
-                  • Rises through the stem (wide arc left then right)
-                  • Loops into the hat apex at ~(229,72)
-                  • Sweeps back left ~(80,108)
-                  • Narrows back to stem center ~(143,130)
-                  • Descends in a graceful curve to the tip (111,245)
-                ═══════════════════════════════════════════════════════
+                SVG Kinetic Pen Draw
+                ONE continuous stroke tracing the Rishihood cursive 'r':
+                  - Pen starts at the bottom tail (111, 230)
+                  - Rises up through the body
+                  - Sweeps right into the top arch/hat (229, 78)
+                  - Comes back left to the hook shoulder (83, 114)
+                  - Narrows back right into the body
+                  - Descends the full tail to (111, 245)
+                
+                Key: single M command = one continuous path = correct pathLength animation
               */}
               <svg
-                viewBox="25 1 205 253"
+                viewBox="50 60 155 200"
                 className="absolute inset-0 w-full h-full pointer-events-none"
                 style={{
                   opacity: phase === "blooming" ? 0 : 1,
-                  transition: "opacity 0.25s ease",
+                  transition: "opacity 0.2s ease",
                 }}
               >
                 <defs>
-                  <linearGradient id="penGlow" x1="0%" y1="100%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#FF6B8A" />
-                    <stop offset="40%" stopColor="#FFFFFF" />
-                    <stop offset="100%" stopColor="#FFE4E9" />
+                  <linearGradient id="inkGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
+                    <stop offset="60%" stopColor="#FFD0DA" stopOpacity="1" />
+                    <stop offset="100%" stopColor="#FF6B8A" stopOpacity="0.9" />
                   </linearGradient>
-                  <filter id="penBloom" x="-40%" y="-40%" width="180%" height="180%">
-                    <feGaussianBlur stdDeviation="4" result="blur" />
+                  <filter id="inkGlow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="3.5" result="blur" />
                     <feMerge>
                       <feMergeNode in="blur" />
                       <feMergeNode in="SourceGraphic" />
@@ -156,86 +152,55 @@ export function PrinterIntroAnimation({ onZoomStart, onComplete }: PrinterIntroP
                 </defs>
 
                 {/*
-                  STROKE 1 — The main body:
-                  Starts at bottom tip, rises through stem, arcs into the wide hat,
-                  sweeps left to the hook, curves back in to the body,
-                  then glides back down the tail.
-
-                  Key skeleton waypoints (from pixel analysis):
-                    bottom tip:     (111, 245)
-                    lower stem:     (107, 216) → (116, 192)
-                    mid stem:       (126, 168) → (134, 150)
-                    upper stem:     (143, 130) → (124, 126)
-                    left hook:      (83, 120)  → (81, 114)
-                    body top:       (85, 108)  → (161, 96)
-                    hat sweep:      (178, 72)  → (229, 78)
-                    hat right apex: (229, 78)  back around
-                    hook return:    (172, 114) → (124, 126)
-                    re-enters stem: (143, 132) continuing down
+                  Single continuous pen stroke.
+                  Tracing the 'r' skeleton from pixel analysis:
+                  start at tail → rise through body → right arch top → left hook → body → tail
                 */}
                 <motion.path
-                  d="
+                  d={`
                     M 111 245
-                    C 107 230  101 218  95 216
-                    C 88 213   87 205  93 204
-                    C 100 202  110 210 114 222
-                    C 116 232  118 240 111 245
-
-                    M 111 245
-                    C 105 228  98 200  107 168
-                    C 114 145  124 132 143 126
-                    C 155 122  172 114 183 108
-                    C 210 94   227 80  229 78
-                    C 218 72   192 68  170 74
-                    C 145 81   130 102 120 118
-                    C 110 132  109 148 114 162
-                    C 120 178  128 192 118 210
-                    C 113 220  107 230 111 245
-                  "
+                    C 108 225  102 200  108 168
+                    C 112 148  124 132  143 126
+                    C 158 121  172 114  185 107
+                    C 210 94   227 80   229 78
+                    C 220 70   196 67   172 74
+                    C 148 81   128 101  118 119
+                    C 110 132  109 148  113 162
+                    C 118 178  128 196  118 213
+                    C 113 225  107 235  111 245
+                  `}
                   fill="none"
-                  stroke="url(#penGlow)"
-                  strokeWidth="8.5"
+                  stroke="url(#inkGrad)"
+                  strokeWidth="9"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  filter="url(#penBloom)"
+                  filter="url(#inkGlow)"
                   initial={{ pathLength: 0, opacity: 0 }}
                   animate={{ pathLength: 1, opacity: 1 }}
                   transition={{
                     pathLength: {
-                      duration: 0.58,
+                      duration: 0.65,
                       ease: [0.22, 1, 0.36, 1],
                     },
-                    opacity: { duration: 0.1 },
+                    opacity: { duration: 0.08 },
                   }}
-                />
-
-                {/* Ink dot — where the pen lifts off, a glowing terminus */}
-                <motion.circle
-                  cx="111"
-                  cy="245"
-                  r="4.5"
-                  fill="white"
-                  filter="url(#penBloom)"
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: [0, 1, 0.8], scale: [0, 1.4, 1] }}
-                  transition={{ duration: 0.25, delay: 0.52 }}
                 />
               </svg>
             </div>
 
-            {/* Brand name — appears only after bloom */}
-            <motion.h1
-              initial={{ opacity: 0, y: 6 }}
+            {/* University name — appears after bloom */}
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
               animate={
                 phase === "blooming"
                   ? { opacity: 1, y: 0 }
-                  : { opacity: 0, y: 6 }
+                  : { opacity: 0, y: 8 }
               }
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="text-sm sm:text-base font-bold tracking-[0.24em] text-white uppercase antialiased"
+              transition={{ duration: 0.4, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="text-[11px] sm:text-xs font-semibold tracking-[0.28em] text-white/85 uppercase"
             >
               Rishihood University
-            </motion.h1>
+            </motion.p>
           </div>
         </motion.div>
       ) : null}
