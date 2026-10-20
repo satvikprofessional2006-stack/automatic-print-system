@@ -53,7 +53,7 @@ export function GoogleAuthStep({ onSuccess }: Props) {
         isAdmin,
       };
 
-      // If user is recognized as admin, also sync admin session & route to admin console
+      // If user is recognized as admin, pre-sync admin session in background without forced redirect
       if (isAdmin && typeof window !== "undefined") {
         const adminSession = {
           id: "admin-" + data.user.email,
@@ -64,10 +64,6 @@ export function GoogleAuthStep({ onSuccess }: Props) {
           password: data.adminToken || "ruprint2026",
         };
         localStorage.setItem("ruprint_session", JSON.stringify(adminSession));
-        localStorage.setItem("ru_student_session", JSON.stringify(student));
-        // Redirect directly to the secret admin portal!
-        window.location.href = "/ruprint-ops";
-        return;
       }
 
       // Save student session in localStorage
@@ -129,9 +125,6 @@ export function GoogleAuthStep({ onSuccess }: Props) {
           password: data.adminToken || "ruprint2026",
         };
         localStorage.setItem("ruprint_session", JSON.stringify(adminSession));
-        localStorage.setItem("ru_student_session", JSON.stringify(student));
-        window.location.href = "/ruprint-ops";
-        return;
       }
 
       if (typeof window !== "undefined") {
