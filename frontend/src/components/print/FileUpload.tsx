@@ -6,6 +6,7 @@ import { Upload, X, FileText, FileImage, File as FileIcon, Loader2 } from "lucid
 import { PrintFile, BW_RATE, COLOR_RATE, BW_A3_RATE, COLOR_A3_RATE } from "@/lib/printStore";
 import { cn } from "@/lib/utils";
 import { Loader } from "@/components/ui/Loader";
+import { ExcelHelpModal } from "./ExcelHelpModal";
 
 interface Props {
   files: PrintFile[];
@@ -24,6 +25,15 @@ const ALLOWED_TYPES = [
   ".heic",
   ".heif",
   "text/plain",
+];
+
+const SPREADSHEET_EXTENSIONS = [".xlsx", ".xls", ".csv", ".tsv", ".ods", ".numbers"];
+const SPREADSHEET_MIMES = [
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "text/csv",
+  "text/tab-separated-values",
+  "application/vnd.oasis.opendocument.spreadsheet",
 ];
 
 const MAX_FILE_MB = 20;
@@ -45,6 +55,8 @@ export function FileUpload({ files, onChange }: Props) {
   const [dragging, setDragging] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showExcelModal, setShowExcelModal] = useState(false);
+  const [excelHelpTarget, setExcelHelpTarget] = useState<string | null>(null);
 
   const processFiles = useCallback(
     async (fileList: FileList | null) => {
@@ -55,7 +67,20 @@ export function FileUpload({ files, onChange }: Props) {
 
       for (let i = 0; i < fileList.length; i++) {
         let f = fileList[i];
-        const isHeic = f.type === "image/heic" || f.type === "image/heif" || f.name.toLowerCase().endsWith(".heic");
+        const lowerName = f.name.toLowerCase();
+
+        // Proactively catch Excel & spreadsheet documents and guide students to export as PDF
+        const isSpreadsheet =
+          SPREADSHEET_EXTENSIONS.some((ext) => lowerName.endsWith(ext)) ||
+          SPREADSHEET_MIMES.includes(f.type);
+
+        if (isSpreadsheet) {
+          setExcelHelpTarget(f.name);
+          setShowExcelModal(true);
+          continue;
+        }
+
+        const isHeic = f.type === "image/heic" || f.type === "image/heif" || lowerName.endsWith(".heic");
         
         if (!ALLOWED_TYPES.includes(f.type) && !isHeic) {
           errs.push(`${f.name}: unsupported file type`);
@@ -303,6 +328,13 @@ export function FileUpload({ files, onChange }: Props) {
           );
         })}
       </AnimatePresence>
+
+      {/* Modal Guide for Excel & Spreadsheets */}
+      <ExcelHelpModal
+        open={showExcelModal}
+        onOpenChange={setShowExcelModal}
+        attemptedFileName={excelHelpTarget}
+      />
     </div>
   );
 }
