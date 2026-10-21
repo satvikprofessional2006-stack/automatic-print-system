@@ -11,6 +11,7 @@ import { PrintSuccess } from "@/components/print/PrintSuccess";
 import { StudentTasksDrawer, StudentTaskItem } from "@/components/print/StudentTasksDrawer";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserType, PrintFile, PrintJob, StudentAuth, calcFilesAmount } from "@/lib/printStore";
+import { saveDraftSession, getDraftSession, clearDraftSession } from "@/lib/draftStore";
 import { Printer, ChevronRight, ArrowLeft, LogOut, CheckCircle2, Clock, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +49,8 @@ export function PrintFlow() {
   const [draftName, setDraftName] = useState("");
   const [draftEnrollment, setDraftEnrollment] = useState("");
   const [draftFiles, setDraftFiles] = useState<PrintFile[]>([]);
+  const [showRestoredNotice, setShowRestoredNotice] = useState(false);
+  const isRestorationCompleteRef = useRef(false);
 
   // Today's student tasks state & drawer
   const [tasks, setTasks] = useState<StudentTaskItem[]>([]);
@@ -203,37 +206,79 @@ export function PrintFlow() {
 
         // 3. Restore authenticated student session
         const savedSession = localStorage.getItem("ru_student_session");
+        let authenticatedStudent: StudentAuth | null = null;
         if (savedSession) {
-          const student: StudentAuth = JSON.parse(savedSession);
-          if (student?.email) {
-            setStudentAuth(student);
-            setDraftName(student.name || "");
-            const savedEnrollment = localStorage.getItem(`ru_enrollment_${student.email}`) || "";
-            setDraftEnrollment(savedEnrollment.trim().length >= 8 ? savedEnrollment.trim() : "");
-            fetchMyTasks(student.name, student.email);
-
-            if (restoredJob) {
-              setActiveJob(restoredJob);
-              setStep("success");
-              return;
+          try {
+            const student: StudentAuth = JSON.parse(savedSession);
+            if (student?.email) {
+              authenticatedStudent = student;
+              setStudentAuth(student);
+              setDraftName(student.name || "");
+              const savedEnrollment = localStorage.getItem(`ru_enrollment_${student.email}`) || "";
+              setDraftEnrollment(savedEnrollment.trim().length >= 8 ? savedEnrollment.trim() : "");
+              fetchMyTasks(student.name, student.email);
             }
-
-            setStep("details");
-            return;
-          }
+          } catch {}
         }
 
         if (restoredJob) {
           setActiveJob(restoredJob);
           setStep("success");
+          isRestorationCompleteRef.current = true;
+          return;
         }
+
+        // 4. Restore active draft session (uploaded files, settings, and step) across refreshes
+        const draft = await getDraftSession();
+        if (draft && draft.files.length > 0) {
+          setDraftFiles(draft.files);
+          if (draft.name) setDraftName(draft.name);
+          if (draft.enrollmentNo) setDraftEnrollment(draft.enrollmentNo);
+          if (draft.activeJob) {
+            setActiveJob(draft.activeJob);
+          }
+          setStep(draft.step);
+          setShowRestoredNotice(true);
+          setTimeout(() => setShowRestoredNotice(false), 5000);
+        } else if (authenticatedStudent) {
+          setStep("details");
+        } else {
+          setStep("auth");
+        }
+        isRestorationCompleteRef.current = true;
       } catch (e) {
         console.error("Session restore error:", e);
+        isRestorationCompleteRef.current = true;
       }
     };
 
     initSessionAndRecovery();
   }, []);
+
+  // Auto-persist draft session to IndexedDB whenever files, settings, or step change
+  useEffect(() => {
+    if (!isRestorationCompleteRef.current) return;
+    if (step === "auth" || step === "success") return;
+
+    const filesToSave =
+      (step === "options" || step === "preview" || step === "payment") && activeJob?.files?.length
+        ? activeJob.files
+        : draftFiles;
+
+    if (!filesToSave || filesToSave.length === 0) {
+      clearDraftSession();
+      return;
+    }
+
+    saveDraftSession({
+      step,
+      name: draftName,
+      enrollmentNo: draftEnrollment,
+      userType: studentAuth?.userType || "student",
+      files: filesToSave,
+      activeJob: activeJob,
+    });
+  }, [step, draftFiles, activeJob, draftName, draftEnrollment, studentAuth]);
 
   const go = (next: Step, direction: number) => {
     setDir(direction);
@@ -257,10 +302,12 @@ export function PrintFlow() {
     try {
       localStorage.removeItem("ru_student_session");
     } catch {}
+    clearDraftSession();
     setStudentAuth(null);
     setDraftName("");
     setDraftEnrollment("");
     setDraftFiles([]);
+    setActiveJob(null);
     go("auth", -1);
   };
 
@@ -273,8 +320,9 @@ export function PrintFlow() {
     totalPages: number;
     amount: number;
   }) => {
+    setDraftFiles(data.files);
     const job: PrintJob = {
-      id: Math.random().toString(36).slice(2, 10).toUpperCase(),
+      id: activeJob?.id || Math.random().toString(36).slice(2, 10).toUpperCase(),
       userType: data.userType || (studentAuth?.userType || "student"),
       name: data.name,
       email: data.email || studentAuth?.email,
@@ -283,7 +331,7 @@ export function PrintFlow() {
       totalPages: data.totalPages,
       amount: data.amount,
       status: "pending_payment",
-      createdAt: new Date().toISOString(),
+      createdAt: activeJob?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
     setActiveJob(job);
@@ -291,6 +339,7 @@ export function PrintFlow() {
   };
 
   const handleOptionsUpdateFiles = (newFiles: PrintFile[]) => {
+    setDraftFiles(newFiles);
     if (activeJob) {
       const { totalPages, totalAmount } = calcFilesAmount(newFiles);
       setActiveJob({
@@ -315,6 +364,7 @@ export function PrintFlow() {
     try {
       localStorage.setItem("ru_active_job", JSON.stringify(job));
     } catch {}
+    clearDraftSession();
     fetchMyTasks(job.name || studentAuth?.name, studentAuth?.email || job.email);
     go("success", 1);
   };
@@ -323,6 +373,7 @@ export function PrintFlow() {
     try {
       localStorage.removeItem("ru_active_job");
     } catch {}
+    clearDraftSession();
     setActiveJob(null);
     setDraftFiles([]);
     // Returning users start directly at details since they remain signed in
@@ -342,7 +393,10 @@ export function PrintFlow() {
             <button 
               onClick={() => {
                 if (step === "details") go("auth", -1);
-                else if (step === "options") go("details", -1);
+                else if (step === "options") {
+                  if (activeJob?.files) setDraftFiles(activeJob.files);
+                  go("details", -1);
+                }
                 else if (step === "preview") go("options", -1);
                 else if (step === "payment") go("preview", -1);
                 else if (step === "success") go(studentAuth ? "details" : "auth", -1);
@@ -480,6 +534,29 @@ export function PrintFlow() {
           {/* Card */}
           <div className="rounded-2xl bg-card/60 backdrop-blur-md border border-border/60 shadow-sm overflow-hidden mb-6">
             <div className="p-4 sm:p-5">
+              <AnimatePresence>
+                {showRestoredNotice && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    className="mb-4 px-3.5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-xs font-medium flex items-center justify-between gap-2 shadow-2xs"
+                  >
+                    <span className="flex items-center gap-2 truncate">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <span className="truncate">Draft restored — your documents & settings were preserved.</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowRestoredNotice(false)}
+                      className="text-[10px] uppercase font-bold text-emerald-800/80 dark:text-emerald-300/80 hover:opacity-100 px-1.5 py-0.5 rounded hover:bg-emerald-500/10 transition-colors cursor-pointer shrink-0"
+                    >
+                      Dismiss
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <AnimatePresence mode="wait" custom={dir}>
                 <motion.div
                   key={step}
@@ -520,7 +597,10 @@ export function PrintFlow() {
                     <PrintOptions
                       files={activeJob.files}
                       onUpdateFiles={handleOptionsUpdateFiles}
-                      onBack={() => go("details", -1)}
+                      onBack={() => {
+                        if (activeJob?.files) setDraftFiles(activeJob.files);
+                        go("details", -1);
+                      }}
                       onNext={handleOptionsNext}
                     />
                   )}

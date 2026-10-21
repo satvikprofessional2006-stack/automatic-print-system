@@ -254,9 +254,21 @@ export function DetailsForm({
 
         {/* File Upload Section */}
         <div>
-          <label className="block text-xs font-semibold text-foreground/80 mb-1.5">
-            Upload Documents <span className="text-destructive">*</span>
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-semibold text-foreground/80">
+              Upload Documents <span className="text-destructive">*</span>
+            </label>
+            {files.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onFilesChange([])}
+                className="text-[11px] font-medium text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                title="Remove all uploaded documents"
+              >
+                Clear all files
+              </button>
+            )}
+          </div>
           <FileUpload 
             files={files}
             onChange={(newFiles) => {

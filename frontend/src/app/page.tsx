@@ -4,18 +4,34 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { PrintFlow } from "@/components/print/PrintFlow";
 import { PrinterIntroAnimation } from "@/components/intro/PrinterIntroAnimation";
+import { hasActiveDraftSync } from "@/lib/draftStore";
 
 export default function Page() {
   const [showIntro, setShowIntro] = useState<boolean | null>(null);
   const [isZoomingIn, setIsZoomingIn] = useState(false);
 
   useEffect(() => {
-    // Intro plays on every fresh page visit / reload.
-    // Skip it only when explicitly opted out via ?intro=false.
+    // Intro plays on fresh page visits.
+    // Skip it when explicitly opted out (?intro=false) OR when resuming an active draft / job.
     const urlParams = new URLSearchParams(window.location.search);
-    const skip = urlParams.get("intro") === "false";
+    const skipExplicit = urlParams.get("intro") === "false";
+    const hasDraft = hasActiveDraftSync();
 
-    if (!skip) {
+    let hasActiveJob = false;
+    try {
+      const savedJobStr = localStorage.getItem("ru_active_job");
+      if (savedJobStr) {
+        const parsed = JSON.parse(savedJobStr);
+        const createdAt = new Date(parsed.createdAt || "").getTime();
+        if (!isNaN(createdAt) && Date.now() - createdAt < 12 * 60 * 60 * 1000) {
+          hasActiveJob = true;
+        }
+      }
+    } catch {}
+
+    const shouldSkip = skipExplicit || hasDraft || hasActiveJob;
+
+    if (!shouldSkip) {
       setShowIntro(true);
       setIsZoomingIn(false);
     } else {
