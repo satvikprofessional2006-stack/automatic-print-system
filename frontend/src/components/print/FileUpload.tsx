@@ -3,7 +3,7 @@
 import React, { useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, X, FileText, FileImage, File as FileIcon, Loader2 } from "lucide-react";
-import { PrintFile, BW_RATE, COLOR_RATE } from "@/lib/printStore";
+import { PrintFile, BW_RATE, COLOR_RATE, BW_A3_RATE, COLOR_A3_RATE } from "@/lib/printStore";
 import { cn } from "@/lib/utils";
 import { Loader } from "@/components/ui/Loader";
 
@@ -221,7 +221,8 @@ export function FileUpload({ files, onChange }: Props) {
           const isColor = f.settings?.color || false;
           const pages = f.settings?.pages || 1;
           const copies = f.settings?.copies || 1;
-          const rate = isColor ? COLOR_RATE : BW_RATE;
+          const isA3 = f.settings?.paperSize === "A3";
+          const rate = isColor ? (isA3 ? COLOR_A3_RATE : COLOR_RATE) : (isA3 ? BW_A3_RATE : BW_RATE);
           const fileCost = pages * copies * rate;
 
           return (
@@ -269,7 +270,7 @@ export function FileUpload({ files, onChange }: Props) {
                   title="Switch to Black & White print"
                 >
                   <span>B&W</span>
-                  <span className="text-[10px] font-mono opacity-60 font-normal">₹{BW_RATE}</span>
+                  <span className="text-[10px] font-mono opacity-60 font-normal">₹{isA3 ? BW_A3_RATE : BW_RATE}</span>
                 </button>
                 <button
                   type="button"
@@ -284,7 +285,7 @@ export function FileUpload({ files, onChange }: Props) {
                 >
                   <span>Colour</span>
                   <span className={cn("text-[10px] font-mono font-normal", isColor ? "text-white/85" : "opacity-60")}>
-                    ₹{COLOR_RATE}
+                    ₹{isA3 ? COLOR_A3_RATE : COLOR_RATE}
                   </span>
                 </button>
               </div>

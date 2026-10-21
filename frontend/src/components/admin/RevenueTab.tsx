@@ -47,7 +47,7 @@ import { Loader } from "@/components/ui/Loader";
 
 let cachedTransactions: Transaction[] = [];
 let cachedRevenueLoadedOnce = false;
-import { BW_RATE, COLOR_RATE } from "@/lib/printStore";
+import { BW_RATE, COLOR_RATE, BW_A3_RATE, COLOR_A3_RATE } from "@/lib/printStore";
 import { ExportReportModal } from "./ExportReportModal";
 
 export interface TransactionFile {
@@ -323,7 +323,7 @@ export function RevenueTab({ initialSubView = "daywise" }: RevenueTabProps = {})
           const isDuplex = Boolean(j.doubleSided || j.double_sided || j.duplex);
           const rawPages = j.pages || j.totalPages || j.numPages || 1;
           const printedSides = copies * (isDuplex && rawPages <= 1 ? 2 : rawPages);
-          const rate = (j.paper_size || j.paperSize) === "A3" ? (j.color ? 20 : 5) : (j.color ? 10 : 2);
+          const rate = (j.paper_size || j.paperSize) === "A3" ? (j.color ? COLOR_A3_RATE : BW_A3_RATE) : (j.color ? COLOR_RATE : BW_RATE);
           return sum + printedSides * rate;
         }, 0);
         const isAdmin = (first.userName || '').toLowerCase().includes('admin');

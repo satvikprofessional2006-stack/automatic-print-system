@@ -51,7 +51,7 @@ export interface PrintJob {
 // Pricing Rates
 export const BW_RATE = 2; // ₹2 per page for A4 Black & White
 export const COLOR_RATE = 10; // ₹10 per page for A4 Colour
-export const BW_A3_RATE = 5; // ₹5 per page for A3 Black & White
+export const BW_A3_RATE = 4; // ₹4 per page for A3 Black & White
 export const COLOR_A3_RATE = 20; // ₹20 per page for A3 Colour
 export const MIN_JOB_AMOUNT = 0; // No minimum order fee
 

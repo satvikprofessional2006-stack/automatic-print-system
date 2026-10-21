@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { createClient } from '@supabase/supabase-js';
 import { computeTaskDisplayId } from '@/lib/orderNumber';
+import { BW_RATE, COLOR_RATE, BW_A3_RATE, COLOR_A3_RATE } from '@/lib/printStore';
 
 export async function GET(req: Request) {
   try {
@@ -90,7 +91,7 @@ export async function GET(req: Request) {
         const calculatedAmount = grp.reduce((sum, j) => {
           const copies = j.copies || 1;
           const isA3 = (j.paper_size || j.paperSize) === 'A3';
-          const rate = isA3 ? (j.color ? 20 : 5) : (j.color ? 10 : 2);
+          const rate = isA3 ? (j.color ? COLOR_A3_RATE : BW_A3_RATE) : (j.color ? COLOR_RATE : BW_RATE);
           return sum + copies * rate;
         }, 0);
 

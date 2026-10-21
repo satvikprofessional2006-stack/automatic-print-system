@@ -958,7 +958,7 @@ export function PreviewStep({ files, onUpdateFiles, onBack, onNext }: Props) {
             Paper Sheet Size *
           </label>
           <span className="text-[11px] text-muted-foreground font-mono">
-            {isA3 ? "A3: ₹5 B&W / ₹20 Colour" : "A4: ₹2 B&W / ₹10 Colour"}
+            {isA3 ? `A3: ₹${BW_A3_RATE} B&W / ₹${COLOR_A3_RATE} Colour` : `A4: ₹${BW_RATE} B&W / ₹${COLOR_RATE} Colour`}
           </span>
         </div>
 
