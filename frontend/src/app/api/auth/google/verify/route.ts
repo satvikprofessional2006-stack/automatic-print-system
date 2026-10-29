@@ -38,6 +38,7 @@ const PERMANENT_ADMIN_EMAILS = [
   'satvik.k25110@csds.rishihood.edu.in',
   'satvikkesarwani49@gmail.com',
   'admin@rishihood.edu.in',
+  'libraryservices@rishihood.edu.in',
 ];
 
 export async function POST(req: Request) {
