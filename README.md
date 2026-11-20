@@ -9,15 +9,15 @@ A complete self-service QR printing system designed for a campus/college environ
 
 ## 1. Setup the Web App (Next.js)
 
-1. Navigate to the `web-app` directory:
+1. Navigate to the `frontend` directory:
    ```bash
-   cd web-app
+   cd frontend
    ```
 2. Install dependencies (if not already done):
    ```bash
    npm install
    ```
-3. Set up the database (SQLite for local MVP):
+3. Set up the database (Supabase / PostgreSQL):
    ```bash
    npx prisma db push
    ```
@@ -25,16 +25,25 @@ A complete self-service QR printing system designed for a campus/college environ
    ```bash
    npm run dev
    ```
-   The web app will run on `http://localhost:3000`.
+   The web app will run on `http://localhost:5000`.
 
 ### Environment Variables for Web App
-Create a `.env` file in the `web-app` directory (for local testing):
+Copy `.env.example` to `.env.local` in the `frontend` directory:
+```bash
+cp .env.example .env.local
 ```
-DATABASE_URL="postgresql://postgres.[YOUR-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres"
+Fill in your configuration:
+```env
 SUPABASE_URL="https://[YOUR-PROJECT-REF].supabase.co"
 SUPABASE_SERVICE_ROLE_KEY="your-supabase-service-role-key"
 ADMIN_PASSWORD="admin"
 PRINT_SERVER_SECRET="dev-secret"
+NEXT_PUBLIC_RAZORPAY_KEY_ID="rzp_test_..."
+RAZORPAY_KEY_SECRET="your_secret_..."
+NEXT_PUBLIC_GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+ALLOWED_EMAIL_DOMAIN="rishihood.edu.in"
+ADMIN_EMAILS="admin@rishihood.edu.in"
 ```
 
 ## 2. Setup the Local Print Server (Python)
@@ -56,22 +65,22 @@ PRINT_SERVER_SECRET="dev-secret"
 
 ### Environment Variables for Print Server
 You can pass these when running the script:
-- `WEB_APP_URL`: URL of the Next.js app (default: `http://localhost:3000`)
+- `WEB_APP_URL`: URL of the Next.js app (default: `http://localhost:5000` locally, or your production Vercel URL)
 - `PRINT_SERVER_SECRET`: Must match the web app's secret (default: `dev-secret`)
 - `MOCK_MODE`: Set to `True` (default) to simulate printing, or `False` to send to the real printer.
 
 Example to run in production mode with a real printer connected to a Vercel deployment:
 ```bash
-MOCK_MODE=False WEB_APP_URL="https://your-vercel-app.com" python print_daemon.py
+MOCK_MODE=False WEB_APP_URL="https://automatic-print-system.vercel.app" python3 print_daemon.py
 ```
 
 ## 3. Testing with Mock Mode (Local Development)
 
-1. Start Next.js (`npm run dev`).
-2. Start Python daemon in mock mode (`python print_daemon.py`).
-3. Open `http://localhost:3000` on your phone (or browser), upload a PDF, and click Print.
+1. Start Next.js (`npm run dev` in `frontend/`).
+2. Start Python daemon in mock mode (`python3 print_daemon.py` in `local-print-server/`).
+3. Open `http://localhost:5000` on your phone (or browser), upload a document, and proceed.
 4. You will see the job enter the queue, transition to printing (simulated in terminal), and complete!
-5. View the admin dashboard at `http://localhost:3000/admin` (password: admin) to see the queue history.
+5. View the admin dashboard at `http://localhost:5000/ruprint-ops` to monitor and manage the live queue.
 
 ## 4. Connecting to the Real Canon MF284dw
 
@@ -83,17 +92,15 @@ When you are ready to print for real:
    ```
 3. Run the Python daemon with `MOCK_MODE=False`:
    ```bash
-   MOCK_MODE=False python print_daemon.py
+   MOCK_MODE=False python3 print_daemon.py
    ```
+   *(Or double-click `start_daemon.command` on macOS).*
 4. Now, jobs sent to the web app will be routed to your physical Canon printer!
 
 ## Cloud Deployment (Vercel)
 
-To make this public:
-1. Push the `web-app` code to GitHub.
-2. Import the project in Vercel.
-3. Change the database from SQLite to a cloud PostgreSQL database (like Supabase).
-   - Update `prisma/schema.prisma` provider to `"postgresql"`.
-   - Run `npx prisma db push` against the new database.
-4. Set the environment variables in Vercel.
-5. Create a QR code pointing to your Vercel domain!
+To deploy to production:
+1. Push the code to GitHub.
+2. Import the repository in Vercel, setting Root Directory to `frontend`.
+3. Set the environment variables in Vercel Project Settings.
+4. Create a QR code pointing to your production Vercel domain!
